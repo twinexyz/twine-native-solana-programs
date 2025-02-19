@@ -5,9 +5,9 @@ use solana_program::{
     msg,
 };
 
-use crate::instruction::{GatewayInstruction, unpack_instruction};
+use crate::core::instruction::{GatewayInstruction, unpack_instruction};
 // use crate::state::{ProgramState};
-use crate::error::ProgramCustomError;
+use crate::core::error::ProgramCustomError;
 
 pub fn process_instruction(
     program_id: &Pubkey, 
