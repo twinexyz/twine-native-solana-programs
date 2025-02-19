@@ -1,0 +1,5 @@
+[workspace]
+members = [
+    "tokens_gateway",
+    "twine_chain"
+]

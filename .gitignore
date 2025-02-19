@@ -1,0 +1,18 @@
+/target
+# Ignore build output
+dist/
+build/
+
+# Ignore log files
+*.log
+
+# Ignore environment files
+.env
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE-specific files
+.vscode/
+.idea/
