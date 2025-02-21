@@ -6,7 +6,7 @@ use solana_program::{
     program_error::ProgramError,
     pubkey::Pubkey,
 };
-use crate::utils::constants::{ROLE_MANAGER_PREFIX, INITIAL_CHAIN_ADMIN};
+use crate::utils::constants::INITIAL_CHAIN_ADMIN;
 
 pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     msg!("Initializing Role Manager");

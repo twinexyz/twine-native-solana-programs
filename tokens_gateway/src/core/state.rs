@@ -22,7 +22,7 @@ pub struct NativeTokenVaultData {
 
 /// Account to hold SPL tokens vault data.
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct SplTokensVault {
+pub struct SplTokensVaultData {
     pub authority: Pubkey,
     pub total_deposited_amount: Vec<TokenDepositData>,
 }
@@ -48,4 +48,23 @@ pub struct TokenDecimalMapping {
     pub l2_token: String,
     pub l1_decimals: u8,
     pub l2_decimals: u8,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct FinalizeInputWithdrawal {
+    pub public_input: ReceiptCommitment,
+    pub inclusion_proof: Vec<u8>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct ReceiptCommitment {
+    pub chain_id: u64,
+    pub batch_number: u64,
+    pub nonce: u64,
+    pub is_forced_withdrawal: u8,
+    pub receipt_root: [u8; 32],
+    pub l1_receiver_address: String,
+    pub l1_token_address: String,
+    pub l2_token_address: String,
+    pub amount: String,
 }

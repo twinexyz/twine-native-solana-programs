@@ -3,18 +3,12 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
-    system_instruction,
-    sysvar::{rent::Rent, Sysvar},
 };
 
-use crate::core::state::{NativeTokenVaultData, SplTokensVault, TokenDecimalMappings};
-use crate::utils::constants::{
-    MAX_ROLES, MAX_TOKENS, NATIVE_DATA_PREFIX, NATIVE_TOKEN_PREFIX, SPL_DATA_PREFIX,
-    TOKEN_DECIMAL_MAPPING_PREFIX,
-};
+use crate::core::state::{NativeTokenVaultData, SplTokensVaultData, TokenDecimalMappings};
+
 
 pub fn process_initialize(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_iter = &mut accounts.iter();
@@ -57,13 +51,13 @@ pub fn process_initialize(program_id: &Pubkey, accounts: &[AccountInfo]) -> Prog
     native_vault_data.serialize(&mut *native_token_vault_data.data.borrow_mut())?;
 
     // Initialize and serialize the SPL Tokens Vault Data.
-    let mut spl_vault_data: SplTokensVault = if spl_tokens_vault_data.data_len() == 0 {
-        SplTokensVault {
+    let mut spl_vault_data: SplTokensVaultData = if spl_tokens_vault_data.data_len() == 0 {
+        SplTokensVaultData {
             authority: Pubkey::default(),
             total_deposited_amount: Vec::new(),
         }
     } else {
-        SplTokensVault::try_from_slice(&spl_tokens_vault_data.data.borrow())?
+        SplTokensVaultData::try_from_slice(&spl_tokens_vault_data.data.borrow())?
     };
     spl_vault_data.total_deposited_amount.clear();
     spl_vault_data.serialize(&mut *spl_tokens_vault_data.data.borrow_mut())?;
