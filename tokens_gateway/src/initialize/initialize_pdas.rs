@@ -1,12 +1,8 @@
-use crate::core::state::{
-    NativeTokenVaultData,  TokenDecimalMappings, TokenDepositData,
-    TokensGatewayRoleManager,
-};
+use crate::core::state::{NativeTokenVaultData, TokenDecimalMappings, TokenDepositData};
 use crate::utils::constants::{
-    MAX_TOKENS, NATIVE_DATA_PREFIX, NATIVE_TOKEN_PREFIX, ROLE_MANAGER_PREFIX, SPL_DATA_PREFIX,
-    TOKEN_DECIMAL_MAPPING_PREFIX,
+    MAX_ROLES, MAX_TOKENS, NATIVE_DATA_PREFIX, NATIVE_TOKEN_PREFIX, ROLE_MANAGER_PREFIX,
+    SPL_DATA_PREFIX, TOKEN_DECIMAL_MAPPING_PREFIX,
 };
-use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -47,7 +43,7 @@ pub fn initialize_pdas(program_id: &Pubkey, accounts: &[AccountInfo]) -> Program
         return Err(ProgramError::InvalidAccountData.into());
     }
 
-    let role_manager_space = 200;
+    let role_manager_space = 8 + 32 + 4 + (MAX_ROLES * 33);
     if role_manager.data_is_empty() {
         let required_lamports = rent.minimum_balance(role_manager_space);
         let create_ix = system_instruction::create_account(

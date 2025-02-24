@@ -6,7 +6,7 @@ use solana_program::program_error::ProgramError;
 use crate::core::error::ProgramCustomError;
 
 impl TokenDecimalMappings {
-    pub fn update_mapping(
+    pub(crate) fn update_mapping(
         &mut self,
         l1_token: String,
         l2_token: String,

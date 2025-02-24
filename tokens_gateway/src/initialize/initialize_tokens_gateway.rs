@@ -15,18 +15,15 @@ pub fn process_initialize(program_id: &Pubkey, accounts: &[AccountInfo]) -> Prog
     // Expected accounts in order:
     // [0] chain_admin (signer)
     // [1] native_token_vault_data (writable, owner = program_id)
-    // [2] native_token_vault (writable, system account – PDA)
-    // [3] spl_tokens_vault_data (writable, owner = program_id)
-    // [4] token_decimal_mappings (writable, owner = program_id)
-    // [5] role_manager (used for further validations; not used here)
-    // [6] system_program
+    // [2] spl_tokens_vault_data (writable, owner = program_id)
+    // [3] token_decimal_mappings (writable, owner = program_id)
+    // [4] role_manager (used for further validations; not used here)
+
     let chain_admin = next_account_info(account_iter)?;
     let native_token_vault_data = next_account_info(account_iter)?;
-    let native_token_vault = next_account_info(account_iter)?;
     let spl_tokens_vault_data = next_account_info(account_iter)?;
     let token_decimal_mappings = next_account_info(account_iter)?;
     let _role_manager = next_account_info(account_iter)?;
-    let system_program = next_account_info(account_iter)?;
 
     // Verify that the chain admin is a signer.
     if !chain_admin.is_signer {

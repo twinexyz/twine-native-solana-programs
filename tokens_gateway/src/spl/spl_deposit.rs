@@ -2,9 +2,8 @@ use crate::core::error::ProgramCustomError;
 use crate::core::state::{SplTokensVaultData, TokenDecimalMappings};
 use spl_token::solana_program::program_pack::Pack;
 use spl_token::instruction as token_instruction;
-// use crate::utils::ethereum::is_valid_ethereum_address;
-use spl_token::state::Account as TokenAccount;
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
+use spl_token::state::Account as TokenAccount;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -90,10 +89,10 @@ pub fn spl_tokens_deposit(
             token_program.clone(),
         ],
     )?;
-    // let mut spl_tokens_vault_data =
-    // SplTokensVaultData::try_from_slice(&spl_tokens_vault_data.data.borrow())
-    //     .map_err(|_| ProgramError::InvalidAccountData)?;
-    // spl_tokens_vault_data.update_deposit(*mint.key, amount)?;
+    let mut spl_tokens_vault_data =
+    SplTokensVaultData::try_from_slice(&spl_tokens_vault_data.data.borrow())
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+    spl_tokens_vault_data.update_deposit(*mint.key, amount)?;
     // todo:CPI for appending the mesage
     msg!("SPL token deposit successful");
     Ok(())
