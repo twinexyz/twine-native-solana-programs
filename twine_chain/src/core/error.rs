@@ -23,6 +23,8 @@ pub enum ProgramCustomError {
     InvalidBatchSequence,
     #[error("Insufficient Funds for Transfer")]
     InsufficientFundsForTransfer,
+    #[error("Failed to serialize the state")]
+    SerializeFailed,
     #[error("Invalid Receiver Address Format")]
     InvalidReceiverAddressFormat,
     #[error("Token Decimal Mapping Not Found")]
@@ -45,6 +47,8 @@ pub enum ProgramCustomError {
     EmptyBatchCommitment,
     #[error("Finalization should be done in sequence")]
     InvalidBlockSequence,
+    #[error("The provided account did not sign the transaction.")]
+    InvalidSigner,
     #[error("Calculated and Provided Batch Hash did not match")]
     BatchHashMismatch,
     #[error("Unauthorized: Caller does not have the required role")]

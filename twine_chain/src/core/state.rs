@@ -121,3 +121,31 @@ pub struct CommitBatchInfo {
     pub receipt_root: [u8; 32],
 }
 
+impl DepositMessageInfo {
+    pub const LEN: usize = 8       // nonce (u64)
+        + 32    // to_twine_address (String)
+        + 32    // l1_token (String)
+        + 32    // l2_token (String)
+        + 8     // chain_id (u64)
+        + 32    // amount (String)
+        + 8; // slot_number(u64)
+}
+
+impl ForcedWithdrawMessageInfo {
+    pub const LEN: usize = 8       // nonce (u64)
+        + 32    // from_twine_address (String)
+        + 32    // to_l1_pubkey (String)
+        + 32    // l1_token (String)
+        + 32    // l2_token (String)
+        + 8     // chain_id (u64)
+        + 32    // amount (String)
+        + 8; // slot_number(u64)
+}
+
+impl BlockInfo {
+    pub const LEN: usize = 32   //prev_hash(32)
+    + 32    //block_hash(32)    
+    + 32    //transaction_root(32)
+    + 32;   //receipt_root(32)
+}
+
