@@ -23,7 +23,7 @@ pub enum ProgramCustomError {
     InvalidTokenAccount,
     #[error("Invalid address provided")]
     InvalidAddress,
-    #[error("Receiver account not found.")]
+    #[error("Receiver account not found")]
     ReceiverAccountNotFound,
     #[error("Invalid Token address format")]
     InvalidTokenAddress,
