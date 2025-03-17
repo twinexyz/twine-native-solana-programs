@@ -27,6 +27,10 @@ pub enum ProgramCustomError {
     ReceiverAccountNotFound,
     #[error("Invalid Token address format")]
     InvalidTokenAddress,
+    #[error("Failed to serialize the state")]
+    SerializeFailed,
+    #[error("Withdraw is already executed")]
+    WithdrawalAlreadyExecuted,
     #[error("Invalid L2 token address format")]
     InvalidL2Token,
     #[error("Token mint not found in the vault.")]

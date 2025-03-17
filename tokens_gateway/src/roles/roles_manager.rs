@@ -9,7 +9,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub fn process_set_role_chain_admin(
+pub fn set_role_chain_admin(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     new_admin: Pubkey,
@@ -37,7 +37,7 @@ pub fn process_set_role_chain_admin(
     Ok(())
 }
 
-pub fn process_add_role(
+pub fn add_role(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     address: Pubkey,
@@ -60,7 +60,7 @@ pub fn process_add_role(
     Ok(())
 }
 
-pub fn process_remove_role(
+pub fn remove_role(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     address: Pubkey,

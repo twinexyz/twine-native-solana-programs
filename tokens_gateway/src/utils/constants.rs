@@ -1,12 +1,13 @@
 pub const DISCRIMINATOR: usize = 8;
 pub const MAX_TOKENS: usize = 100;
 pub const MAX_ROLES: usize = 10;
+pub const SPL_DATA_PREFIX: &str = "spl_data";
 pub const SPL_AUTH_PREFIX: &str = "spl_auth_vault";
 pub const NATIVE_DATA_PREFIX: &str = "native_data";
-pub const SPL_DATA_PREFIX: &str = "spl_data";
 pub const NATIVE_TOKEN_PREFIX: &str = "native_token_vault";
 pub const ROLE_MANAGER_PREFIX: &str = "role_manager_storage";
 pub const DEPOSIT_BUFFER_PREFIX: &str = "deposit_messages_buffer";
 pub const WITHDRAW_BUFFER_PREFIX: &str = "withdraw_messages_buffer";
 pub const TOKEN_DECIMAL_MAPPING_PREFIX: &str = "token_mapping_buffer";
+pub const EXECUTED_WITHDRAWALS_PREFIX: &str = "executed_withdrawals_buffer";
 pub const INITIAL_CHAIN_ADMIN: &str = "BdhpXtonNKnVKpEK7iSzZvVU1gKSWtMjUaTuQZ4rvJkS";

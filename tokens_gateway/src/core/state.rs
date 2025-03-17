@@ -37,7 +37,6 @@ pub struct TokenDepositData {
 /// Account for storing token decimal mappings.
 #[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
 pub struct TokenDecimalMappings {
-    pub authority: Pubkey,
     pub mappings: Vec<TokenDecimalMapping>,
 }
 
@@ -67,4 +66,35 @@ pub struct ReceiptCommitment {
     pub l1_token_address: String,
     pub l2_token_address: String,
     pub amount: String,
+}
+
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct ExecutedWithdrawals {
+    pub withdrawal_nonce_lower_bound: u64,
+    pub executed_withdrawal_nonces: Vec<u64>
+}
+
+
+impl ExecutedWithdrawals{
+   pub const SPACE: usize = 10000;
+
+   pub fn post_withdrawal_processing(&mut self) {
+    if self.executed_withdrawal_nonces.len() > 100 {
+        // Sort the vector in ascending order
+        self.executed_withdrawal_nonces.sort();
+
+        let mut last_removed_nonce = self.withdrawal_nonce_lower_bound;
+        let mut consecutive_nonce_count = 0;
+
+        for nonces in self.executed_withdrawal_nonces.clone() {
+            if nonces == last_removed_nonce + 1 {
+                last_removed_nonce = nonces;
+                self.withdrawal_nonce_lower_bound = nonces;
+                consecutive_nonce_count += 1;
+            }     
+        }
+        self.executed_withdrawal_nonces.drain(0..consecutive_nonce_count);
+    }
+}
 }

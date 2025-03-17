@@ -55,7 +55,7 @@ pub fn spl_tokens_deposit(
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
     if !is_valid_ethereum_address(&twine_receiver)? {
-        return Err(ProgramCustomError::InvalidArgument.into());
+        return Err(ProgramCustomError::InvalidReceiver.into());
     }
     let user_token_data = TokenAccount::unpack(&user_token_account.data.borrow())
         .map_err(|_| ProgramError::InvalidAccountData)?;
