@@ -1,14 +1,9 @@
 use solana_program::{
-    entrypoint,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    account_info::AccountInfo,
+    account_info::AccountInfo, entrypoint, entrypoint::ProgramResult, pubkey::Pubkey,
 };
 
-// Declare the program entrypoint with the Solana SDK macro.
 entrypoint!(process_instruction);
 
-#[cfg(not(feature = "no-entrypoint"))]
 fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],

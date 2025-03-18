@@ -1,7 +1,8 @@
-use crate::core::state::TwineChainRoleManager;
 use crate::core::error::ProgramCustomError;
+use crate::core::state::TwineChainRoleManager;
 use crate::utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES, ROLE_MANAGER_PREFIX};
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::program_pack::IsInitialized;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -14,10 +15,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
-pub fn initialize_role_manager(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
+pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_iter = &mut accounts.iter();
     let role_manager_acc = next_account_info(account_iter)?;
     let chain_admin_acc = next_account_info(account_iter)?;
@@ -26,9 +24,15 @@ pub fn initialize_role_manager(
         return Err(ProgramCustomError::InvalidSigner.into());
     }
     let rent = Rent::get()?;
-    
-    let role_manager_space = 8 + 32 + 4 + (MAX_ROLES * 33);
 
+    let role_manager_space = 8 + 32 + 4 + (MAX_ROLES * 33);
+ 
+    // Validate signer
+    if !chain_admin_acc.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Dervive and validate PDA
     let (expected_pda, bump) =
         Pubkey::find_program_address(&[ROLE_MANAGER_PREFIX.as_bytes()], program_id);
     if expected_pda != *role_manager_acc.key {
@@ -54,19 +58,25 @@ pub fn initialize_role_manager(
         )?;
     }
 
+    // Deserialize and update account data
     let mut role_manager = TwineChainRoleManager::try_from_slice(&role_manager_acc.data.borrow())
-    .map_err(|_| {
-        ProgramError::InvalidAccountData
-    })?;
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let chain_admin: Pubkey = INITIAL_CHAIN_ADMIN.parse().expect("Invalid Pubkey");
+
+    if role_manager.is_initialized() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    role_manager.is_initialized = true;
     role_manager.chain_admin = chain_admin;
     role_manager.twine_operator = Pubkey::default();
     role_manager.token_gateway_program = Pubkey::default();
-    role_manager.serialize(&mut *role_manager_acc.data.borrow_mut()).map_err(|_| {
-        msg!("Failed to serialize updated role manager state");
-        ProgramCustomError::SerializeFailed 
-    })?;
+    role_manager
+        .serialize(&mut *role_manager_acc.data.borrow_mut())
+        .map_err(|_| {
+            msg!("Failed to serialize updated role manager state");
+            ProgramCustomError::SerializeFailed
+        })?;
 
     Ok(())
 }

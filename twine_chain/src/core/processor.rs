@@ -1,30 +1,88 @@
-use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    pubkey::Pubkey,
-    entrypoint::ProgramResult,
-    msg,
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
-use crate::core::instruction::{TwineChainInstruction, unpack_instruction};
-// use crate::state::{ProgramState};
-use crate::core::error::ProgramCustomError;
+use crate::append_messages::{append_deposit_messages, append_withdrawal_messages};
+use crate::core::instruction::TwineChainInstruction;
+use crate::initialize::{
+    initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
+    initialize_twine_chain_storage,
+};
+use crate::setters::{set_token_gateway, set_v_keys};
 
 pub fn process_instruction(
-    program_id: &Pubkey, 
-    accounts: &[AccountInfo], 
-    instruction_data: &[u8]
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
 ) -> ProgramResult {
-    // Parse the instruction.
-    let instruction = unpack_instruction(instruction_data)
-        .map_err(|_| ProgramCustomError::InvalidInstructionData)?;
-    
+    let instruction = TwineChainInstruction::unpack(instruction_data)?;
+
     match instruction {
-        TwineChainInstruction::Initialize => {
-            msg!("Processing Initialize instruction");
-            // Manually fetch and validate accounts.
-            let account_info_iter = &mut accounts.iter();
-            let state_account = next_account_info(account_info_iter)?;
-            Ok(())
-        },
+        TwineChainInstruction::InitializeRoleManager => {
+            initialize_role_manager::initialize_role_manager(program_id, accounts)
+        }
+
+        TwineChainInstruction::InitializeTwineChainStorage => {
+            initialize_twine_chain_storage::initialize_chain_storage(program_id, accounts)
+        }
+
+        TwineChainInstruction::InitializeMessageBuffer => {
+            initialize_message_buffer::initialize_message_buffer(program_id, accounts)
+        }
+
+        // TODO: Add corresponding function handlers from different crates
+        TwineChainInstruction::SetTokenGateway {
+            token_gateway_program,
+        } => set_token_gateway::set_token_gateway(program_id, accounts, token_gateway_program),
+
+        TwineChainInstruction::SetVkeys {
+            groth16_vk,
+            execution_vkey,
+            inclusion_vkey,
+            withdrawal_vkey,
+        } => set_v_keys::set_v_keys(
+            program_id,
+            accounts,
+            groth16_vk,
+            execution_vkey,
+            inclusion_vkey,
+            withdrawal_vkey,
+        ),
+
+        TwineChainInstruction::AppendDepositMessage { deposit_info } => {
+            append_deposit_messages::append_deposit_message(program_id, accounts, deposit_info)
+        }
+
+        TwineChainInstruction::AppendForcedWithdrawalMessage { withdraw_info } => {
+            append_withdrawal_messages::append_forced_withdrawal_message(
+                program_id,
+                accounts,
+                withdraw_info,
+            )
+        }
+
+        TwineChainInstruction::InitializeGenesisBatch { genesis_block_hash } => {
+            initialize_genesis_batch::initialize_genesis_batch(
+                program_id,
+                accounts,
+                genesis_block_hash,
+            )
+        }
+
+        TwineChainInstruction::RemoveWithdrawalMessage { nonce } => Ok(()),
+
+        TwineChainInstruction::CommitBatch {
+            start_block,
+            end_block,
+            batch_data,
+        } => Ok(()),
+
+        TwineChainInstruction::FinalizeBatch {
+            public_values,
+            execution_proof,
+        } => Ok(()),
+
+        TwineChainInstruction::CommitAndFinalizeTransaction {
+            transaction_info,
+            inclusion_proof,
+        } => Ok(()),
     }
 }

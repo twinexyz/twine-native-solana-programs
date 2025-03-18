@@ -7,8 +7,12 @@ pub enum ProgramCustomError {
     InvalidIndex,
     #[error("Nonce not found")]
     NonceNotFound,
-    #[error("Invalid PDA derived")]
+    #[error("Account not initialized yet")]
+    UninitializedAccount,
+    #[error("PDA derived does not equal PDA passed in")]
     InvalidPDA,
+    #[error("Input data exceeds max length")]
+    InvalidDataLength,
     #[error("State root mismatch")]
     InvalidStateRootSequence,
     #[error("Invalid Instruction")]
