@@ -1,6 +1,8 @@
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 use crate::append_messages::{append_deposit_messages, append_withdrawal_messages};
+use crate::commit_finalize::commit_batch::commit_batch;
+use crate::commit_finalize::{commit_and_finalize_txn, commit_batch, finalize_batch};
 use crate::core::instruction::TwineChainInstruction;
 use crate::initialize::{
     initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
@@ -73,7 +75,7 @@ pub fn process_instruction(
             start_block,
             end_block,
             batch_data,
-        } => Ok(()),
+        } => commit_batch::commit_batch(program_id, accounts, start_block, end_block, batch_data),
 
         TwineChainInstruction::FinalizeBatch {
             public_values,

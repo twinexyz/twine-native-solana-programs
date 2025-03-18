@@ -56,7 +56,7 @@ pub fn initialize_genesis_batch(
         return Err(ProgramCustomError::InvalidPDA.into());
     }
 
-    // Create Genesis Batch PDA 
+    // Create Genesis Batch PDA
     if first_batch.data_is_empty() {
         let required_lamports = rent.minimum_balance(first_batch_space);
         let create_ix = system_instruction::create_account(
@@ -73,10 +73,7 @@ pub fn initialize_genesis_batch(
                 first_batch.clone(),
                 system_program.clone(),
             ],
-            &[&[
-                COMMITMENT_PDA_PREFIX.as_bytes().as_ref(),
-                &[genesis_batch_bump],
-            ]],
+            &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &[genesis_batch_bump]]],
         )?;
     }
 

@@ -21,6 +21,8 @@ pub enum ProgramCustomError {
     TwineVerificationError,
     #[error("Transaction root mismatch")]
     InvalidTransactionData,
+    #[error("Previous Batch Data is empty")]
+    EmptyPreviousBatch,
     #[error("Invalid Token Address Format")]
     InvalidTokenAddressFormat,
     #[error("Finalize in Serial batch order")]
@@ -50,7 +52,9 @@ pub enum ProgramCustomError {
     #[error("Commitment of Empty Batch not allowed")]
     EmptyBatchCommitment,
     #[error("Finalization should be done in sequence")]
-    InvalidBlockSequence,
+    InvalidBlockFinalizationSequence,
+    #[error("Blocks must be comitted in sequential order")]
+    InvalidBlockCommitmentSequence,
     #[error("The provided account did not sign the transaction.")]
     InvalidSigner,
     #[error("Calculated and Provided Batch Hash did not match")]
