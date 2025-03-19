@@ -73,11 +73,11 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
     // Deserialize and update account data
     twine_chain_storage.is_initialized = true;
 
-    twine_chain_storage.last_committed_batch.start_block = String::from("0");
-    twine_chain_storage.last_committed_batch.end_block = String::from("0");
+    twine_chain_storage.last_committed_batch.start_block = 0;
+    twine_chain_storage.last_committed_batch.end_block = 0;
 
-    twine_chain_storage.last_finalized_batch.start_block = String::from("0");
-    twine_chain_storage.last_finalized_batch.end_block = String::from("0");
+    twine_chain_storage.last_finalized_batch.start_block = 0;
+    twine_chain_storage.last_finalized_batch.end_block = 0;
 
     twine_chain_storage.groth16_vk = Vec::new();
     twine_chain_storage.execution_vkey = String::from("");

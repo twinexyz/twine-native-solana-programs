@@ -114,8 +114,8 @@ pub struct LayerZeroMessageInfo {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct BatchInfo {
-    pub start_block: String,
-    pub end_block: String,
+    pub start_block: u64,
+    pub end_block: u64,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
