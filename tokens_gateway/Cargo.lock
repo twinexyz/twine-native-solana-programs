@@ -2100,6 +2100,7 @@ dependencies = [
  "sp1-solana",
  "spl-token",
  "thiserror",
+ "twine_chain",
 ]
 
 [[package]]
@@ -2137,6 +2138,16 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow 0.7.3",
+]
+
+[[package]]
+name = "twine_chain"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "solana-program 1.18.26",
+ "sp1-solana",
+ "thiserror",
 ]
 
 [[package]]
