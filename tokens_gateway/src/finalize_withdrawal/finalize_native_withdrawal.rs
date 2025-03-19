@@ -1,6 +1,6 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{
-    ExecutedWithdrawals, FinalizeInputWithdrawal, NativeTokenVaultData, TokenDecimalMappings,
+    ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, NativeTokenVaultData, TokenDecimalMappings,
 };
 use crate::utils::constants::NATIVE_TOKEN_PREFIX;
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
@@ -92,7 +92,7 @@ pub fn finalize_native_withdrawal(
                 actual_amount,
             )?;
         } else {
-            let mut executed_withdrawal_buffer = ExecutedWithdrawals::try_from_slice(
+            let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::try_from_slice(
                 &executed_withdrawals_buffer_acc.data.borrow(),
             )?;
             // For L2 initiated withdrawals

@@ -16,4 +16,6 @@ num-traits = "0.2"
 spl-token = "3.5.0"
 num-bigint = "0.4.3"
 solana-program = "1.18.26"
+solana-secp256k1-recover = "2.1.6"
+libsecp256k1 = { version = "0.7.1", features = ["std"] }
 sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }

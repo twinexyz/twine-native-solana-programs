@@ -1,54 +1,36 @@
-use solana_program::{
-    pubkey::Pubkey,
-    program_error::ProgramError
-};
 use crate::utils::constants::*;
+use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
 pub fn derive_native_token_vault(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[NATIVE_TOKEN_PREFIX.as_bytes()],
-        program_id
-    )
+    Pubkey::find_program_address(&[NATIVE_TOKEN_PREFIX.as_bytes()], program_id)
 }
 
 pub fn derive_native_token_vault_data(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[NATIVE_DATA_PREFIX.as_bytes()],
-        program_id
-    )
+    Pubkey::find_program_address(&[NATIVE_DATA_PREFIX.as_bytes()], program_id)
 }
 
 pub fn derive_spl_tokens_vault_data(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[SPL_DATA_PREFIX.as_bytes()],
-        program_id
-    )
+    Pubkey::find_program_address(&[SPL_DATA_PREFIX.as_bytes()], program_id)
 }
 
 pub fn derive_spl_vault_authority(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[SPL_AUTH_PREFIX.as_bytes()],
-        program_id
-    )
+    Pubkey::find_program_address(&[SPL_AUTH_PREFIX.as_bytes()], program_id)
 }
 
 pub fn derive_token_decimal_mappings(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[TOKEN_DECIMAL_MAPPING_PREFIX.as_bytes()],
-        program_id
-    )
+    Pubkey::find_program_address(&[TOKEN_DECIMAL_MAPPING_PREFIX.as_bytes()], program_id)
 }
 
 pub fn derive_role_manager(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[ROLE_MANAGER_PREFIX.as_bytes()],
-        program_id
-    )
+    Pubkey::find_program_address(&[ROLE_MANAGER_PREFIX.as_bytes()], program_id)
 }
 
-pub fn verify_derived_address(derived_address: &Pubkey, provided_address: &Pubkey) -> Result<(), ProgramError> {
+pub fn verify_derived_address(
+    derived_address: &Pubkey,
+    provided_address: &Pubkey,
+) -> Result<(), ProgramError> {
     if derived_address != provided_address {
-        return Err(ProgramError::InvalidAccountData); 
+        return Err(ProgramError::InvalidAccountData);
     }
     Ok(())
 }

@@ -1,10 +1,8 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{SplTokensVaultData, TokenDecimalMappings};
-use spl_token::solana_program::program_pack::Pack;
-use spl_token::instruction as token_instruction;
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
-use spl_token::state::Account as TokenAccount;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::pubkey::Pubkey;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -13,17 +11,19 @@ use solana_program::{
     program_error::ProgramError,
     system_instruction,
 };
-use solana_program::pubkey::Pubkey;
+use spl_token::instruction as token_instruction;
 use spl_token::instruction;
+use spl_token::solana_program::program_pack::Pack;
+use spl_token::state::Account as TokenAccount;
 use spl_token::{
     instruction::transfer_checked,
     state::{Account, Mint},
 };
 
-pub fn spl_tokens_deposit(
+pub fn spl_token_deposit(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    twine_receiver: String,
+    receiver_twine_address: String,
     l1_token: String,
     l2_token: String,
     amount: u64,
@@ -54,7 +54,7 @@ pub fn spl_tokens_deposit(
     if !is_valid_ethereum_address(&l2_token)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
-    if !is_valid_ethereum_address(&twine_receiver)? {
+    if !is_valid_ethereum_address(&receiver_twine_address)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
     let user_token_data = TokenAccount::unpack(&user_token_account.data.borrow())
@@ -90,8 +90,8 @@ pub fn spl_tokens_deposit(
         ],
     )?;
     let mut spl_tokens_vault_data =
-    SplTokensVaultData::try_from_slice(&spl_tokens_vault_data.data.borrow())
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+        SplTokensVaultData::try_from_slice(&spl_tokens_vault_data.data.borrow())
+            .map_err(|_| ProgramError::InvalidAccountData)?;
     spl_tokens_vault_data.update_deposit(*mint.key, amount)?;
     // todo:CPI for appending the mesage
     msg!("SPL token deposit successful");

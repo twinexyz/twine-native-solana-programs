@@ -1,5 +1,6 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::NativeTokenVaultData;
+use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -14,7 +15,7 @@ use solana_program::{
 pub fn native_token_deposit(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    twine_receiver: String,
+    receiver_twine_address: String,
     l1_token: String,
     l2_token: String,
     amount: u64,
@@ -32,18 +33,22 @@ pub fn native_token_deposit(
     let native_vault_account = next_account_info(account_info_iter)?;
     let native_vault_data_account = next_account_info(account_info_iter)?;
     let system_program_info = next_account_info(account_info_iter)?;
-    
+
     if !user_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
     if user_account.lamports() < amount {
         return Err(ProgramError::InsufficientFunds);
     }
-  
+
     if native_vault_data_account.owner != program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
     
+    if !is_valid_ethereum_address(&receiver_twine_address)? {
+        return Err(ProgramCustomError::InvalidReceiver.into());
+    }
+
     let transfer_ix =
         system_instruction::transfer(user_account.key, native_vault_account.key, amount);
     invoke(
@@ -66,7 +71,7 @@ pub fn native_token_deposit(
 
     vault_data
         .serialize(&mut *native_vault_data_account.data.borrow_mut())
-        .map_err(|_| ProgramError::AccountDataTooSmall)?;
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     msg!(
         "Native token deposit successful: {} lamports deposited",

@@ -1,10 +1,10 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{
-    ExecutedWithdrawals, NativeTokenVaultData, SplTokensVaultData, TokenDecimalMappings,
+    ExecutedWithdrawalsBuffer, NativeTokenVaultData, SplTokensVaultData, TokenDecimalMappings,
     TokenDepositData,
 };
 use crate::utils::constants::{
-    EXECUTED_WITHDRAWALS_PREFIX, MAX_ROLES, MAX_TOKENS, NATIVE_DATA_PREFIX, NATIVE_TOKEN_PREFIX,
+    EXECUTED_WITHDRAWALS_PREFIX, MAX_TOKENS, NATIVE_DATA_PREFIX, NATIVE_TOKEN_PREFIX,
     SPL_DATA_PREFIX, TOKEN_DECIMAL_MAPPING_PREFIX,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -14,6 +14,7 @@ use solana_program::{
     msg,
     program::invoke_signed,
     program_error::ProgramError,
+    program_pack::IsInitialized,
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
@@ -41,6 +42,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     let chain_admin_acc = next_account_info(account_iter)?;
     let system_program = next_account_info(account_iter)?;
     let rent = Rent::get()?;
+
     // Verify that the chain admin is a signer.
     if !chain_admin_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -50,8 +52,9 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     let native_vault_seeds = &[NATIVE_TOKEN_PREFIX.as_bytes()];
     let (native_vault_key, native_vault_bump) =
         Pubkey::find_program_address(native_vault_seeds, program_id);
+
     if native_vault_key != *native_token_vault_acc.key {
-        return Err(ProgramError::InvalidAccountData.into());
+        return Err(ProgramCustomError::InvalidPDA.into());
     }
 
     let lamports = rent.minimum_balance(0);
@@ -77,8 +80,9 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     let native_data_seeds = &[NATIVE_DATA_PREFIX.as_bytes()];
     let (native_data_key, native_data_bump) =
         Pubkey::find_program_address(native_data_seeds, program_id);
+
     if native_data_key != *native_token_vault_data_acc.key {
-        return Err(ProgramError::InvalidAccountData.into());
+        return Err(ProgramCustomError::InvalidPDA.into());
     }
 
     let space = 8 + std::mem::size_of::<NativeTokenVaultData>();
@@ -126,11 +130,12 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     let executed_withdrawals_seeds = &[EXECUTED_WITHDRAWALS_PREFIX.as_bytes()];
     let (executed_withdrawals_key, executed_withdrawals_bump) =
         Pubkey::find_program_address(executed_withdrawals_seeds, program_id);
+
     if executed_withdrawals_key != *executed_withdrawals_buffer_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
 
-    let space = 8 + ExecutedWithdrawals::SPACE;
+    let space = 8 + ExecutedWithdrawalsBuffer::SPACE;
     let lamports = rent.minimum_balance(space);
     invoke_signed(
         &system_instruction::create_account(
@@ -179,6 +184,11 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         NativeTokenVaultData::try_from_slice(&native_token_vault_data_acc.data.borrow())
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
+    if native_vault_data.is_initialized() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    native_vault_data.is_initialized = true;
     native_vault_data.total_deposits = 0;
     native_vault_data
         .serialize(&mut *native_token_vault_data_acc.data.borrow_mut())
@@ -188,15 +198,24 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         SplTokensVaultData::try_from_slice(&spl_tokens_vault_data_acc.data.borrow())
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
+    if spl_vault_data.is_initialized() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    spl_vault_data.is_initialized = true;
     spl_vault_data.total_deposited_amount = Vec::new();
     spl_vault_data
         .serialize(&mut *spl_tokens_vault_data_acc.data.borrow_mut())
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     let mut executed_withdrawals_data =
-        ExecutedWithdrawals::try_from_slice(&executed_withdrawals_buffer_acc.data.borrow())
+        ExecutedWithdrawalsBuffer::try_from_slice(&executed_withdrawals_buffer_acc.data.borrow())
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
+    if executed_withdrawals_data.is_initialized() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    executed_withdrawals_data.is_initialized = true;
     executed_withdrawals_data.withdrawal_nonce_lower_bound = 0;
     executed_withdrawals_data.executed_withdrawal_nonces = Vec::new();
 
@@ -207,6 +226,12 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     let mut token_mappings_data =
         TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if token_mappings_data.is_initialized() {
+            return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    
+    token_mappings_data.is_initialized = true;
     token_mappings_data.mappings = Vec::new();
 
     token_mappings_data

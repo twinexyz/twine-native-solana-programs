@@ -1,5 +1,5 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::{ExecutedWithdrawals, FinalizeInputWithdrawal, TokenDecimalMappings};
+use crate::core::state::{ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, TokenDecimalMappings};
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
