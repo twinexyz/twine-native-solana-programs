@@ -1,7 +1,8 @@
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
-use crate::append_messages::{append_deposit_messages, append_withdrawal_messages};
-use crate::commit_finalize::commit_batch::commit_batch;
+use crate::append_messages::{
+    append_deposit_messages, append_withdrawal_messages, remove_withdrawal_message,
+};
 use crate::commit_finalize::{commit_and_finalize_txn, commit_batch, finalize_batch};
 use crate::core::instruction::TwineChainInstruction;
 use crate::initialize::{
@@ -30,7 +31,6 @@ pub fn process_instruction(
             initialize_message_buffer::initialize_message_buffer(program_id, accounts)
         }
 
-        // TODO: Add corresponding function handlers from different crates
         TwineChainInstruction::SetTokenGateway {
             token_gateway_program,
         } => set_token_gateway::set_token_gateway(program_id, accounts, token_gateway_program),
@@ -69,7 +69,9 @@ pub fn process_instruction(
             )
         }
 
-        TwineChainInstruction::RemoveWithdrawalMessage { nonce } => Ok(()),
+        TwineChainInstruction::RemoveWithdrawalMessage { nonce } => {
+            remove_withdrawal_message::remove_withdrawal_message(program_id, accounts, nonce)
+        }
 
         TwineChainInstruction::CommitBatch {
             start_block,
@@ -80,11 +82,16 @@ pub fn process_instruction(
         TwineChainInstruction::FinalizeBatch {
             public_values,
             execution_proof,
-        } => Ok(()),
+        } => finalize_batch::finalize_batch(program_id, accounts, public_values, execution_proof),
 
         TwineChainInstruction::CommitAndFinalizeTransaction {
             transaction_info,
             inclusion_proof,
-        } => Ok(()),
+        } => commit_and_finalize_txn::commit_and_finalize_transaction(
+            program_id,
+            accounts,
+            transaction_info,
+            inclusion_proof,
+        ),
     }
 }

@@ -19,8 +19,8 @@ pub enum ProgramCustomError {
     InvalidInstructionData,
     #[error("Error in verification")]
     TwineVerificationError,
-    #[error("Transaction root mismatch")]
-    InvalidTransactionData,
+    #[error("Receipt root mismatch")]
+    InvalidReceiptRoot,
     #[error("Previous Batch Data is empty")]
     EmptyPreviousBatch,
     #[error("Invalid Token Address Format")]

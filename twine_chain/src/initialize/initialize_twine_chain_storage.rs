@@ -79,6 +79,9 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
     twine_chain_storage.last_finalized_batch.start_block = 0;
     twine_chain_storage.last_finalized_batch.end_block = 0;
 
+    twine_chain_storage.last_transcation_finalized_batch.start_block = 0;
+    twine_chain_storage.last_transcation_finalized_batch.end_block = 0;
+
     twine_chain_storage.groth16_vk = Vec::new();
     twine_chain_storage.execution_vkey = String::from("");
     twine_chain_storage.inclusion_vkey = String::from("");

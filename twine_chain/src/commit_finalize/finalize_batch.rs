@@ -86,6 +86,8 @@ pub fn finalize_batch(
     }
 
     // Calling SP1 Verifier to verify the execution proof
+    // TODO: Provide the groth16_vk from twine chain storage instead.
+    // so that the sp1 verifier version can be changed without upgrading prorgams.
     verify_proof(
         &execution_proof,
         &public_values,
