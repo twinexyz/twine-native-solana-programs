@@ -1,5 +1,7 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::{BatchPdaAccount, BlockInfo, CommitBatchInfo, TwineChainStorage};
+use crate::core::state::{
+    BatchPdaAccount, BlockInfo, CommitBatchInfo, RoleType, TwineChainRoleManager, TwineChainStorage,
+};
 use crate::utils::constants::{
     COMMITMENT_PDA_PREFIX, DISCRIMINATOR, MAX_QUEUE_SIZE, ROLE_MANAGER_PREFIX,
     TWINE_CHAIN_STORAGE_PREFIX,
@@ -37,8 +39,6 @@ pub fn commit_batch(
     let twine_operation_handler = next_account_info(account_iter)?;
     let system_program = next_account_info(account_iter)?;
 
-    // TODO: Check if initializer has TwineOperationHandler Role
-
     // Validate signer
     if !twine_operation_handler.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -54,6 +54,14 @@ pub fn commit_batch(
         previous_batch,
         role_manager,
     )?;
+
+    // Check if initiator has TwineOperationHandler Role
+    let role_manager_data = TwineChainRoleManager::try_from_slice(&role_manager.data.borrow())
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if !role_manager_data.has_role(twine_operation_handler.key, RoleType::TwineOperationHandler) {
+        return Err(ProgramCustomError::Unauthorized.into());
+    }
 
     if start_block != twine_chain_storage_data.last_committed_batch.end_block + 1 {
         return Err(ProgramCustomError::InvalidBlockCommitmentSequence.into());
@@ -136,7 +144,6 @@ pub fn commit_batch(
     if last_block == end_block {
         twine_chain_storage_data.last_committed_batch.start_block = start_block;
         twine_chain_storage_data.last_committed_batch.end_block = end_block;
-        // TODO: Update slot number for last commited batch
 
         current_batch_data.is_full = true;
         // TODO: Emit BatchCommitmentSuccessful event
@@ -209,7 +216,6 @@ fn validate_pdas(
                 .last_committed_batch
                 .end_block
                 .to_be_bytes(),
-            &end_block.to_be_bytes(),
         ],
         program_id,
     );

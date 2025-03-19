@@ -58,13 +58,14 @@ pub struct ExecutionMessageBuffer {
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TwineChainStorage {
     pub is_initialized: bool,
-    pub last_finalized_batch: BatchInfo,
-    pub last_committed_batch: BatchInfo,
-    pub last_finalized_receipt_root: [u8; 32],
     pub groth16_vk: Vec<u8>,
     pub execution_vkey: String,
     pub inclusion_vkey: String,
     pub withdrawal_vkey: String,
+    pub last_finalized_batch: BatchInfo,
+    pub last_committed_batch: BatchInfo,
+    pub last_transcation_finalized_batch: BatchInfo,
+    pub last_finalized_receipt_root: [u8; 32],
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -144,6 +145,62 @@ pub struct CommitBatchInfo {
     pub receipt_root: [u8; 32],
 }
 
+/********************************
+ * Implementations for encoding *
+ ********************************/
+impl BlockInfo {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::with_capacity(BlockInfo::LEN);
+
+        encoded.extend(self.previous_hash);
+        encoded.extend(self.block_hash);
+        encoded.extend(self.transaction_root);
+        encoded.extend(self.receipt_root);
+
+        encoded
+    }
+}
+
+impl DepositMessageInfo {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::with_capacity(DepositMessageInfo::LEN);
+        encoded.extend(self.nonce.to_be_bytes());
+        encoded.extend(self.chain_id.to_be_bytes());
+        encoded.extend(self.slot_number.to_be_bytes());
+        encoded.extend(self.from_l1_pubkey.as_bytes());
+        encoded.extend(self.to_twine_address.as_bytes());
+        encoded.extend(self.l1_token.as_bytes());
+        encoded.extend(self.l2_token.as_bytes());
+        encoded.extend(self.amount.as_bytes());
+
+        encoded
+    }
+}
+
+impl ForcedWithdrawMessageInfo {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::with_capacity(ForcedWithdrawMessageInfo::LEN);
+
+        encoded.extend(self.nonce.to_be_bytes());
+        encoded.extend(self.chain_id.to_be_bytes());
+        encoded.extend(self.slot_number.to_be_bytes());
+        encoded.extend(self.from_twine_address.as_bytes());
+        encoded.extend(self.to_l1_pubkey.as_bytes());
+        encoded.extend(self.l1_token.as_bytes());
+        encoded.extend(self.l2_token.as_bytes());
+        encoded.extend(self.amount.as_bytes());
+
+        encoded
+    }
+}
+
+impl LayerZeroMessageInfo {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::new();
+        encoded.extend(self.message.as_bytes());
+        encoded  
+    }
+}
 /******************************************
  * Implementations for Length Calculation *
  ******************************************/
