@@ -1,9 +1,14 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::pubkey::Pubkey;
+use solana_program::{program_pack::IsInitialized, pubkey::Pubkey};
+
+/****************
+ * Role Manager *
+ ****************/
 
 /// Role manager account for tokens_gateway.
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TokensGatewayRoleManager {
+    pub is_initialized: bool,
     pub chain_admin: Pubkey,
     pub roles: Vec<(Pubkey, RoleType)>,
 }
@@ -14,17 +19,31 @@ pub enum RoleType {
     /// For operations such as deposits or withdrawals.
     TwineOperationHandler,
 }
-
+/**************
+ * Vault Data *
+ **************/
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct NativeTokenVaultData {
+    pub is_initialized: bool,
     pub total_deposits: u64,
 }
 
 /// Account to hold SPL tokens vault data.
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct SplTokensVaultData {
+    pub is_initialized: bool,
     pub authority: Pubkey,
     pub total_deposited_amount: Vec<TokenDepositData>,
+}
+
+/*********
+ * Token *
+ *********/
+/// Account for storing token decimal mappings.
+#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
+pub struct TokenDecimalMappings {
+    pub is_initialized: bool,
+    pub mappings: Vec<TokenDecimalMapping>,
 }
 
 /// Data for one token deposit.
@@ -32,12 +51,6 @@ pub struct SplTokensVaultData {
 pub struct TokenDepositData {
     pub token_id: Pubkey,
     pub amount: u64,
-}
-
-/// Account for storing token decimal mappings.
-#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
-pub struct TokenDecimalMappings {
-    pub mappings: Vec<TokenDecimalMapping>,
 }
 
 /// Represents a mapping between L1 and L2 token decimal places.
@@ -49,8 +62,19 @@ pub struct TokenDecimalMapping {
     pub l2_decimals: u8,
 }
 
+/***************
+ * Withdrawals *
+ ***************/
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct ExecutedWithdrawalsBuffer {
+    pub is_initialized: bool,
+    pub withdrawal_nonce_lower_bound: u64,
+    pub executed_withdrawal_nonces: Vec<u64>,
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct FinalizeInputWithdrawal {
+    pub is_initialized: bool,
     pub public_input: ReceiptCommitment,
     pub inclusion_proof: Vec<u8>,
 }
@@ -68,33 +92,58 @@ pub struct ReceiptCommitment {
     pub amount: String,
 }
 
+impl ExecutedWithdrawalsBuffer {
+    pub const SPACE: usize = 10000;
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct ExecutedWithdrawals {
-    pub withdrawal_nonce_lower_bound: u64,
-    pub executed_withdrawal_nonces: Vec<u64>
-}
+    pub fn post_withdrawal_processing(&mut self) {
+        if self.executed_withdrawal_nonces.len() > 100 {
+            // Sort the vector in ascending order
+            self.executed_withdrawal_nonces.sort();
 
+            let mut last_removed_nonce = self.withdrawal_nonce_lower_bound;
+            let mut consecutive_nonce_count = 0;
 
-impl ExecutedWithdrawals{
-   pub const SPACE: usize = 10000;
-
-   pub fn post_withdrawal_processing(&mut self) {
-    if self.executed_withdrawal_nonces.len() > 100 {
-        // Sort the vector in ascending order
-        self.executed_withdrawal_nonces.sort();
-
-        let mut last_removed_nonce = self.withdrawal_nonce_lower_bound;
-        let mut consecutive_nonce_count = 0;
-
-        for nonces in self.executed_withdrawal_nonces.clone() {
-            if nonces == last_removed_nonce + 1 {
-                last_removed_nonce = nonces;
-                self.withdrawal_nonce_lower_bound = nonces;
-                consecutive_nonce_count += 1;
-            }     
+            for nonces in self.executed_withdrawal_nonces.clone() {
+                if nonces == last_removed_nonce + 1 {
+                    last_removed_nonce = nonces;
+                    self.withdrawal_nonce_lower_bound = nonces;
+                    consecutive_nonce_count += 1;
+                }
+            }
+            self.executed_withdrawal_nonces
+                .drain(0..consecutive_nonce_count);
         }
-        self.executed_withdrawal_nonces.drain(0..consecutive_nonce_count);
     }
 }
+
+/******************************************************
+* Implementations of IsInitialized function for PDAs *
+ ******************************************************/
+impl IsInitialized for TokensGatewayRoleManager {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+impl IsInitialized for NativeTokenVaultData {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+impl IsInitialized for SplTokensVaultData {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+impl IsInitialized for TokenDecimalMappings {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+impl IsInitialized for ExecutedWithdrawalsBuffer {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
 }

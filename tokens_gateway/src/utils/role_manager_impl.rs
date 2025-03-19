@@ -8,7 +8,7 @@ impl TokensGatewayRoleManager {
             .any(|(r, r_type)| r == address && *r_type == role)
     }
 
-    pub fn remove_role(&mut self, address: &Pubkey, role: RoleType) -> bool {
+    pub(crate) fn remove_role(&mut self, address: &Pubkey, role: RoleType) -> bool {
         if let Some(index) = self
             .roles
             .iter()

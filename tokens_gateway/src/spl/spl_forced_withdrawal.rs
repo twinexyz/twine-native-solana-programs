@@ -1,16 +1,14 @@
+use crate::core::error::ProgramCustomError;
+use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
-    msg,
-    pubkey::Pubkey,
+    program::{invoke_signed},
     program_error::ProgramError,
-    program::{invoke, invoke_signed},
+    pubkey::Pubkey,
     system_instruction,
-    sysvar::{rent::Rent, Sysvar},
+    sysvar::{Sysvar},
 };
-use crate::core::error::ProgramCustomError;
-use crate::utils::ethereum_checks::is_valid_ethereum_address;
-// use spl_token::instruction as token_instruction;
 
 pub fn forced_spl_token_withdrawal(
     program_id: &Pubkey,
@@ -23,7 +21,7 @@ pub fn forced_spl_token_withdrawal(
     signature: Vec<u8>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
-    
+
     let user = next_account_info(account_info_iter)?;
     let to_token_account = next_account_info(account_info_iter)?;
     let spl_tokens_vault_data = next_account_info(account_info_iter)?;

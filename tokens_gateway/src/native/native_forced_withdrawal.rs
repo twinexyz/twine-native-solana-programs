@@ -1,5 +1,5 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::{TokenDecimalMappings};
+use crate::core::state::TokenDecimalMappings;
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
@@ -49,6 +49,12 @@ pub fn forced_native_token_withdrawal(
     }
     if !is_valid_ethereum_address(&to_l1_pubkey)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
+    }
+    if forced_withdrawal_messages_buffer_acc.owner != program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    if role_manager_acc.owner != program_id {
+        return Err(ProgramError::IncorrectProgramId);
     }
     let token_decimal_mapping =
         TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
