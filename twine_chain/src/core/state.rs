@@ -144,6 +144,22 @@ pub struct CommitBatchInfo {
     pub receipt_root: [u8; 32],
 }
 
+/********************************
+ * Implementations for encoding *
+ ********************************/
+impl BlockInfo {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::with_capacity(BlockInfo::LEN);
+
+        encoded.extend(self.previous_hash);
+        encoded.extend(self.block_hash);
+        encoded.extend(self.transaction_root);
+        encoded.extend(self.receipt_root);
+
+        encoded
+    }
+}
+
 /******************************************
  * Implementations for Length Calculation *
  ******************************************/
