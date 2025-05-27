@@ -10,11 +10,13 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
-use sp1_solana::verify_proof;
+use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
+use twine_chain::core::state::{ExecutionMessageBuffer, TwineChainStorage};
 
 pub fn finalize_native_withdrawal(
     program_id: &Pubkey,
@@ -23,21 +25,17 @@ pub fn finalize_native_withdrawal(
 ) -> ProgramResult {
     let account_iter = &mut accounts.iter();
 
-    let user = next_account_info(account_iter)?;
     let native_token_vault_acc = next_account_info(account_iter)?;
     let native_token_vault_data_acc = next_account_info(account_iter)?;
     let execution_message_buffer_acc = next_account_info(account_iter)?;
     let twine_chain_storage_acc = next_account_info(account_iter)?;
-    let forced_withdrawal_messages_buffer_acc = next_account_info(account_iter)?;
     let executed_withdrawals_buffer_acc = next_account_info(account_iter)?;
     let receiver_acc = next_account_info(account_iter)?;
-    let role_manager_acc = next_account_info(account_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_iter)?;
     let system_program = next_account_info(account_iter)?;
     let twine_chain_program = next_account_info(account_iter)?;
-    let sp_verifier_program = next_account_info(account_iter)?;
 
-    if withdrawal_inputs.public_input.batch_number > 0 {
+    if withdrawal_inputs.public_input.block_number > 0 {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
     let amount = TokenDecimalMappings::parse_amount_to_u64(&withdrawal_inputs.public_input.amount)?;
@@ -59,6 +57,25 @@ pub fn finalize_native_withdrawal(
     if withdrawal_inputs.public_input.l1_receiver_address != receiver_acc.key.to_string() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+    // Deserialize twine_chain_storage_acc
+    let twine_chain_storage =
+        TwineChainStorage::try_from_slice(&twine_chain_storage_acc.data.borrow())
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if withdrawal_inputs.public_input.block_number
+        <= twine_chain_storage.last_finalized_batch.end_block
+    {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
+    // encoding public input structure to get public input
+    let public_input = withdrawal_inputs.public_input.abi_encode_packed();
+    verify_proof(
+        &withdrawal_inputs.inclusion_proof,
+        &public_input,
+        &twine_chain_storage.execution_vkey,
+        GROTH16_VK_4_0_0_RC3_BYTES,
+    )
+    .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     let token_decimal_mappings =
         TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
@@ -71,7 +88,7 @@ pub fn finalize_native_withdrawal(
         decimal_mapping.l1_decimals,
     )?;
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
-    let mut flag = false;
+    let flag = false;
 
     if withdrawal_inputs.public_input.is_forced_withdrawal == 1 {
         // Check if the withdrawal is present in execution message buffer
@@ -123,6 +140,17 @@ pub fn finalize_native_withdrawal(
             executed_withdrawal_buffer.post_withdrawal_processing();
         }
     }
+    let clock = Clock::get()?;
+
+    msg!(
+        "EVENT:NATIVE_WITHDRAWAL_SUCCESSFUL:{}:{}:{}:{}:{}:{}",
+        withdrawal_inputs.public_input.nonce,
+        withdrawal_inputs.public_input.l1_receiver_address,
+        withdrawal_inputs.public_input.l1_token_address,
+        withdrawal_inputs.public_input.chain_id,
+        actual_amount,
+        clock.slot
+    );
     Ok(())
 }
 
@@ -174,8 +202,6 @@ fn process_native_token_withdrawal<'info>(
     vault_data
         .serialize(&mut *native_token_vault_data.data.borrow_mut())
         .map_err(|_| ProgramError::AccountDataTooSmall)?;
-
-    let clock = Clock::get()?;
 
     Ok(())
 }

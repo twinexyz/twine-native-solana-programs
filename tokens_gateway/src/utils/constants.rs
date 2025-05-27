@@ -1,3 +1,4 @@
+pub const CHAIN_ID: u64 = 900;
 pub const DISCRIMINATOR: usize = 8;
 pub const MAX_TOKENS: usize = 100;
 pub const MAX_ROLES: usize = 10;

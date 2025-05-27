@@ -15,7 +15,6 @@ pub fn is_valid_ethereum_address(address: &str) -> Result<bool, ProgramError> {
 
     // EIP-55 checksum validation
     let address_hash = Keccak256::digest(hex_part.to_lowercase().as_bytes());
-    let address_bytes = hex::decode(hex_part).map_err(|_| ProgramError::InvalidArgument)?;
 
     for (i, char) in hex_part.char_indices() {
         let byte = address_hash[i / 2];

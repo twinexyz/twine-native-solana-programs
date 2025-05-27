@@ -2,8 +2,8 @@ use crate::core::error::ProgramCustomError;
 use crate::core::state::TokenDecimalMappings;
 use crate::utils::constants::SPL_DATA_PREFIX;
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
-use borsh::{BorshDeserialize, BorshSerialize};
 use crate::utils::recover_address::recover_address;
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
@@ -31,8 +31,6 @@ pub fn forced_spl_token_withdrawal(
     let user_account = next_account_info(account_info_iter)?;
     let to_token_account = next_account_info(account_info_iter)?;
     let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
-    let mint = next_account_info(account_info_iter)?;
-    let token_program = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let forced_withdrawal_messages_buffer_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
@@ -57,6 +55,7 @@ pub fn forced_spl_token_withdrawal(
     if role_manager_acc.owner != program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
+  
     let spl_data_seeds = &[SPL_DATA_PREFIX.as_bytes()];
     let (spl_data_key, spl_data_bump) = Pubkey::find_program_address(spl_data_seeds, program_id);
     if spl_data_key != *spl_tokens_vault_data_acc.key {
