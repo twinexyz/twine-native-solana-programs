@@ -1,7 +1,7 @@
 use super::state::{RoleType,FinalizeInputWithdrawal};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
-use solana_program::pubkey::{self, Pubkey};
+use solana_program::pubkey::{Pubkey};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum GatewayInstruction {

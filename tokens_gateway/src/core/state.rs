@@ -74,7 +74,6 @@ pub struct ExecutedWithdrawalsBuffer {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct FinalizeInputWithdrawal {
-    pub is_initialized: bool,
     pub public_input: ReceiptCommitment,
     pub inclusion_proof: Vec<u8>,
 }
@@ -82,7 +81,7 @@ pub struct FinalizeInputWithdrawal {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct ReceiptCommitment {
     pub chain_id: u64,
-    pub batch_number: u64,
+    pub block_number: u64,
     pub nonce: u64,
     pub is_forced_withdrawal: u8,
     pub receipt_root: [u8; 32],
@@ -113,6 +112,25 @@ impl ExecutedWithdrawalsBuffer {
             self.executed_withdrawal_nonces
                 .drain(0..consecutive_nonce_count);
         }
+    }
+}
+/*******************************************************
+ *Implementation of methods for ReceiptCommitment *
+ *******************************************************/
+ impl ReceiptCommitment {
+    /// ABI encodes the receipt commitment
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::new();
+
+        encoded.extend(&self.chain_id.to_be_bytes());
+        encoded.extend(&self.block_number.to_be_bytes());
+        encoded.extend(self.nonce.to_be_bytes());
+        encoded.extend(self.receipt_root);
+        encoded.extend(self.l1_receiver_address.as_bytes());
+        encoded.extend(self.l1_token_address.as_bytes());
+        encoded.extend(self.amount.as_bytes());
+
+        encoded
     }
 }
 

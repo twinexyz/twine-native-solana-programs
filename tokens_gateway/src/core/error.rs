@@ -27,6 +27,8 @@ pub enum ProgramCustomError {
     ReceiverAccountNotFound,
     #[error("Invalid Token address format")]
     InvalidTokenAddress,
+    #[error("Nonce not found in withdrawals")]
+    NonceNotFound,
     #[error("Failed to serialize the state")]
     SerializeFailed,
     #[error("Withdraw is already executed")]

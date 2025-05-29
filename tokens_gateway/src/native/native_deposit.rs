@@ -1,10 +1,10 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{NativeTokenVaultData, TokenDecimalMappings};
 use crate::utils::constants::NATIVE_DATA_PREFIX;
-use twine_chain::utils::constants::DEPOSIT_BUFFER_PREFIX;
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 use twine_chain::core::state::{DepositMessageInfo, DepositMessagesBuffer};
+use twine_chain::utils::constants::DEPOSIT_BUFFER_PREFIX;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -127,6 +127,7 @@ pub fn native_token_deposit(
     let native_data_seeds = &[NATIVE_DATA_PREFIX.as_bytes()];
     let (_, native_data_bump) = Pubkey::find_program_address(native_data_seeds, program_id);
 
+    //instructions number in TwineChainInstruction
     let discriminator: u8 = 5;
 
     let mut append_instruction_data = vec![discriminator];
