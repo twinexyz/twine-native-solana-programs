@@ -151,7 +151,7 @@ mod test {
     }
 
     #[test]
-    fn test_genesis_batch_initialization() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_role_manager_initialization() -> Result<(), Box<dyn std::error::Error>> {
         let program_id = Pubkey::new_unique();
 
         // Get the required accounts

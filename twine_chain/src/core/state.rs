@@ -208,13 +208,13 @@ impl LayerZeroMessageInfo {
 impl TwineChainStorage {
     pub const LEN: usize = 1    // is_initialized
         + 4 + 512   // groth16_vk
-        + 4 + 128   // execution_vkey
-        + 4 + 128   // inclusion_vkey
-        + 4 + 128   // withdrawal_vkey
+        + 4 + 66        // execution_vkey
+        + 4 + 66    // inclusion_vkey
+        + 4 + 66        // withdrawal_vkey
         + 16        // last_finalized_batch
         + 16        // last_committed_batch
         + 16        // last_transcation_finalized_batch
-        + 32;       // last_finalized_receipt_root
+        + 32; // last_finalized_receipt_root
 }
 
 impl DepositMessageInfo {
