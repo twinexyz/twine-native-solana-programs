@@ -1,10 +1,10 @@
 use sha3::{Digest, Keccak256};
 use solana_secp256k1_recover::secp256k1_recover;
 use solana_program::{program_error::ProgramError,msg};
-use twine_chain::core::state::ForcedWithdrawMessageInfo;
+use twine_chain::core::state::SignMessageInfo;
 
 pub(crate) fn recover_address(
-    withdraw_info:ForcedWithdrawMessageInfo,
+    withdraw_info:SignMessageInfo,
     signature: Vec<u8>,
 ) ->  Result<String, ProgramError> {
     // Ensure the signature length is exactly 65 bytes (64 bytes signature + 1 byte v)
