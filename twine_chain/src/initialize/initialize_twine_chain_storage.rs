@@ -106,15 +106,15 @@ fn validate_accounts(
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
     verify_owner(twine_chain_storage_acc, program_id)?;
 
-    let (expected_role_manager_pda, _role_manager_bump) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
     verify_owner(role_manager_acc, program_id)?;
 
     verify_system_program(system_program)?;
 
     if !twine_chain_storage_acc.data_is_empty() {
-        let twine_chain_data =
-            TwineChainStorage::try_from_slice(&twine_chain_storage_acc.data.borrow())
+        let twine_chain_data: TwineChainStorage =
+            TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
 
         if twine_chain_data.is_initialized() {

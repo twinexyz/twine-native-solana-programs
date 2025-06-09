@@ -90,7 +90,7 @@ fn validate_accounts(
 
     if !role_manager_acc.data_is_empty() {
         let role_manager_data =
-            TwineChainRoleManager::try_from_slice(&role_manager_acc.data.borrow())
+            TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
 
         if role_manager_data.is_initialized() {

@@ -226,7 +226,6 @@ impl DepositMessageInfo {
         + 4 + 44    // l1_token (String)
         + 4 + 42    // l2_token (String)
         + 4 + 32; // amount (String)
-                  // Total: 250 bytes
 }
 
 impl ForcedWithdrawMessageInfo {

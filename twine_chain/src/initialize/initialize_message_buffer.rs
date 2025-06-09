@@ -261,7 +261,7 @@ fn validate_accounts(
     }
 
     // Validate Account key and owner
-    let (expected_role_manager_pda, _role_manager_bump_seed) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
     verify_owner(role_manager_acc, program_id)?;
 
@@ -291,7 +291,7 @@ fn validate_accounts(
     // re-initialization guard for deposit buffer
     if !deposit_messages_buffer_acc.data_is_empty() {
         let deposit_buffer_data =
-            DepositMessagesBuffer::try_from_slice(&deposit_messages_buffer_acc.data.borrow())
+            DepositMessagesBuffer::deserialize(&mut &deposit_messages_buffer_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
         if deposit_buffer_data.is_initialized() {
             return Err(ProgramError::AccountAlreadyInitialized);
@@ -300,8 +300,8 @@ fn validate_accounts(
 
     // re-initialization guard for forced withdraw buffer
     if !forced_withdrawal_messages_buffer_acc.data_is_empty() {
-        let forced_withdraw_buffer_data = ForcedWithdrawMessagesBuffer::try_from_slice(
-            &forced_withdrawal_messages_buffer_acc.data.borrow(),
+        let forced_withdraw_buffer_data = ForcedWithdrawMessagesBuffer::deserialize(
+            &mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..],
         )
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -313,7 +313,7 @@ fn validate_accounts(
     // re-initialization guard for layer zero buffer
     if !layer_zero_messages_buffer_acc.data_is_empty() {
         let layer_zero_buffer_data =
-            LayerZeroMessagesBuffer::try_from_slice(&layer_zero_messages_buffer_acc.data.borrow())
+            LayerZeroMessagesBuffer::deserialize(&mut &layer_zero_messages_buffer_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
 
         if layer_zero_buffer_data.is_initialized() {
@@ -324,7 +324,7 @@ fn validate_accounts(
     // re-initialization guard for execution buffer
     if !execution_messages_buffer_acc.data_is_empty() {
         let execution_buffer_data =
-            ExecutionMessageBuffer::try_from_slice(&execution_messages_buffer_acc.data.borrow())
+            ExecutionMessageBuffer::deserialize(&mut &execution_messages_buffer_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
 
         if execution_buffer_data.is_initialized() {

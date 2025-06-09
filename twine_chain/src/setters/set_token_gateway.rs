@@ -49,8 +49,9 @@ fn validate_accounts(
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     // Deserialize account data
-    let role_manager_data = TwineChainRoleManager::try_from_slice(&role_manager_acc.data.borrow())
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Checks if signer has required role(TwineOperationHandler)
     if !role_manager_data.has_role(

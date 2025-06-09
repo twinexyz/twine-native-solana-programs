@@ -31,14 +31,14 @@ pub fn set_v_keys(
         role_manager_acc,
     )?;
 
-    // Validate data length [4(prefix) + 2(0x) + 64 hex char = 70 hex characters]
+    // Validate data length [2(0x) + 32Bytes(64 hex char) = 66 hex characters]
     if execution_vkey.len() > 66 || inclusion_vkey.len() > 66 || withdrawal_vkey.len() > 66 {
         return Err(ProgramCustomError::InvalidDataLength.into());
     }
 
     // Update account data
     let mut twine_chain_storage_data =
-        TwineChainStorage::try_from_slice(&twine_chain_storage_acc.data.borrow())
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     twine_chain_storage_data.groth16_vk = groth16_vk;
@@ -72,7 +72,7 @@ fn validate_accounts(
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     // Checks if signer has required role(TwineOperationHandler)
-    let role_manager_data = TwineChainRoleManager::try_from_slice(&role_manager_acc.data.borrow())
+    let role_manager_data = TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     if !role_manager_data.has_role(
@@ -116,7 +116,7 @@ mod test {
     }
 
     #[test]
-    fn test_set_token_gateway() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_set_v_keys() -> Result<(), Box<dyn std::error::Error>> {
         let program_id = Pubkey::new_unique();
 
         // Get the required accounts

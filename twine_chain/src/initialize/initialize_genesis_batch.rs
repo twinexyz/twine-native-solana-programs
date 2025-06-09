@@ -101,14 +101,14 @@ fn validate_accounts(
     verify_derived_address(expected_commitment_pda, first_batch_acc)?;
     verify_owner(first_batch_acc, program_id)?;
 
-    let (expected_role_manager_pda, _role_manager_bump_seed) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     verify_system_program(system_program)?;
 
-        // re-initialization guard
+    // re-initialization guard
     if !first_batch_acc.data_is_empty() {
-        let first_batch_data = BatchPdaAccount::try_from_slice(&first_batch_acc.data.borrow())
+        let first_batch_data = BatchPdaAccount::deserialize(&mut &first_batch_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
         if first_batch_data.is_initialized() {
             return Err(ProgramError::AccountAlreadyInitialized);
