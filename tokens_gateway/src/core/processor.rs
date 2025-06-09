@@ -19,12 +19,13 @@ pub fn process_instruction(
         .map_err(|_| ProgramCustomError::InvalidInstructionData)?;
 
     match instruction {
-        GatewayInstruction::InitializeTokensGateway => {
-            initialize_tokens_gateway::initialize_tokens_gateway(program_id, accounts)
-        }
         GatewayInstruction::InitializeTokensGatewayRoleManager => {
             initialze_role_manager::initialize_role_manager(program_id, accounts)
         }
+        GatewayInstruction::InitializeTokensGateway => {
+            initialize_tokens_gateway::initialize_tokens_gateway(program_id, accounts)
+        }
+
         GatewayInstruction::UpdateTokenMapping {
             l1_token,
             l2_token,

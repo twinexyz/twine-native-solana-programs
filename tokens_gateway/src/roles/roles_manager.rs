@@ -14,10 +14,10 @@ pub fn set_role_chain_admin(
     accounts: &[AccountInfo],
     new_admin: Pubkey,
 ) -> ProgramResult {
-    let account_iter = &mut accounts.iter();
+    let account_info_iter = &mut accounts.iter();
 
-    let role_manager_info = next_account_info(account_iter)?;
-    let chain_admin_info = next_account_info(account_iter)?;
+    let role_manager_info = next_account_info(account_info_iter)?;
+    let chain_admin_info = next_account_info(account_info_iter)?;
 
     if role_manager_info.owner != program_id {
         return Err(ProgramError::IncorrectProgramId);
@@ -43,9 +43,9 @@ pub fn add_role(
     address: Pubkey,
     role: RoleType,
 ) -> ProgramResult {
-    let account_iter = &mut accounts.iter();
-    let role_manager_info = next_account_info(account_iter)?;
-    let chain_admin_info = next_account_info(account_iter)?;
+    let account_info_iter = &mut accounts.iter();
+    let role_manager_info = next_account_info(account_info_iter)?;
+    let chain_admin_info = next_account_info(account_info_iter)?;
     if role_manager_info.owner != program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
@@ -66,9 +66,9 @@ pub fn remove_role(
     address: Pubkey,
     role: RoleType,
 ) -> ProgramResult {
-    let account_iter = &mut accounts.iter();
-    let role_manager_info = next_account_info(account_iter)?;
-    let authority_info = next_account_info(account_iter)?;
+    let account_info_iter = &mut accounts.iter();
+    let role_manager_info = next_account_info(account_info_iter)?;
+    let authority_info = next_account_info(account_info_iter)?;
 
     if role_manager_info.owner != program_id {
         return Err(ProgramError::IncorrectProgramId);

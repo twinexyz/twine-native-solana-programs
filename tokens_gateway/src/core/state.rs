@@ -32,7 +32,6 @@ pub struct NativeTokenVaultData {
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct SplTokensVaultData {
     pub is_initialized: bool,
-    pub authority: Pubkey,
     pub total_deposited_amount: Vec<TokenDepositData>,
 }
 
@@ -117,7 +116,7 @@ impl ExecutedWithdrawalsBuffer {
 /*******************************************************
  *Implementation of methods for ReceiptCommitment *
  *******************************************************/
- impl ReceiptCommitment {
+impl ReceiptCommitment {
     /// ABI encodes the receipt commitment
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::new();

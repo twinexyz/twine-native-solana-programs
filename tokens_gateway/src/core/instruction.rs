@@ -135,8 +135,8 @@ impl GatewayInstruction {
             .split_first()
             .ok_or(ProgramError::InvalidInstructionData)?;
         match discriminator {
-            0 => Ok(Self::InitializeTokensGateway),
-            1 => Ok(Self::InitializeTokensGatewayRoleManager),
+            0 => Ok(Self::InitializeTokensGatewayRoleManager),
+            1 => Ok(Self::InitializeTokensGateway),
             2 => {
                 let payload = UpdateTokenMappingPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
