@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+    "twine_chain",
+    "tokens_gateway"
+]
+
+[workspace.dependencies]
+hex = "0.4"
+sha3 = "0.10"
+borsh = "0.10.3"
+thiserror = "1.0"
+bincode = "1.3.3"
+num-traits = "0.2"
+num-bigint = "0.4.3"
+solana-program = "1.18.26"
+solana-secp256k1-recover = "2.1.6"
+solana-program-test = "1.18.3"
+solana-sdk = "1.18"
+tokio = { version = "1.0", features = ["full"] }
+libsecp256k1 = { version = "0.7.1", features = ["std"] }
+sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }
+spl-token = {version = "3.5.0", default-features = false, features = ["no-entrypoint"] }

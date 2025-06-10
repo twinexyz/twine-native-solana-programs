@@ -1,5 +1,5 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::TokenDecimalMappings;
+use crate::core::state::{SignMessageInfo, TokenDecimalMappings};
 use crate::utils::constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX};
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
 #[cfg(not(test))]
@@ -18,7 +18,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use twine_chain::core::state::{
-    ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer, SignMessageInfo,
+    ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer,
 };
 
 pub fn forced_native_token_withdrawal(

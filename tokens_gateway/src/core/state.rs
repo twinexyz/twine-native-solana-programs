@@ -77,6 +77,18 @@ pub struct FinalizeInputWithdrawal {
     pub inclusion_proof: Vec<u8>,
 }
 
+/// Struct for signed messageAdd commentMore actions
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct SignMessageInfo {
+    pub nonce: u64,
+    pub chain_id: u64,
+    pub amount: u64,
+    pub from_twine_address: String,
+    pub to_l1_pubkey: String,
+    pub l1_token: String,
+    pub l2_token: String,
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct ReceiptCommitment {
     pub chain_id: u64,
@@ -88,6 +100,22 @@ pub struct ReceiptCommitment {
     pub l1_token_address: String,
     pub l2_token_address: String,
     pub amount: String,
+}
+
+impl SignMessageInfo {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::new();
+
+        encoded.extend(self.nonce.to_be_bytes());
+        encoded.extend(self.chain_id.to_be_bytes());
+        encoded.extend(self.amount.to_be_bytes());
+        encoded.extend(self.from_twine_address.as_bytes());
+        encoded.extend(self.to_l1_pubkey.as_bytes());
+        encoded.extend(self.l1_token.as_bytes());
+        encoded.extend(self.l2_token.as_bytes());
+
+        encoded
+    }
 }
 
 impl ExecutedWithdrawalsBuffer {

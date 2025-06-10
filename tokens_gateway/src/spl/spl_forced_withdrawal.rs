@@ -1,5 +1,5 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::TokenDecimalMappings;
+use crate::core::state::{SignMessageInfo, TokenDecimalMappings};
 use crate::utils::constants::{CHAIN_ID, SPL_TOKENS_VAULT_DATA_PREFIX};
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
 #[cfg(not(test))]
@@ -20,7 +20,7 @@ use solana_program::{
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use std::str::FromStr;
 use twine_chain::core::state::{
-    ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer, SignMessageInfo,
+    ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer,
 };
 
 pub fn forced_spl_token_withdrawal(

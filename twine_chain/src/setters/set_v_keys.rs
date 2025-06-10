@@ -154,9 +154,10 @@ mod test {
             withdrawal_vkey: String::from(
                 "0x626c756500000000000000000000000000000000000000000000000000000111",
             ),
+            skip_verification: false,
             last_finalized_batch: last_batch.clone(),
             last_committed_batch: last_batch.clone(),
-            last_transcation_finalized_batch: last_batch.clone(),
+            last_transaction_finalized_batch: last_batch.clone(),
             last_finalized_receipt_root: [0u8; 32],
         };
         let mut twine_chain_storage_data = vec![];

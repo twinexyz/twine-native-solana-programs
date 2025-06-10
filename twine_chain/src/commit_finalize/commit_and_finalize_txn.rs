@@ -169,10 +169,10 @@ pub fn commit_and_finalize_transaction(
     lz_buffer_data.lz_messages.drain(0..lz_transaction_count);
 
     twine_chain_storage_data
-        .last_transcation_finalized_batch
+        .last_transaction_finalized_batch
         .start_block = start_block;
     twine_chain_storage_data
-        .last_transcation_finalized_batch
+        .last_transaction_finalized_batch
         .end_block = end_block;
 
     // Serialize data and update the PDAs
@@ -426,9 +426,10 @@ mod test {
             execution_vkey: String::from(""),
             inclusion_vkey: String::from(""),
             withdrawal_vkey: String::from(""),
+            skip_verification: true,
             last_finalized_batch: committed_info.clone(),
             last_committed_batch: committed_info.clone(),
-            last_transcation_finalized_batch: batch_info.clone(),
+            last_transaction_finalized_batch: batch_info.clone(),
             last_finalized_receipt_root: [0u8; 32],
         };
 
@@ -689,12 +690,12 @@ mod test {
             TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data.borrow()[..])?;
 
         assert_eq!(
-            twine_chain_storage_data.last_transcation_finalized_batch.start_block, 1,
+            twine_chain_storage_data.last_transaction_finalized_batch.start_block, 1,
             "Last batch's start block should be 1"
         );
 
         assert_eq!(
-            twine_chain_storage_data.last_transcation_finalized_batch.end_block, 3,
+            twine_chain_storage_data.last_transaction_finalized_batch.end_block, 3,
             "Last batch's end block should be 3"
         );
 

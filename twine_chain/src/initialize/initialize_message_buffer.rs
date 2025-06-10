@@ -9,7 +9,7 @@ use crate::utils::address_derivation::{
     verify_derived_address, verify_owner, verify_system_program,
 };
 use crate::utils::constants::{
-    DEPOSIT_BUFFER_PREFIX, EXECUTION_BUFFER_PREFIX, FORCED_WITHDRAWAL_BUFFER_PREFIX,
+    DEPOSIT_BUFFER_PREFIX, EXECUTION_MESSAGE_BUFFER_PREFIX, FORCED_WITHDRAWAL_BUFFER_PREFIX,
     LAYER_ZERO_BUFFER_PREFIX, MAX_QUEUE_SIZE,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -222,7 +222,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
                 system_program.clone(),
             ],
             &[&[
-                EXECUTION_BUFFER_PREFIX.as_bytes(),
+                EXECUTION_MESSAGE_BUFFER_PREFIX.as_bytes(),
                 &[execution_message_bump],
             ]],
         )?;

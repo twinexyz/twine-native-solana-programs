@@ -74,9 +74,10 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         execution_vkey: String::from(""),
         inclusion_vkey: String::from(""),
         withdrawal_vkey: String::from(""),
+        skip_verification: false,
         last_finalized_batch: last_batch.clone(),
         last_committed_batch: last_batch.clone(),
-        last_transcation_finalized_batch: last_batch.clone(),
+        last_transaction_finalized_batch: last_batch.clone(),
         last_finalized_receipt_root: [0u8; 32],
     };
 

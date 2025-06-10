@@ -1,7 +1,8 @@
 use sha3::{Digest, Keccak256};
 use solana_secp256k1_recover::secp256k1_recover;
 use solana_program::{program_error::ProgramError,msg};
-use twine_chain::core::state::SignMessageInfo;
+
+use crate::core::state::SignMessageInfo;
 
 pub(crate) fn recover_address(
     withdraw_info:SignMessageInfo,

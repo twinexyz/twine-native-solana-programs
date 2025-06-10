@@ -3,9 +3,12 @@ name = "twine_chain"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib", "lib"]
+
 [dependencies]
-borsh = "0.10.3"
-thiserror = "1.0"
-solana-program = "1.18.26"
-sha3 = { version = "0.10" }
-sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }
+borsh = { workspace = true }
+thiserror = { workspace = true }
+solana-program = { workspace = true }
+sha3 = { workspace = true }
+sp1-solana = { workspace = true }

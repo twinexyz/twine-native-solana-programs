@@ -62,9 +62,10 @@ pub struct TwineChainStorage {
     pub execution_vkey: String,
     pub inclusion_vkey: String,
     pub withdrawal_vkey: String,
+    pub skip_verification: bool,
     pub last_finalized_batch: BatchInfo,
     pub last_committed_batch: BatchInfo,
-    pub last_transcation_finalized_batch: BatchInfo,
+    pub last_transaction_finalized_batch: BatchInfo,
     pub last_finalized_receipt_root: [u8; 32],
 }
 
@@ -211,6 +212,7 @@ impl TwineChainStorage {
         + 4 + 66        // execution_vkey
         + 4 + 66    // inclusion_vkey
         + 4 + 66        // withdrawal_vkey
+        + 1         // skip_verification  
         + 16        // last_finalized_batch
         + 16        // last_committed_batch
         + 16        // last_transcation_finalized_batch

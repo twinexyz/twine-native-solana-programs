@@ -252,9 +252,10 @@ mod test {
             execution_vkey: String::from(""),
             inclusion_vkey: String::from(""),
             withdrawal_vkey: String::from(""),
+            skip_verification: true,
             last_finalized_batch: batch_info.clone(),
             last_committed_batch: committed_info,
-            last_transcation_finalized_batch: batch_info.clone(),
+            last_transaction_finalized_batch: batch_info.clone(),
             last_finalized_receipt_root: [0u8; 32],
         };
 
