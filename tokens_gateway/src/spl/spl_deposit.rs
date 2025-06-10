@@ -193,8 +193,7 @@ mod tests {
     use crate::core::state::{
         SplTokensVaultData, TokenDecimalMapping, TokenDecimalMappings, TokenDepositData,
     };
-    use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
-    use solana_sdk::clock::Epoch;
+    use solana_program::{account_info::AccountInfo, clock::Epoch,pubkey::Pubkey, system_program};
     use spl_token::state::Account as TokenAccount;
     use twine_chain::core::state::DepositMessagesBuffer;
 

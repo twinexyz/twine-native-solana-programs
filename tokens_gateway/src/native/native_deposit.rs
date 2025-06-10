@@ -195,8 +195,8 @@ mod mock_clock {
 mod tests {
     use super::*;
     use crate::core::state::{NativeTokenVaultData, TokenDecimalMapping, TokenDecimalMappings};
-    use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
-    use solana_sdk::clock::Epoch;
+    use solana_program::{account_info::AccountInfo, clock::Epoch,pubkey::Pubkey, system_program};
+
 
     fn create_test_account<'a>(
         key: &'a Pubkey,

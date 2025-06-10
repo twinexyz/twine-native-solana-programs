@@ -6,4 +6,3 @@ pub mod native;
 pub mod setters;
 pub mod initialize;
 pub mod finalize_withdrawal;
-
