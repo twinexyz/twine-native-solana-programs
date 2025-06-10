@@ -334,8 +334,8 @@ fn invoke_signed(
 mod test {
     use super::*;
     use crate::utils::constants::INITIAL_CHAIN_ADMIN;
-    use solana_program::{account_info::AccountInfo, pubkey::Pubkey, rent::Rent, system_program};
-    use solana_sdk::clock::Epoch;
+    use solana_program::{account_info::AccountInfo, pubkey::Pubkey,clock::Epoch, rent::Rent, system_program};
+
     use std::str::FromStr;
 
     fn create_test_account_info<'a>(
