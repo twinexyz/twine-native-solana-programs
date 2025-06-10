@@ -1,5 +1,5 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::{BatchInfo, TwineChainStorage};
+use crate::core::state::{BatchInfo, TwineChainRoleManager, TwineChainStorage};
 use crate::utils::address_derivation::{
     derive_role_manager, derive_twine_chain_storage, verify_derived_address, verify_owner,
     verify_system_program,
@@ -122,6 +122,16 @@ fn validate_accounts(
             return Err(ProgramError::AccountAlreadyInitialized);
         }
     }
+
+    // Checks if signer has required role(ChainAdmin)
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if role_manager_data.chain_admin != *chain_admin_acc.key {
+        return Err(ProgramCustomError::Unauthorized.into());
+    }
+
     Ok(twine_chain_storage_bump)
 }
 
@@ -151,7 +161,7 @@ fn invoke_signed(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::constants::INITIAL_CHAIN_ADMIN;
+    use crate::utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES};
     use solana_program::{clock::Epoch, system_program};
     use std::str::FromStr;
 
@@ -187,19 +197,30 @@ mod test {
 
         // Required space for each account
         let twine_chain_storage_space = TwineChainStorage::LEN;
+        let role_manager_space: usize = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
 
         // Setup Account Lamports
         let rent = Rent::default();
         let mut twine_chain_storage_lamports = rent.minimum_balance(twine_chain_storage_space);
-        let mut role_manager_lamports = 1_000_000;
+        let mut role_manager_lamports = rent.minimum_balance(role_manager_space);
         let mut chain_admin_lamports = 1_000_000_000;
         let mut system_program_lamports = 0;
 
         // Setup Account data
         let mut twine_chain_storage_data = vec![];
-        let mut role_manager_data = vec![0u8; 1000];
         let mut chain_admin_data = vec![];
         let mut system_program_data = vec![];
+
+        // Set InitialChainAdmin as chain admin
+        let role_manager_dummy_data = TwineChainRoleManager {
+            is_initialized: true,
+            chain_admin: Pubkey::from_str(INITIAL_CHAIN_ADMIN)?,
+            twine_operator: Pubkey::default(),
+            token_gateway_program: Pubkey::default(),
+            roles: vec![],
+        };
+        let mut role_manager_data = vec![];
+        role_manager_dummy_data.serialize(&mut role_manager_data)?;
 
         // Setup owners
         let mut twine_chain_storage_owner = program_id;

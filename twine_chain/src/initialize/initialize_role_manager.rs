@@ -97,6 +97,7 @@ fn validate_accounts(
             return Err(ProgramError::AccountAlreadyInitialized);
         }
     }
+
     Ok(role_manager_bump)
 }
 

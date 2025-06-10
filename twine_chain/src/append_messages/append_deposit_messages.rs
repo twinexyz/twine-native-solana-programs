@@ -24,14 +24,12 @@ pub fn append_deposit_message(
     let role_manager_acc = next_account_info(account_info_iter)?;
     let initializer_acc = next_account_info(account_info_iter)?;
 
-    println!("Before validation");
     validate_accounts(
         program_id,
         deposit_message_buffer_acc,
         role_manager_acc,
         initializer_acc,
     )?;
-    println!("After validation");
 
     // Validate data length
     let total_len = 8
@@ -46,14 +44,11 @@ pub fn append_deposit_message(
     if total_len > DepositMessageInfo::LEN {
         return Err(ProgramCustomError::InvalidDataLength.into());
     }
-    println!("After length");
 
     // Deserialize account data
     let mut deposits =
         DepositMessagesBuffer::deserialize(&mut &deposit_message_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    println!("After deserialization");
 
     // Check if deposit message buffer is initialized
     if !deposits.is_initialized() {
@@ -234,7 +229,7 @@ mod test {
         };
 
         let result = append_deposit_message(&program_id, &accounts, dummy_msg);
-        assert!(result.is_ok(), "Setter failed: {:?}", result.err());
+        assert!(result.is_ok(), "Deposit failed: {:?}", result.err());
 
         // verify setter
         let deposit_buffer_data = DepositMessagesBuffer::deserialize(

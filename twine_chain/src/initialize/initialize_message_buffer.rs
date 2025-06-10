@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{
     DepositMessageInfo, DepositMessagesBuffer, ExecutionMessageBuffer, ForcedWithdrawMessageInfo,
-    ForcedWithdrawMessagesBuffer, LayerZeroMessagesBuffer,
+    ForcedWithdrawMessagesBuffer, LayerZeroMessagesBuffer, TwineChainRoleManager,
 };
 use crate::utils::address_derivation::{
     derive_deposit_message_buffer, derive_execution_message_buffer,
@@ -157,7 +157,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     forced_withdraw_buffer_data
         .serialize(&mut &mut forced_withdrawal_messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    println!("Done2");
+
     msg!("Forced Withdraw Message Buffer Initialized");
 
     /*****************************
@@ -197,7 +197,6 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
         .serialize(&mut &mut layer_zero_messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    println!("Done3");
     msg!("Layer Zero Message Buffer Initialized");
 
     /****************************
@@ -238,7 +237,6 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     execution_buffer_data
         .serialize(&mut &mut execution_messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    println!("Done4");
     msg!("Execution Message Buffer Initialized");
 
     Ok(())
@@ -312,9 +310,10 @@ fn validate_accounts(
 
     // re-initialization guard for layer zero buffer
     if !layer_zero_messages_buffer_acc.data_is_empty() {
-        let layer_zero_buffer_data =
-            LayerZeroMessagesBuffer::deserialize(&mut &layer_zero_messages_buffer_acc.data.borrow()[..])
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+        let layer_zero_buffer_data = LayerZeroMessagesBuffer::deserialize(
+            &mut &layer_zero_messages_buffer_acc.data.borrow()[..],
+        )
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
         if layer_zero_buffer_data.is_initialized() {
             return Err(ProgramError::AccountAlreadyInitialized);
@@ -323,13 +322,23 @@ fn validate_accounts(
 
     // re-initialization guard for execution buffer
     if !execution_messages_buffer_acc.data_is_empty() {
-        let execution_buffer_data =
-            ExecutionMessageBuffer::deserialize(&mut &execution_messages_buffer_acc.data.borrow()[..])
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+        let execution_buffer_data = ExecutionMessageBuffer::deserialize(
+            &mut &execution_messages_buffer_acc.data.borrow()[..],
+        )
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
         if execution_buffer_data.is_initialized() {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
+    }
+
+    // Checks if signer has required role(ChainAdmin)
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if role_manager_data.chain_admin != *chain_admin_acc.key {
+        return Err(ProgramCustomError::Unauthorized.into());
     }
 
     Ok((
@@ -367,7 +376,10 @@ fn invoke_signed(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::constants::INITIAL_CHAIN_ADMIN;
+    use crate::{
+        core::state::RoleType,
+        utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES},
+    };
     use borsh::BorshDeserialize;
     use solana_program::{clock::Epoch, system_program};
     use std::str::FromStr;
@@ -413,6 +425,7 @@ mod test {
         let layer_zero_message_buffer_space = 1 + 8 + 4 + (MAX_QUEUE_SIZE * 10);
         let execution_message_buffer_space =
             1 + 4 + (MAX_QUEUE_SIZE * ForcedWithdrawMessageInfo::LEN);
+        let role_manager_space: usize = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
 
         // Setup Account Lamports
         let rent = Rent::default();
@@ -425,8 +438,7 @@ mod test {
             rent.minimum_balance(layer_zero_message_buffer_space);
         let mut execution_message_buffer_lamports =
             rent.minimum_balance(execution_message_buffer_space);
-
-        let mut role_manager_lamports = 1_000_000;
+        let mut role_manager_lamports = rent.minimum_balance(role_manager_space);
         let mut chain_admin_lamports = 1_000_000_000;
         let mut system_program_lamports = 0;
 
@@ -435,9 +447,19 @@ mod test {
         let mut forced_withdraw_message_buffer_data = vec![];
         let mut layer_zero_message_buffer_data = vec![];
         let mut execution_message_buffer_data = vec![];
-        let mut role_manager_data = vec![0u8; 1000];
         let mut chain_admin_data = vec![];
         let mut system_program_data = vec![];
+
+        // Set InitialChainAdmin as chain admin
+        let role_manager_dummy_data = TwineChainRoleManager {
+            is_initialized: true,
+            chain_admin: Pubkey::from_str(INITIAL_CHAIN_ADMIN)?,
+            twine_operator: Pubkey::default(),
+            token_gateway_program: Pubkey::default(),
+            roles: vec![],
+        };
+        let mut role_manager_data = vec![];
+        role_manager_dummy_data.serialize(&mut role_manager_data)?;
 
         // Setup owners
         let mut deposit_message_buffer_owner = program_id;

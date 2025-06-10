@@ -1,5 +1,5 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::{BatchPdaAccount, BlockInfo};
+use crate::core::state::{BatchPdaAccount, BlockInfo, RoleType, TwineChainRoleManager};
 use crate::utils::address_derivation::{
     derive_commitment_pda, derive_role_manager, verify_derived_address, verify_owner,
     verify_system_program,
@@ -83,7 +83,6 @@ pub fn initialize_genesis_batch(
     Ok(())
 }
 
-// TODO: Check if initializer_acc has required role(Twine Operation Handler)
 fn validate_accounts(
     program_id: &Pubkey,
     first_batch_acc: &AccountInfo,
@@ -108,11 +107,21 @@ fn validate_accounts(
 
     // re-initialization guard
     if !first_batch_acc.data_is_empty() {
-        let first_batch_data = BatchPdaAccount::deserialize(&mut &first_batch_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let first_batch_data =
+            BatchPdaAccount::deserialize(&mut &first_batch_acc.data.borrow()[..])
+                .map_err(|_| ProgramError::InvalidAccountData)?;
         if first_batch_data.is_initialized() {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
+    }
+
+    // Checks if signer has required role(TwineOperationHandler)
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if !role_manager_data.has_role(initializer_acc.key, RoleType::TwineOperationHandler) {
+        return Err(ProgramCustomError::Unauthorized.into());
     }
 
     Ok(genesis_batch_bump)
@@ -144,7 +153,7 @@ fn invoke_signed(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::constants::INITIAL_CHAIN_ADMIN;
+    use crate::utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES};
     use borsh::BorshDeserialize;
     use solana_program::{clock::Epoch, system_program};
     use std::str::FromStr;
@@ -181,20 +190,33 @@ mod test {
 
         // Required space for each account
         let first_batch_space = 1 + (4 + BlockInfo::LEN) + 1 + 1;
+        let role_manager_space: usize = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
 
         // Setup Account Lamports
         let rent = Rent::default();
         let mut first_batch_lamports = rent.minimum_balance(first_batch_space);
-
-        let mut role_manager_lamports = 1_000_000;
+        let mut role_manager_lamports = rent.minimum_balance(role_manager_space);
         let mut initializer_lamports = 1_000_000_000;
         let mut system_program_lamports = 0;
 
-        // Setup Account data
+        // Setup Account Data
         let mut first_batch_data = vec![];
-        let mut role_manager_data = vec![0u8; 1000];
         let mut initializer_data = vec![];
         let mut system_program_data = vec![];
+
+        // Give Role twineOperatioHandler to InitialChainAdmin
+        let role_manager_dummy_data = TwineChainRoleManager {
+            is_initialized: true,
+            chain_admin: Pubkey::from_str(INITIAL_CHAIN_ADMIN)?,
+            twine_operator: Pubkey::default(),
+            token_gateway_program: Pubkey::default(),
+            roles: vec![(
+                Pubkey::from_str(INITIAL_CHAIN_ADMIN)?,
+                RoleType::TwineOperationHandler,
+            )],
+        };
+        let mut role_manager_data = vec![];
+        role_manager_dummy_data.serialize(&mut role_manager_data)?;
 
         // Setup owners
         let mut first_batch_owner = program_id;
