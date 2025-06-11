@@ -1,3 +1,8 @@
+[package]
+name = "twine-solana-programs" 
+version = "0.1.0"
+edition = "2021"
+
 [workspace]
 resolver = "2"
 members = [
@@ -16,9 +21,15 @@ base64ct = "=1.6.0"
 num-bigint = "0.4.6"
 solana-program = "1.18.26"
 solana-secp256k1-recover = "2.1.6"
-solana-program-test = "1.18.26"
+solana-program-test = "2.2.1"
 tokio = { version = "1.0", features = ["macros", "rt"], default-features = false }
 libsecp256k1 = { version = "0.7.1", default-features = false }
 sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }
 spl-token = {version = "3.5.0", default-features = false, features = ["no-entrypoint"] }
+tokens_gateway = { path = "./tokens_gateway", features = ["no-entrypoint"] }
+twine_chain = { path = "./twine_chain", features = ["no-entrypoint"] }
 
+[dev-dependencies]
+tokio-test = "0.4"
+tokens_gateway = { workspace = true }
+twine_chain = { workspace = true }
