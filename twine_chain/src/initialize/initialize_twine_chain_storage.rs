@@ -48,6 +48,7 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
             chain_storage_space as u64,
             program_id,
         );
+        println!("Twine Chain Space: {}", chain_storage_space);
         invoke_signed(
             &create_ix,
             &[
@@ -85,7 +86,7 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!("Role Manager Initialized");
+    msg!("Twine Chain Storage Initialized");
 
     Ok(())
 }
@@ -105,11 +106,9 @@ fn validate_accounts(
     let (expected_twine_chain_storage_pda, twine_chain_storage_bump) =
         derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
-    verify_owner(twine_chain_storage_acc, program_id)?;
 
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
-    verify_owner(role_manager_acc, program_id)?;
 
     verify_system_program(system_program)?;
 

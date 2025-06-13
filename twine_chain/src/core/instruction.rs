@@ -1,8 +1,21 @@
-use crate::core::state::{CommitBatchInfo, DepositMessageInfo, ForcedWithdrawMessageInfo};
-use borsh::BorshDeserialize;
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
+use std::vec;
 
+use crate::core::state::{CommitBatchInfo, DepositMessageInfo, ForcedWithdrawMessageInfo};
+use crate::utils::address_derivation::{
+    derive_deposit_message_buffer, derive_execution_message_buffer,
+    derive_forced_withdraw_message_buffer, derive_layer_zero_message_buffer, derive_role_manager,
+    derive_twine_chain_storage,
+};
+use crate::ID;
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::system_program;
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
+
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum TwineChainInstruction {
     InitializeRoleManager,
     InitializeTwineChainStorage,
@@ -93,6 +106,61 @@ struct FinalizeBatchPayload {
 struct CommitAndFinalizeTransactionPayload {
     transaction_info: Vec<u8>,
     inclusion_proof: Vec<u8>,
+}
+
+pub fn initialize_role_manager(chain_admin: &Pubkey) -> Vec<Instruction> {
+    println!("Inside role manager instruction");
+    let payload = TwineChainInstruction::InitializeRoleManager;
+    let mut data = vec![0];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn initialize_twine_chain_storage(chain_admin: &Pubkey) -> Vec<Instruction> {
+    println!("Inside Twine Chain Storage instruction");
+    let payload = TwineChainInstruction::InitializeTwineChainStorage;
+    let mut data = vec![1];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn initialize_message_buffer(chain_admin: &Pubkey) -> Vec<Instruction> {
+    let payload = TwineChainInstruction::InitializeMessageBuffer;
+    let mut data = vec![2];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_deposit_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_forced_withdraw_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_layer_zero_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_execution_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
 }
 
 impl TwineChainInstruction {

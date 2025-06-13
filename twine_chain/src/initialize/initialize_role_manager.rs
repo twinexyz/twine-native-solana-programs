@@ -54,6 +54,7 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
             &[&[ROLE_MANAGER_PREFIX.as_bytes(), &[role_manager_bump]]],
         )?;
     }
+
     let chain_admin: Pubkey = INITIAL_CHAIN_ADMIN.parse().expect("Invalid Pubkey");
     let role_manager_data = TwineChainRoleManager {
         is_initialized: true,
@@ -66,7 +67,7 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
     role_manager_data
         .serialize(&mut &mut role_manager_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
+    println!("Rolemanager Initialization Successful");
     msg!("Role Manager Initialized");
     Ok(())
 }
@@ -84,8 +85,7 @@ fn validate_accounts(
 
     let (expected_role_manager_pda, role_manager_bump) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
-    verify_owner(role_manager_acc, program_id)?;
-
+    
     verify_system_program(system_program)?;
 
     if !role_manager_acc.data_is_empty() {

@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{
-    DepositMessageInfo, DepositMessagesBuffer, ExecutionMessageBuffer, ForcedWithdrawMessageInfo,
-    ForcedWithdrawMessagesBuffer, LayerZeroMessagesBuffer, TwineChainRoleManager,
+    DepositMessagesBuffer, ExecutionMessageBuffer, ForcedWithdrawMessagesBuffer,
+    LayerZeroMessagesBuffer, TwineChainRoleManager,
 };
 use crate::utils::address_derivation::{
     derive_deposit_message_buffer, derive_execution_message_buffer,
@@ -10,7 +10,7 @@ use crate::utils::address_derivation::{
 };
 use crate::utils::constants::{
     DEPOSIT_BUFFER_PREFIX, EXECUTION_MESSAGE_BUFFER_PREFIX, FORCED_WITHDRAWAL_BUFFER_PREFIX,
-    LAYER_ZERO_BUFFER_PREFIX, MAX_QUEUE_SIZE,
+    LAYER_ZERO_BUFFER_PREFIX,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
@@ -77,14 +77,13 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
             chain_admin_acc,
             system_program,
         )?;
-
     let rent = Rent::default();
 
     /**************************
      * Deposit Message Buffer *
      *************************/
     if deposit_messages_buffer_acc.data_is_empty() {
-        let deposit_buffer_space = 1 + 8 + 4 + (MAX_QUEUE_SIZE * DepositMessageInfo::LEN);
+        let deposit_buffer_space = 10240;
         let required_lamports = rent.minimum_balance(deposit_buffer_space);
         let create_ix = system_instruction::create_account(
             chain_admin_acc.key,
@@ -121,7 +120,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     /**********************************
      * Forced Withdraw Message Buffer *
      **********************************/
-    let forced_buffer_space = 1 + 8 + 4 + (MAX_QUEUE_SIZE * ForcedWithdrawMessageInfo::LEN);
+    let forced_buffer_space = 10240;
 
     if forced_withdrawal_messages_buffer_acc.data_is_empty() {
         let required_lamports = rent.minimum_balance(forced_buffer_space);
@@ -163,7 +162,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     /*****************************
      * Layer Zero Message Buffer *
      *****************************/
-    let layer_zero_buffer_space = 1 + 8 + 4 + (MAX_QUEUE_SIZE * 10);
+    let layer_zero_buffer_space = 10240;
 
     // Dervive and validate PDA
     if layer_zero_messages_buffer_acc.data_is_empty() {
@@ -202,7 +201,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     /****************************
      * Execution Message Buffer *
      ****************************/
-    let execution_buffer_space = 1 + 4 + (MAX_QUEUE_SIZE * ForcedWithdrawMessageInfo::LEN);
+    let execution_buffer_space = 10240;
 
     if execution_messages_buffer_acc.data_is_empty() {
         let required_lamports = rent.minimum_balance(execution_buffer_space);
@@ -265,7 +264,6 @@ fn validate_accounts(
 
     let (expected_deposit_pda, deposit_bump) = derive_deposit_message_buffer(program_id);
     verify_derived_address(expected_deposit_pda, deposit_messages_buffer_acc)?;
-    verify_owner(deposit_messages_buffer_acc, program_id)?;
 
     let (expected_forced_withdrawal_pda, forced_withdraw_bump) =
         derive_forced_withdraw_message_buffer(program_id);
@@ -273,16 +271,13 @@ fn validate_accounts(
         expected_forced_withdrawal_pda,
         forced_withdrawal_messages_buffer_acc,
     )?;
-    verify_owner(forced_withdrawal_messages_buffer_acc, program_id)?;
 
     let (expected_layer_zero_pda, layer_zero_bump) = derive_layer_zero_message_buffer(program_id);
     verify_derived_address(expected_layer_zero_pda, layer_zero_messages_buffer_acc)?;
-    verify_owner(layer_zero_messages_buffer_acc, program_id)?;
 
     let (expected_execution_pda, execution_message_bump) =
         derive_execution_message_buffer(program_id);
     verify_derived_address(expected_execution_pda, execution_messages_buffer_acc)?;
-    verify_owner(execution_messages_buffer_acc, program_id)?;
 
     verify_system_program(system_program)?;
 
@@ -363,7 +358,7 @@ fn invoke_signed(
             continue;
         }
         // For testing purpose, allocate a large space to every PDA to allow serialization
-        let space = 1 + 8 + 4 + (MAX_QUEUE_SIZE * DepositMessageInfo::LEN);
+        let space = 10240;
         let leaked: &'static mut [u8] = Box::leak(vec![0u8; space].into_boxed_slice());
         unsafe {
             let mut data_ref = acc.data.borrow_mut();
@@ -377,7 +372,6 @@ fn invoke_signed(
 mod test {
     use super::*;
     use crate::{
-        core::state::RoleType,
         utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES},
     };
     use borsh::BorshDeserialize;
@@ -419,12 +413,10 @@ mod test {
         let system_program_id = system_program::id();
 
         // Required space for each account
-        let deposit_message_buffer_space = 1 + 8 + 4 + (MAX_QUEUE_SIZE * DepositMessageInfo::LEN);
-        let forced_withdraw_message_buffer_space =
-            1 + 8 + 4 + (MAX_QUEUE_SIZE * ForcedWithdrawMessageInfo::LEN);
-        let layer_zero_message_buffer_space = 1 + 8 + 4 + (MAX_QUEUE_SIZE * 10);
-        let execution_message_buffer_space =
-            1 + 4 + (MAX_QUEUE_SIZE * ForcedWithdrawMessageInfo::LEN);
+        let deposit_message_buffer_space = 10240;
+        let forced_withdraw_message_buffer_space = 10240;
+        let layer_zero_message_buffer_space = 10240;
+        let execution_message_buffer_space = 10240;
         let role_manager_space: usize = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
 
         // Setup Account Lamports

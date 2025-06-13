@@ -5,3 +5,5 @@ pub mod setters;
 pub mod initialize;
 pub mod append_messages;
 pub mod commit_finalize;
+
+solana_program::declare_id!("CzFzUCAbmY7JcdJwZM5b2gfiYhiPny3uzxT9xqNdH57V");
