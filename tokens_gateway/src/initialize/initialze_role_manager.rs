@@ -26,15 +26,16 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
     let role_manager_acc = next_account_info(account_info_iter)?;
     let chain_admin_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
-
+ msg!("Inside Role 1");
     validate_accounts(
         role_manager_acc,
         chain_admin_acc,
         system_program,
         program_id,
     )?;
-
+ msg!("Inside Role 2");
     let rent = Rent::default();
+     msg!("Inside Role 3");
     let (_, role_bump) = derive_role_manager(program_id);
 
         let required_lamports = rent.minimum_balance(ROLE_MANAGER_ACCOUNT_SIZE);

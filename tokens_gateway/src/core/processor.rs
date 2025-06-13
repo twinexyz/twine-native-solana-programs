@@ -1,4 +1,4 @@
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo,msg, entrypoint::ProgramResult, pubkey::Pubkey};
 
 use crate::core::error::ProgramCustomError;
 use crate::core::instruction::GatewayInstruction;
@@ -14,6 +14,7 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
+    msg!("process_instruction");
     // Parse the instruction.
     let instruction = GatewayInstruction::unpack_instruction(instruction_data)
         .map_err(|_| ProgramCustomError::InvalidInstructionData)?;

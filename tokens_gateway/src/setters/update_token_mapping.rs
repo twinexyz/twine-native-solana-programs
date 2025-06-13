@@ -29,12 +29,11 @@ pub fn update_token_mapping(
     if !role_manager.has_role(&authority_acc.key, RoleType::TwineOperationHandler) {
         return Err(ProgramCustomError::Unauthorized.into());
     }
-    // Verify admin privileges
+ 
     if !authority_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Validate token addresses
     if l1_token.is_empty() {
         return Err(ProgramCustomError::InvalidL1Token.into());
     }
@@ -52,12 +51,28 @@ pub fn update_token_mapping(
     }
     let mut token_decimal_mappings =
         TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
-    token_decimal_mappings.update_mapping(l1_token, l2_token, l1_decimals, l2_decimals)?;
+    
+  
+    token_decimal_mappings.update_mapping(
+        &l1_token,
+        &l2_token,
+        l1_decimals,
+        l2_decimals,
+    )?;
 
     token_decimal_mappings
         .serialize(&mut *token_decimal_mappings_acc.data.borrow_mut())
         .map_err(|_| ProgramError::AccountDataTooSmall)?;
 
-    msg!("Token Mapping Updated");
+ 
+    msg!(
+        "TokenMappingUpdated: l1_token={}, l2_token={}, l1_decimals={}, l2_decimals={}, authority={}",
+        l1_token,
+        l2_token,
+        l1_decimals,
+        l2_decimals,
+        authority_acc.key
+    );
     Ok(())
 }
+

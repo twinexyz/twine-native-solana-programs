@@ -219,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn test_native_token_withdrawal_success() {
+    fn test_native_token_deposit_success() {
         let system_program_id = system_program::id();
         let program_id = Pubkey::new_unique();
 

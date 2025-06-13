@@ -1,12 +1,22 @@
-use super::state::{RoleType,FinalizeInputWithdrawal};
+use super::state::{FinalizeInputWithdrawal, RoleType};
+use crate::utils::address_derivation::{
+    derive_executed_withdrawals_buffer, derive_native_token_vault, derive_native_token_vault_data,
+    derive_role_manager, derive_spl_tokens_vault_data, derive_token_decimal_mappings,
+};
+use crate::ID;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::{Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+};
+use solana_program::{pubkey, system_program};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum GatewayInstruction {
-    InitializeTokensGateway,
     InitializeTokensGatewayRoleManager,
+    InitializeTokensGateway,
     UpdateTokenMapping {
         l1_token: String,
         l2_token: String,
@@ -52,37 +62,37 @@ pub enum GatewayInstruction {
         amount: u64,
         signature: Vec<u8>,
     },
-    FinalzeNativeWithdrawal{
+    FinalzeNativeWithdrawal {
         withdrawal_inputs: FinalizeInputWithdrawal,
     },
-    FinalizeSplWithdrawal{
+    FinalizeSplWithdrawal {
         withdrawal_inputs: FinalizeInputWithdrawal,
     },
 }
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct UpdateTokenMappingPayload {
     l1_token: String,
     l2_token: String,
     l1_decimals: u8,
     l2_decimals: u8,
 }
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct SetGatewayRoleChainAdminPayload {
     new_admin: Pubkey,
 }
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct AddRoleInGatewayPayload {
     address: Pubkey,
     role: RoleType,
 }
 
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct RemoveRoleInGatewayPayload {
     address: Pubkey,
     role: RoleType,
 }
 
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct NativeTokenDepoistPayload {
     receiver_twine_address: String,
     l1_token: String,
@@ -90,7 +100,7 @@ struct NativeTokenDepoistPayload {
     amount: u64,
 }
 
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct SplTokenDepoistPayload {
     receiver_twine_address: String,
     l1_token: String,
@@ -98,7 +108,7 @@ struct SplTokenDepoistPayload {
     amount: u64,
 }
 
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct NativeTokenForcedWithdrawalPayload {
     from_twine_address: String,
     to_l1_pubkey: String,
@@ -108,7 +118,7 @@ struct NativeTokenForcedWithdrawalPayload {
     signature: Vec<u8>,
 }
 
-#[derive(BorshDeserialize)]
+#[derive(BorshSerialize, BorshDeserialize)]
 struct SplTokenForcedWithdrawalPayload {
     from_twine_address: String,
     to_l1_pubkey: String,
@@ -118,19 +128,88 @@ struct SplTokenForcedWithdrawalPayload {
     signature: Vec<u8>,
 }
 
-
-#[derive(BorshDeserialize)]
-struct FinalizeNativeWithdrawalPayload{
+#[derive(BorshSerialize, BorshDeserialize)]
+struct FinalizeNativeWithdrawalPayload {
     withdrawal_inputs: FinalizeInputWithdrawal,
 }
 
-#[derive(BorshDeserialize)]
-struct FinalizeSplWithdrawalPayload{
+#[derive(BorshSerialize, BorshDeserialize)]
+struct FinalizeSplWithdrawalPayload {
     withdrawal_inputs: FinalizeInputWithdrawal,
+}
+
+pub fn initialize_tokens_gateway_role_manager(chain_admin: &Pubkey) -> Vec<Instruction> {
+    let payload = GatewayInstruction::InitializeTokensGatewayRoleManager;
+    let mut data = vec![0];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn initialize_tokens_gateway(chain_admin: &Pubkey) -> Vec<Instruction> {
+    let payload = GatewayInstruction::InitializeTokensGateway;
+    let mut data = vec![1];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_native_token_vault(&ID).0, false),
+        AccountMeta::new(derive_native_token_vault_data(&ID).0, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&ID).0, false),
+        AccountMeta::new(derive_executed_withdrawals_buffer(&ID).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&ID).0, false),
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn update_gateway_token_mapping(
+    l1_token: String,
+    l2_token: String,
+    l1_decimals: u8,
+    l2_decimals: u8,
+    chain_admin: &Pubkey,
+) -> Vec<Instruction> {
+    let payload = UpdateTokenMappingPayload {
+        l1_token,
+        l2_token,
+        l1_decimals,
+        l2_decimals,
+    };
+
+    let mut data = vec![2]; 
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(derive_token_decimal_mappings(&ID).0, false),
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
 }
 
 impl GatewayInstruction {
     pub fn unpack_instruction(input: &[u8]) -> Result<Self, ProgramError> {
+        msg!("unpack_instruction");
         let (&discriminator, rest) = input
             .split_first()
             .ok_or(ProgramError::InvalidInstructionData)?;
@@ -138,6 +217,7 @@ impl GatewayInstruction {
             0 => Ok(Self::InitializeTokensGatewayRoleManager),
             1 => Ok(Self::InitializeTokensGateway),
             2 => {
+                msg!("inside update Token Mapping");
                 let payload = UpdateTokenMappingPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::UpdateTokenMapping {
@@ -208,24 +288,24 @@ impl GatewayInstruction {
                 let payload = NativeTokenForcedWithdrawalPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::NativeTokenForcedWithdrawal {
-                        from_twine_address: payload.from_twine_address,
-                        to_l1_pubkey: payload.to_l1_pubkey,
-                        l1_token: payload.l1_token,
-                        l2_token: payload.l2_token,
-                        amount: payload.amount,
-                        signature: payload.signature,
+                    from_twine_address: payload.from_twine_address,
+                    to_l1_pubkey: payload.to_l1_pubkey,
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
+                    amount: payload.amount,
+                    signature: payload.signature,
                 })
             }
             10 => {
                 let payload = SplTokenForcedWithdrawalPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SplTokenForcedWithdrawal {
-                        from_twine_address: payload.from_twine_address,
-                        to_l1_pubkey: payload.to_l1_pubkey,
-                        l1_token: payload.l1_token,
-                        l2_token: payload.l2_token,
-                        amount: payload.amount,
-                        signature: payload.signature,
+                    from_twine_address: payload.from_twine_address,
+                    to_l1_pubkey: payload.to_l1_pubkey,
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
+                    amount: payload.amount,
+                    signature: payload.signature,
                 })
             }
 
@@ -233,14 +313,14 @@ impl GatewayInstruction {
                 let payload = FinalizeNativeWithdrawalPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::FinalzeNativeWithdrawal {
-                    withdrawal_inputs:payload.withdrawal_inputs,
+                    withdrawal_inputs: payload.withdrawal_inputs,
                 })
             }
             12 => {
                 let payload = FinalizeSplWithdrawalPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::FinalizeSplWithdrawal {
-                    withdrawal_inputs:payload.withdrawal_inputs,
+                    withdrawal_inputs: payload.withdrawal_inputs,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),

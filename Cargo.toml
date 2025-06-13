@@ -21,7 +21,8 @@ base64ct = "=1.6.0"
 num-bigint = "0.4.6"
 solana-program = "1.18.26"
 solana-secp256k1-recover = "2.1.6"
-solana-program-test = "2.2.1"
+
+
 tokio = { version = "1.0", features = ["macros", "rt"], default-features = false }
 libsecp256k1 = { version = "0.7.1", default-features = false }
 sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }
@@ -30,6 +31,12 @@ tokens_gateway = { path = "./tokens_gateway", features = ["no-entrypoint"] }
 twine_chain = { path = "./twine_chain", features = ["no-entrypoint"] }
 
 [dev-dependencies]
+dirs = "5"
 tokio-test = "0.4"
+test-case = "3.3"
+solana-sdk = "1.18.26"
+solana-program-test = "1.18.26"
+borsh = { workspace = true }
+solana-program = { workspace = true }
 tokens_gateway = { workspace = true }
 twine_chain = { workspace = true }

@@ -20,7 +20,6 @@ use solana_program::{
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
-    program_pack::IsInitialized,
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
@@ -188,7 +187,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     native_token_vault_data
         .serialize(&mut &mut native_vault_data_data[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
+msg!("native_token_vault_data initialized");
     let spl_tokens_vault_data = SplTokensVaultData {
         is_initialized: true,
         total_deposited_amount: Vec::new(),
@@ -197,7 +196,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     spl_tokens_vault_data
         .serialize(&mut &mut spl_tokens_vault_data_data[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
+msg!("spl_token_vault_data initialized");
     let executed_withdrawals_buffer = ExecutedWithdrawalsBuffer {
         is_initialized: true,
         withdrawal_nonce_lower_bound: 0,

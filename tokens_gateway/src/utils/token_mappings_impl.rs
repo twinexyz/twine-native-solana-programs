@@ -1,26 +1,25 @@
-
+use crate::core::error::ProgramCustomError;
 use crate::core::state::{TokenDecimalMapping, TokenDecimalMappings};
 use num_bigint::BigUint;
-use num_traits::ops::checked::{CheckedMul,CheckedDiv};
+use num_traits::ops::checked::{CheckedDiv, CheckedMul};
 use solana_program::program_error::ProgramError;
-use crate::core::error::ProgramCustomError;
 
 impl TokenDecimalMappings {
-    pub(crate) fn update_mapping(
+    pub fn update_mapping(
         &mut self,
-        l1_token: String,
-        l2_token: String,
+        l1_token: &str,
+        l2_token: &str,
         l1_decimals: u8,
         l2_decimals: u8,
     ) -> Result<(), ProgramError> {
         if let Some(mapping) = self.mappings.iter_mut().find(|m| m.l1_token == l1_token) {
-            mapping.l2_token = l2_token;
+            mapping.l2_token = l2_token.to_string();
             mapping.l1_decimals = l1_decimals;
             mapping.l2_decimals = l2_decimals;
         } else {
             self.mappings.push(TokenDecimalMapping {
-                l1_token,
-                l2_token,
+                l1_token: l1_token.to_string(),
+                l2_token: l2_token.to_string(),
                 l1_decimals,
                 l2_decimals,
             });
@@ -31,6 +30,7 @@ impl TokenDecimalMappings {
     pub fn get_mapping(&self, l1_token: &str) -> Option<&TokenDecimalMapping> {
         self.mappings.iter().find(|m| m.l1_token == l1_token)
     }
+
 
     pub fn convert_l1_to_l2(
         amount: u64,
@@ -50,7 +50,11 @@ impl TokenDecimalMappings {
         Self::convert_amount(amount, l2_decimals, l1_decimals)
     }
 
-    fn convert_amount(amount: BigUint, from_decimals: u8, to_decimals: u8) -> Result<String, ProgramError> {
+    fn convert_amount(
+        amount: BigUint,
+        from_decimals: u8,
+        to_decimals: u8,
+    ) -> Result<String, ProgramError> {
         let result = if from_decimals < to_decimals {
             amount
                 .checked_mul(&BigUint::from(10u32).pow((to_decimals - from_decimals) as u32))
@@ -60,7 +64,7 @@ impl TokenDecimalMappings {
                 .checked_div(&BigUint::from(10u32).pow((from_decimals - to_decimals) as u32))
                 .ok_or(ProgramError::Custom(ProgramCustomError::Overflow as u32))?
         };
-    
+
         Ok(result.to_string())
     }
 
