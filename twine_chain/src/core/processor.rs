@@ -9,6 +9,7 @@ use crate::initialize::{
     initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
     initialize_twine_chain_storage,
 };
+use crate::role::roles_manager::add_role;
 use crate::setters::{set_token_gateway, set_v_keys};
 
 pub fn process_instruction(
@@ -93,5 +94,9 @@ pub fn process_instruction(
             transaction_info,
             inclusion_proof,
         ),
+
+        TwineChainInstruction::AddRoleInTwineChain { address, role } => {
+            add_role(program_id, accounts, address, role)
+        }
     }
 }

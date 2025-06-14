@@ -41,18 +41,27 @@ pub fn add_role(
     address: Pubkey,
     role: RoleType,
 ) -> ProgramResult {
+    println!("Adding roles");
     let account_iter = &mut accounts.iter();
     let role_manager_info = next_account_info(account_iter)?;
     let chain_admin_info = next_account_info(account_iter)?;
     if role_manager_info.owner != program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
+    println!("Program Id check");
+
     if !chain_admin_info.is_signer {
         return Err(ProgramCustomError::Unauthorized.into());
     }
-    let mut role_manager = TwineChainRoleManager::try_from_slice(&role_manager_info.data.borrow())?;
+    println!("Signer check");
+
+    let mut role_manager =
+        TwineChainRoleManager::deserialize(&mut &role_manager_info.data.borrow()[..])?;
     role_manager.roles.push((address, role));
+    println!("Roles: {:?}",role_manager.roles);
     role_manager.serialize(&mut *role_manager_info.data.borrow_mut())?;
+    println!("Roles Added");
+
     msg!("Role added successfully.");
     Ok(())
 }

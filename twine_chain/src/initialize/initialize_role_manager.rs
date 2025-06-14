@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::TwineChainRoleManager;
 use crate::utils::address_derivation::{
-    derive_role_manager, verify_derived_address, verify_owner, verify_system_program,
+    derive_role_manager, verify_derived_address, verify_system_program,
 };
 use crate::utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES, ROLE_MANAGER_PREFIX};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -54,7 +54,6 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
             &[&[ROLE_MANAGER_PREFIX.as_bytes(), &[role_manager_bump]]],
         )?;
     }
-
     let chain_admin: Pubkey = INITIAL_CHAIN_ADMIN.parse().expect("Invalid Pubkey");
     let role_manager_data = TwineChainRoleManager {
         is_initialized: true,
