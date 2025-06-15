@@ -7,6 +7,7 @@ use crate::utils::address_derivation::{
 };
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::msg;
 use solana_program::program_pack::IsInitialized;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -65,8 +66,17 @@ pub fn append_forced_withdrawal_message(
         .serialize(&mut &mut forced_withdraw_message_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    // TODO: Emit Forced Withdraw Successful event
-
+    msg!(
+        "event=ForcedWithdrawSuccessful nonce={} from_twine_address={} to_l1_pubkey={} l1_token={} l2_token={} chain_id={} amount={} slot_number={}",
+        withdraw_info.nonce,
+        withdraw_info.from_twine_address,
+        withdraw_info.to_l1_pubkey,
+        withdraw_info.l1_token,
+        withdraw_info.l2_token,
+        withdraw_info.chain_id,
+        withdraw_info.amount,
+        withdraw_info.slot_number
+    );
     Ok(())
 }
 
@@ -81,8 +91,7 @@ fn validate_accounts(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (expected_withdraw_pda, _) =
-        derive_forced_withdraw_message_buffer(program_id);
+    let (expected_withdraw_pda, _) = derive_forced_withdraw_message_buffer(program_id);
     verify_derived_address(expected_withdraw_pda, forced_withdraw_message_buffer_acc)?;
 
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
@@ -211,7 +220,7 @@ mod test {
             &mut initializer_data,
             &mut initializer_owner,
         );
- 
+
         // Create accounts array in the correct order matching the function
         let accounts = vec![
             withdraw_message_buffer_account.clone(),

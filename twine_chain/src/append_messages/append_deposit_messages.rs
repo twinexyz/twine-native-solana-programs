@@ -6,6 +6,7 @@ use crate::utils::address_derivation::{
     derive_deposit_message_buffer, derive_role_manager, verify_derived_address,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::msg;
 use solana_program::program_pack::IsInitialized;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -63,8 +64,17 @@ pub fn append_deposit_message(
         .serialize(&mut &mut deposit_message_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    // TODO: Emit Deposit Successful event
-
+    msg!(
+        "event=DepositSuccessful nonce={} from_l1_pubkey={} to_twine_address={} l1_token={} l2_token={} chain_id={} amount={} slot_number={}",
+        deposit_info.nonce,
+        deposit_info.from_l1_pubkey,
+        deposit_info.to_twine_address,
+        deposit_info.l1_token,
+        deposit_info.l2_token,
+        deposit_info.chain_id,
+        deposit_info.amount,
+        deposit_info.slot_number
+    );
     Ok(())
 }
 

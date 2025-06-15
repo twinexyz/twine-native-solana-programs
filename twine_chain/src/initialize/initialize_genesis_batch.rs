@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{BatchPdaAccount, BlockInfo, RoleType, TwineChainRoleManager};
 use crate::utils::address_derivation::{
-    derive_commitment_pda, derive_role_manager, verify_derived_address, verify_owner,
+    derive_commitment_pda, derive_role_manager, verify_derived_address,
     verify_system_program,
 };
 use crate::utils::constants::COMMITMENT_PDA_PREFIX;
@@ -59,7 +59,7 @@ pub fn initialize_genesis_batch(
             first_batch_acc.clone(),
             system_program.clone(),
         ],
-        &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &[genesis_batch_bump]]],
+        &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &0u64.to_be_bytes(), &0u64.to_be_bytes(), &[genesis_batch_bump]]],
     )?;
 
     let mut account_data = BatchPdaAccount {
@@ -78,6 +78,7 @@ pub fn initialize_genesis_batch(
     account_data
         .serialize(&mut &mut first_batch_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
     msg!("Genesis Batch Initialized");
 
     Ok(())
@@ -98,7 +99,6 @@ fn validate_accounts(
     let (expected_commitment_pda, genesis_batch_bump) =
         derive_commitment_pda(&program_id, 0u64, 0u64);
     verify_derived_address(expected_commitment_pda, first_batch_acc)?;
-    verify_owner(first_batch_acc, program_id)?;
 
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
@@ -123,7 +123,7 @@ fn validate_accounts(
     if !role_manager_data.has_role(initializer_acc.key, RoleType::TwineOperationHandler) {
         return Err(ProgramCustomError::Unauthorized.into());
     }
-
+    
     Ok(genesis_batch_bump)
 }
 

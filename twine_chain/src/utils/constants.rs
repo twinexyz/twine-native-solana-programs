@@ -1,6 +1,7 @@
+pub const CHAIN_ID: usize = 900;
 pub const MAX_ROLES: usize = 50;
 pub const DISCRIMINATOR: usize = 8;
-pub const MAX_QUEUE_SIZE: usize = 50;
+pub const MAX_QUEUE_SIZE: usize = 45;
 pub const NATIVE_DATA_PREFIX: &str = "native_data";
 pub const COMMITMENT_PDA_PREFIX: &str = "twine_batch";
 pub const ROLE_MANAGER_PREFIX: &str = "role_manager_storage";

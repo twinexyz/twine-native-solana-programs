@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::TwineChainRoleManager;
+use crate::core::state::{RoleType, TwineChainRoleManager};
 use crate::utils::address_derivation::{
-    derive_role_manager, verify_derived_address, verify_owner, verify_system_program,
+    derive_role_manager, verify_derived_address, verify_system_program,
 };
 use crate::utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES, ROLE_MANAGER_PREFIX};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -60,13 +60,16 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
         chain_admin: chain_admin,
         twine_operator: Pubkey::default(),
         token_gateway_program: Pubkey::default(),
-        roles: Vec::new(),
+        roles: vec![
+            (chain_admin, RoleType::TwineOperationHandler),
+            (chain_admin, RoleType::MessageAppender)
+        ],
     };
 
     role_manager_data
         .serialize(&mut &mut role_manager_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
+    
     msg!("Role Manager Initialized");
     Ok(())
 }
@@ -84,7 +87,6 @@ fn validate_accounts(
 
     let (expected_role_manager_pda, role_manager_bump) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
-    verify_owner(role_manager_acc, program_id)?;
 
     verify_system_program(system_program)?;
 

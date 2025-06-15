@@ -6,18 +6,22 @@ use crate::utils::address_derivation::{
     derive_commitment_pda, derive_role_manager, derive_twine_chain_storage, verify_derived_address,
     verify_system_program,
 };
-use crate::utils::constants::COMMITMENT_PDA_PREFIX;
+use crate::utils::constants::{CHAIN_ID, COMMITMENT_PDA_PREFIX};
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
+use solana_program::clock::Clock;
+#[cfg(not(test))]
 use solana_program::program::invoke_signed;
-use solana_program::program_pack::IsInitialized;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
+    program_pack::IsInitialized,
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
+    sysvar::Sysvar,
 };
 
 pub fn commit_batch(
@@ -76,9 +80,13 @@ pub fn commit_batch(
                 current_batch_acc.clone(),
                 system_program.clone(),
             ],
-            &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &[current_pda_bump]]],
+            &[&[
+                COMMITMENT_PDA_PREFIX.as_bytes(),
+                &start_block.to_be_bytes(),
+                &end_block.to_be_bytes(),
+                &[current_pda_bump],
+            ]],
         )?;
-
         let batch_data = BatchPdaAccount {
             is_initialized: true,
             infos: Vec::new(),
@@ -131,22 +139,32 @@ pub fn commit_batch(
         return Err(ProgramCustomError::InvalidBlockData.into());
     }
 
+    // Update current batch
+    current_batch_data
+        .serialize(&mut &mut current_batch_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
     if last_block == end_block {
         twine_chain_storage_data.last_committed_batch.start_block = start_block;
         twine_chain_storage_data.last_committed_batch.end_block = end_block;
 
         current_batch_data.is_full = true;
-        // TODO: Emit BatchCommitmentSuccessful event
+
+        // Update twine chain storage
+        twine_chain_storage_data
+            .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
+            .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
+        // Emit event
+        let clock = Clock::get()?;
+        msg!(
+            "event=BatchCommitmentSuccessful start_block={} end_block={} chain_id={} slot_number={}",
+            start_block,
+            end_block,
+            CHAIN_ID,
+            clock.slot
+        );
     }
-
-    // Update current batch and twine chain storage
-    current_batch_data
-        .serialize(&mut &mut current_batch_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
-    twine_chain_storage_data
-        .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     Ok(())
 }
@@ -229,6 +247,24 @@ fn invoke_signed(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+use mock_clock::Clock;
+
+#[cfg(test)]
+mod mock_clock {
+    use solana_program::program_error::ProgramError;
+
+    pub struct Clock {
+        pub slot: u64,
+    }
+
+    impl Clock {
+        pub fn get() -> Result<Clock, ProgramError> {
+            Ok(Clock { slot: 1000 })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -363,7 +399,7 @@ mod test {
             &mut twine_chain_storage_owner,
         );
 
-        let current_batch_account = create_test_account_info(
+        let current_batch_account: AccountInfo<'_> = create_test_account_info(
             &current_batch_key,
             false,
             true,

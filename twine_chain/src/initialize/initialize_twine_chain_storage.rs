@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{BatchInfo, TwineChainRoleManager, TwineChainStorage};
 use crate::utils::address_derivation::{
-    derive_role_manager, derive_twine_chain_storage, verify_derived_address, verify_owner,
+    derive_role_manager, derive_twine_chain_storage, verify_derived_address,
     verify_system_program,
 };
 use crate::utils::constants::TWINE_CHAIN_STORAGE_PREFIX;
@@ -74,7 +74,7 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         execution_vkey: String::from(""),
         inclusion_vkey: String::from(""),
         withdrawal_vkey: String::from(""),
-        skip_verification: false,
+        skip_verification: true,
         last_finalized_batch: last_batch.clone(),
         last_committed_batch: last_batch.clone(),
         last_transaction_finalized_batch: last_batch.clone(),
@@ -85,7 +85,7 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!("Role Manager Initialized");
+    msg!("Twine Chain Storage Initialized");
 
     Ok(())
 }
@@ -105,11 +105,9 @@ fn validate_accounts(
     let (expected_twine_chain_storage_pda, twine_chain_storage_bump) =
         derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
-    verify_owner(twine_chain_storage_acc, program_id)?;
 
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
-    verify_owner(role_manager_acc, program_id)?;
 
     verify_system_program(system_program)?;
 

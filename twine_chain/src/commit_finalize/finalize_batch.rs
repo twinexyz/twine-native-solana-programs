@@ -5,16 +5,20 @@ use crate::core::state::{
 use crate::utils::address_derivation::{
     derive_commitment_pda, derive_role_manager, derive_twine_chain_storage, verify_derived_address,
 };
+use crate::utils::constants::CHAIN_ID;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
-use solana_program::program_pack::IsInitialized;
-
+#[cfg(not(test))]
+use solana_program::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
+    program_pack::IsInitialized,
     pubkey::Pubkey,
+    sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 
@@ -50,9 +54,10 @@ pub fn finalize_batch(
     }
 
     // Checking if previous batch is finalized
-    let previous_batch_data = BatchPdaAccount::deserialize(&mut &previous_batch_acc.data.borrow()[..])
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-   
+    let previous_batch_data =
+        BatchPdaAccount::deserialize(&mut &previous_batch_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
     if !previous_batch_data.verified {
         return Err(ProgramCustomError::PreviousBatchNotFinalized.into());
     }
@@ -75,14 +80,16 @@ pub fn finalize_batch(
         return Err(ProgramCustomError::BatchHashMismatch.into());
     }
 
-    //Calling SP1 Verifier to verify the execution proof
-    // verify_proof(
-    //     &execution_proof,
-    //     &public_values,
-    //     &twine_chain_storage_data.execution_vkey,
-    //     GROTH16_VK_4_0_0_RC3_BYTES,
-    // )
-    // .map_err(|_| ProgramError::InvalidInstructionData)?;
+    // Calling SP1 Verifier to verify the execution proof
+    if !twine_chain_storage_data.skip_verification {
+        verify_proof(
+            &execution_proof,
+            &public_values,
+            &twine_chain_storage_data.execution_vkey,
+            GROTH16_VK_4_0_0_RC3_BYTES,
+        )
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    }
 
     // Updating the states
     current_batch_data.verified = true;
@@ -96,6 +103,15 @@ pub fn finalize_batch(
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
+    let clock = Clock::get()?;
+    msg!(
+        "event=BatchFinalizationSuccessful start_block={} end_block={} chain_id={} batch_hash={:?} slot_number={}",
+        start_block,
+        end_block,
+        CHAIN_ID,
+        calculated_batch_hash,
+        clock.slot
+    );
     Ok(())
 }
 
@@ -176,6 +192,24 @@ fn validate_pdas(
     }
 
     Ok(twine_chain_storage_data)
+}
+
+#[cfg(test)]
+use mock_clock::Clock;
+
+#[cfg(test)]
+mod mock_clock {
+    use solana_program::program_error::ProgramError;
+
+    pub struct Clock {
+        pub slot: u64,
+    }
+
+    impl Clock {
+        pub fn get() -> Result<Clock, ProgramError> {
+            Ok(Clock { slot: 1000 })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -415,11 +449,10 @@ mod test {
         let encoded_batch_hash = hasher.finalize().to_vec();
         calculated_batch_hash[..32].copy_from_slice(&encoded_batch_hash[..32]);
 
-        let mut public_values= Vec::with_capacity(48);
+        let mut public_values = Vec::with_capacity(48);
         public_values.extend_from_slice(&start_block.to_be_bytes());
         public_values.extend_from_slice(&end_block.to_be_bytes());
         public_values.extend_from_slice(&calculated_batch_hash);
-        
 
         // Call finalize Batch
         let result = finalize_batch(&program_id, &accounts, public_values.clone(), public_values);

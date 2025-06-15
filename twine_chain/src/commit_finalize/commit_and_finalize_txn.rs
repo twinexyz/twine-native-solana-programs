@@ -10,13 +10,18 @@ use crate::utils::address_derivation::{
     derive_forced_withdraw_message_buffer, derive_layer_zero_message_buffer, derive_role_manager,
     derive_twine_chain_storage, verify_derived_address,
 };
+use crate::utils::constants::CHAIN_ID;
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
+#[cfg(not(test))]
+use solana_program::clock::Clock;
 use solana_program::program_pack::IsInitialized;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
+    sysvar::Sysvar,
     program_error::ProgramError,
     pubkey::Pubkey,
 };
@@ -73,7 +78,7 @@ pub fn commit_and_finalize_transaction(
     // Calculate and check combined receipt root
     let calculated_combined_receipt_root =
         calculate_combined_receipt_root(&current_batch_data.infos);
-    
+
     if calculated_combined_receipt_root != combined_receipt_root {
         return Err(ProgramCustomError::InvalidReceiptRoot.into());
     }
@@ -142,13 +147,15 @@ pub fn commit_and_finalize_transaction(
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Verify Inclusion Proof
-    // verify_proof(
-    //     &inclusion_proof,
-    //     &transaction_info,
-    //     &twine_chain_storage_data.execution_vkey,
-    //     GROTH16_VK_4_0_0_RC3_BYTES,
-    // )
-    // .map_err(|_| ProgramError::InvalidInstructionData)?;
+    if !twine_chain_storage_data.skip_verification {
+        verify_proof(
+            &inclusion_proof,
+            &transaction_info,
+            &twine_chain_storage_data.execution_vkey,
+            GROTH16_VK_4_0_0_RC3_BYTES,
+        )
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    }
 
     // Move the withdrawals that are ready for execution to execution queue
     for i in 0..withdraw_count {
@@ -191,6 +198,18 @@ pub fn commit_and_finalize_transaction(
     twine_chain_storage_data
         .serialize(&mut &mut twine_chain_storage.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
+    // Emit event
+    let clock = Clock::get()?;
+    msg!(
+        "event=TransactionFinalizationSuccessful start_block={} end_block={} chain_id={} deposit_count={:?} withdraw_count={} slot_number={}",
+        start_block,
+        end_block,
+        CHAIN_ID,
+        decoded_chain_data.deposit_count,
+        decoded_chain_data.withdraw_count,
+        clock.slot
+    );
     Ok(())
 }
 
@@ -342,6 +361,24 @@ fn validate_pdas(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+use mock_clock::Clock;
+
+#[cfg(test)]
+mod mock_clock {
+    use solana_program::program_error::ProgramError;
+
+    pub struct Clock {
+        pub slot: u64,
+    }
+
+    impl Clock {
+        pub fn get() -> Result<Clock, ProgramError> {
+            Ok(Clock { slot: 1000 })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -683,19 +720,29 @@ mod test {
             transaction_info.clone(),
             transaction_info,
         );
-        assert!(result.is_ok(), "Transaction finalization Failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Transaction finalization Failed: {:?}",
+            result.err()
+        );
 
         // Verify Finalization
         let twine_chain_storage_data =
             TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data.borrow()[..])?;
 
         assert_eq!(
-            twine_chain_storage_data.last_transaction_finalized_batch.start_block, 1,
+            twine_chain_storage_data
+                .last_transaction_finalized_batch
+                .start_block,
+            1,
             "Last batch's start block should be 1"
         );
 
         assert_eq!(
-            twine_chain_storage_data.last_transaction_finalized_batch.end_block, 3,
+            twine_chain_storage_data
+                .last_transaction_finalized_batch
+                .end_block,
+            3,
             "Last batch's end block should be 3"
         );
 
