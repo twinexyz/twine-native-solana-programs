@@ -64,7 +64,8 @@ pub fn append_deposit_message(
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     // TODO: Emit Deposit Successful event
-
+    println!("Deposit Message Appended successully");
+    
     Ok(())
 }
 

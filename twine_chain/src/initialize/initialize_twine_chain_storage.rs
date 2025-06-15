@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{BatchInfo, TwineChainRoleManager, TwineChainStorage};
 use crate::utils::address_derivation::{
-    derive_role_manager, derive_twine_chain_storage, verify_derived_address, verify_owner,
+    derive_role_manager, derive_twine_chain_storage, verify_derived_address,
     verify_system_program,
 };
 use crate::utils::constants::TWINE_CHAIN_STORAGE_PREFIX;
@@ -48,7 +48,6 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
             chain_storage_space as u64,
             program_id,
         );
-        println!("Twine Chain Space: {}", chain_storage_space);
         invoke_signed(
             &create_ix,
             &[
@@ -75,7 +74,7 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         execution_vkey: String::from(""),
         inclusion_vkey: String::from(""),
         withdrawal_vkey: String::from(""),
-        skip_verification: false,
+        skip_verification: true,
         last_finalized_batch: last_batch.clone(),
         last_committed_batch: last_batch.clone(),
         last_transaction_finalized_batch: last_batch.clone(),
@@ -87,6 +86,7 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     msg!("Twine Chain Storage Initialized");
+    println!("Twine Chain initialization successful");
 
     Ok(())
 }

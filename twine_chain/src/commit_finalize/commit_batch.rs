@@ -27,6 +27,7 @@ pub fn commit_batch(
     end_block: u64,
     batch_data: Vec<CommitBatchInfo>,
 ) -> ProgramResult {
+    println!("Commitment begins");
     if batch_data.len() == 0 {
         return Err(ProgramCustomError::EmptyBatchCommitment.into());
     }
@@ -38,6 +39,7 @@ pub fn commit_batch(
     let role_manager_acc = next_account_info(account_iter)?;
     let twine_operation_handler_acc = next_account_info(account_iter)?;
     let system_program = next_account_info(account_iter)?;
+    println!("Validating accounts........");
 
     // Validate PDAs
     let (current_pda_bump, mut twine_chain_storage_data) = validate_pdas(
@@ -51,13 +53,17 @@ pub fn commit_batch(
         twine_operation_handler_acc,
         system_program,
     )?;
+    println!("Account validation successful!");
 
     if start_block != twine_chain_storage_data.last_committed_batch.end_block + 1 {
         return Err(ProgramCustomError::InvalidBlockCommitmentSequence.into());
     }
+    println!("Check passed, ready for PDA creation!");
 
     // Initialize commitment PDA if not already initialized
     if current_batch_acc.data_is_empty() {
+        println!("Inside PDA creation factory");
+
         let rent = Rent::default();
         let batch_space =
             1 + (4 + ((end_block as usize - start_block as usize) + 1) * BlockInfo::LEN) + 1 + 1;
@@ -69,6 +75,7 @@ pub fn commit_batch(
             batch_space as u64,
             program_id,
         );
+        println!("Before final creation process");
         invoke_signed(
             &create_ix,
             &[
@@ -76,8 +83,9 @@ pub fn commit_batch(
                 current_batch_acc.clone(),
                 system_program.clone(),
             ],
-            &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &[current_pda_bump]]],
+            &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &start_block.to_be_bytes(), &end_block.to_be_bytes(), &[current_pda_bump]]],
         )?;
+        println!("Created successfully, now serializing data into it");
 
         let batch_data = BatchPdaAccount {
             is_initialized: true,
@@ -89,6 +97,8 @@ pub fn commit_batch(
         batch_data
             .serialize(&mut &mut current_batch_acc.data.borrow_mut()[..])
             .map_err(|_| ProgramCustomError::SerializeFailed)?;
+        println!("Serialization successful!!! Account is created.");
+
     }
 
     let mut current_batch_data =
@@ -147,6 +157,8 @@ pub fn commit_batch(
     twine_chain_storage_data
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
+    
+    println!("Commitment Successful!");
 
     Ok(())
 }

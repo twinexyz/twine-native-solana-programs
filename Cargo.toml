@@ -31,6 +31,7 @@ tokens_gateway = { path = "./tokens_gateway", features = ["no-entrypoint"] }
 twine_chain = { path = "./twine_chain", features = ["no-entrypoint"] }
 
 [dev-dependencies]
+sha3 = { workspace = true }
 dirs = "5"
 tokio-test = "0.4"
 test-case = "3.3"

@@ -66,6 +66,7 @@ pub fn append_forced_withdrawal_message(
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     // TODO: Emit Forced Withdraw Successful event
+    println!("Withdraw Message Appended successully");
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 use crate::core::error::ProgramCustomError;
 use crate::core::state::{BatchPdaAccount, BlockInfo, RoleType, TwineChainRoleManager};
 use crate::utils::address_derivation::{
-    derive_commitment_pda, derive_role_manager, verify_derived_address, verify_owner,
+    derive_commitment_pda, derive_role_manager, verify_derived_address,
     verify_system_program,
 };
 use crate::utils::constants::COMMITMENT_PDA_PREFIX;
@@ -33,7 +33,6 @@ pub fn initialize_genesis_batch(
     let first_batch_space = 1 + (4 + BlockInfo::LEN) + 1 + 1;
 
     let rent = Rent::default();
-    println!("Yaa samma ta vayo1");
 
     // Validate Provided accounts
     let genesis_batch_bump = validate_accounts(
@@ -43,7 +42,6 @@ pub fn initialize_genesis_batch(
         initializer_acc,
         system_program,
     )?;
-    println!("Yaa samma ta vayo2");
 
     // Create Genesis Batch PDA
     let required_lamports = rent.minimum_balance(first_batch_space);
@@ -61,7 +59,7 @@ pub fn initialize_genesis_batch(
             first_batch_acc.clone(),
             system_program.clone(),
         ],
-        &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &[genesis_batch_bump]]],
+        &[&[COMMITMENT_PDA_PREFIX.as_bytes(), &0u64.to_be_bytes(), &0u64.to_be_bytes(), &[genesis_batch_bump]]],
     )?;
 
     let mut account_data = BatchPdaAccount {
@@ -80,7 +78,7 @@ pub fn initialize_genesis_batch(
     account_data
         .serialize(&mut &mut first_batch_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    println!("Yaa samma ta vayo");
+    println!("Genesis batch initialization successful");
     msg!("Genesis Batch Initialized");
 
     Ok(())
@@ -97,18 +95,15 @@ fn validate_accounts(
     if !initializer_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-    println!("Signer validated");
+
     let (expected_commitment_pda, genesis_batch_bump) =
         derive_commitment_pda(&program_id, 0u64, 0u64);
     verify_derived_address(expected_commitment_pda, first_batch_acc)?;
-    println!("commitment PDA validated");
 
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
-    println!("Role Manager PDA validated");
 
     verify_system_program(system_program)?;
-    println!("System Program PDA validated");
 
     // re-initialization guard
     if !first_batch_acc.data_is_empty() {
@@ -119,22 +114,16 @@ fn validate_accounts(
             return Err(ProgramError::AccountAlreadyInitialized);
         }
     }
-    println!("reinit guard pased");
 
     // Checks if signer has required role(TwineOperationHandler)
     let role_manager_data =
         TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
-    println!("deserialized");
-    println!("Account: {}", initializer_acc.key);
-    println!("Roles: {:?}", role_manager_data.roles);
-
 
     if !role_manager_data.has_role(initializer_acc.key, RoleType::TwineOperationHandler) {
         return Err(ProgramCustomError::Unauthorized.into());
     }
-    println!("roles yes");
-
+    
     Ok(genesis_batch_bump)
 }
 

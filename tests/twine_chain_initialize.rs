@@ -1,17 +1,23 @@
 mod helpers;
 
 use {
-    borsh::BorshDeserialize, helpers::twine_chain_helper::{
+    borsh::BorshDeserialize,
+    helpers::twine_chain_helper::{
         fund_account_for_rent_exemption, program_test, TwineChainAccounts,
-    }, solana_program_test::*, solana_sdk::{
-        account::AccountSharedData, pubkey::Pubkey, rent::Rent, signature::{Keypair, Signer}, transaction::Transaction
-    }, tokens_gateway::utils::address_derivation::derive_role_manager, twine_chain::{
+    },
+    solana_program_test::*,
+    solana_sdk::{
+        rent::Rent,
+        signature::{Keypair, Signer},
+        transaction::Transaction,
+    },
+    twine_chain::{
         core::{
             instruction::{self},
             state::{
-                BatchInfo, BatchPdaAccount, BlockInfo, DepositMessagesBuffer,
+                BatchPdaAccount, BlockInfo, DepositMessagesBuffer,
                 ExecutionMessageBuffer, ForcedWithdrawMessagesBuffer, LayerZeroMessagesBuffer,
-                RoleType, TwineChainRoleManager, TwineChainStorage,
+                TwineChainRoleManager, TwineChainStorage,
             },
         },
         id,
@@ -23,7 +29,7 @@ use {
             },
             constants::MAX_ROLES,
         },
-    }
+    },
 };
 
 #[tokio::test]
@@ -241,81 +247,42 @@ async fn genesis_batch_inti() {
     )
     .await;
 
-    let mut tx1_instructions = vec![];
-    tx1_instructions.extend(instruction::initialize_role_manager(
+    let mut instructions = vec![];
+    instructions.extend(instruction::initialize_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
-    tx1_instructions.extend(instruction::add_role_in_twine_chain(
-        &accounts.chain_admin.pubkey(),
-        &accounts.chain_admin.pubkey(),
-        RoleType::TwineOperationHandler,
-    ));
-
-    let transaction1 = Transaction::new_signed_with_payer(
-        &tx1_instructions,
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &accounts.chain_admin],
-        context.last_blockhash,
-    );
-    let role_manager_space: usize = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
-
-    create_pda_account(&mut context, id(), derive_role_manager(&id()).0, role_manager_space).await;
-
-    let error = context.banks_client.process_transaction(transaction1).await;
-    println!("Transaction1 Status: {:?}", error);
-
-    
-    let tx2_instruction = instruction::initialize_genesis_batch(
+    instructions.extend(instruction::initialize_genesis_batch(
         &accounts.chain_admin.pubkey(),
         [1u8; 32],
-    );
-    let transaction2 = Transaction::new_signed_with_payer(
-        &tx2_instruction,
+    ));
+
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
         Some(&context.payer.pubkey()),
         &[&context.payer, &accounts.chain_admin],
         context.last_blockhash,
     );
 
-    let error = context.banks_client.process_transaction(transaction2).await;
-    println!("Transaction2 Status: {:?}", error);
+    let error = context.banks_client.process_transaction(transaction).await;
+    println!("Transaction1 Status: {:?}", error);
 
-    // let genesis_batch_account = context
-    //     .banks_client
-    //     .get_account(derive_commitment_pda(&id(), 0, 0).0)
-    //     .await
-    //     .unwrap()
-    //     .expect("Genesis Batch storage account not found");
+    let genesis_batch_account = context
+        .banks_client
+        .get_account(derive_commitment_pda(&id(), 0, 0).0)
+        .await
+        .unwrap()
+        .expect("Genesis Batch storage account not found");
 
-    //  let genesis_batch_data =
-    //     BatchPdaAccount::deserialize(&mut &genesis_batch_account.data[..])
-    //         .expect("Failed to deserialize Genesis Batch");
+    let genesis_batch_data = BatchPdaAccount::deserialize(&mut &genesis_batch_account.data[..])
+        .expect("Failed to deserialize Genesis Batch");
 
-    // assert!(
-    //     genesis_batch_data.is_initialized,
-    //     "Genesis Batch should be initialized"
-    // );
-
-    // assert_eq!(
-    //     genesis_batch_data.infos[0].block_hash, [1u8;32],
-    //     "Batch hash should be set"
-    // )
-}
-
-
-pub async fn create_pda_account(
-    context: &mut ProgramTestContext,
-    program_id: Pubkey,
-    pda: Pubkey,
-    space: usize,
-) {
-    let rent = context.banks_client.get_rent().await.unwrap();
-    let lamports = rent.minimum_balance(space);
-
-    let acc = AccountSharedData::new(
-        lamports,
-        space,
-        &program_id,
+    assert!(
+        genesis_batch_data.is_initialized,
+        "Genesis Batch should be initialized"
     );
 
-    context.set_account(&pda, &acc);
+    assert_eq!(
+        genesis_batch_data.infos[0].block_hash, [1u8; 32],
+        "Batch hash should be set"
+    )
 }

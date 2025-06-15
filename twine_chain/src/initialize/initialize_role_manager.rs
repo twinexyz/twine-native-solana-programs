@@ -1,5 +1,5 @@
 use crate::core::error::ProgramCustomError;
-use crate::core::state::TwineChainRoleManager;
+use crate::core::state::{RoleType, TwineChainRoleManager};
 use crate::utils::address_derivation::{
     derive_role_manager, verify_derived_address, verify_system_program,
 };
@@ -60,7 +60,10 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
         chain_admin: chain_admin,
         twine_operator: Pubkey::default(),
         token_gateway_program: Pubkey::default(),
-        roles: Vec::new(),
+        roles: vec![
+            (chain_admin, RoleType::TwineOperationHandler),
+            (chain_admin, RoleType::MessageAppender)
+        ],
     };
 
     role_manager_data
@@ -84,7 +87,7 @@ fn validate_accounts(
 
     let (expected_role_manager_pda, role_manager_bump) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
-    
+
     verify_system_program(system_program)?;
 
     if !role_manager_acc.data_is_empty() {

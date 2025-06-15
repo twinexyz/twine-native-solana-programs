@@ -50,9 +50,10 @@ pub fn finalize_batch(
     }
 
     // Checking if previous batch is finalized
-    let previous_batch_data = BatchPdaAccount::deserialize(&mut &previous_batch_acc.data.borrow()[..])
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-   
+    let previous_batch_data =
+        BatchPdaAccount::deserialize(&mut &previous_batch_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
     if !previous_batch_data.verified {
         return Err(ProgramCustomError::PreviousBatchNotFinalized.into());
     }
@@ -75,14 +76,16 @@ pub fn finalize_batch(
         return Err(ProgramCustomError::BatchHashMismatch.into());
     }
 
-    //Calling SP1 Verifier to verify the execution proof
-    // verify_proof(
-    //     &execution_proof,
-    //     &public_values,
-    //     &twine_chain_storage_data.execution_vkey,
-    //     GROTH16_VK_4_0_0_RC3_BYTES,
-    // )
-    // .map_err(|_| ProgramError::InvalidInstructionData)?;
+    // Calling SP1 Verifier to verify the execution proof
+    if !twine_chain_storage_data.skip_verification {
+        verify_proof(
+            &execution_proof,
+            &public_values,
+            &twine_chain_storage_data.execution_vkey,
+            GROTH16_VK_4_0_0_RC3_BYTES,
+        )
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    }
 
     // Updating the states
     current_batch_data.verified = true;
@@ -175,6 +178,7 @@ fn validate_pdas(
         return Err(ProgramCustomError::Unauthorized.into());
     }
 
+    println!("Batch Finalization Successful!");
     Ok(twine_chain_storage_data)
 }
 
@@ -415,11 +419,10 @@ mod test {
         let encoded_batch_hash = hasher.finalize().to_vec();
         calculated_batch_hash[..32].copy_from_slice(&encoded_batch_hash[..32]);
 
-        let mut public_values= Vec::with_capacity(48);
+        let mut public_values = Vec::with_capacity(48);
         public_values.extend_from_slice(&start_block.to_be_bytes());
         public_values.extend_from_slice(&end_block.to_be_bytes());
         public_values.extend_from_slice(&calculated_batch_hash);
-        
 
         // Call finalize Batch
         let result = finalize_batch(&program_id, &accounts, public_values.clone(), public_values);
