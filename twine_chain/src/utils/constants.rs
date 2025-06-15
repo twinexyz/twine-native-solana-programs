@@ -1,3 +1,4 @@
+pub const CHAIN_ID: usize = 900;
 pub const MAX_ROLES: usize = 50;
 pub const DISCRIMINATOR: usize = 8;
 pub const MAX_QUEUE_SIZE: usize = 45;

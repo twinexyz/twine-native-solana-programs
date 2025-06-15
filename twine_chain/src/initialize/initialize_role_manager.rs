@@ -69,7 +69,7 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
     role_manager_data
         .serialize(&mut &mut role_manager_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    println!("Rolemanager Initialization Successful");
+    
     msg!("Role Manager Initialized");
     Ok(())
 }

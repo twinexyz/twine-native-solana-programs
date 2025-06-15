@@ -78,7 +78,7 @@ pub fn initialize_genesis_batch(
     account_data
         .serialize(&mut &mut first_batch_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    println!("Genesis batch initialization successful");
+
     msg!("Genesis Batch Initialized");
 
     Ok(())

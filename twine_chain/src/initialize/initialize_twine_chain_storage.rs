@@ -86,7 +86,6 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     msg!("Twine Chain Storage Initialized");
-    println!("Twine Chain initialization successful");
 
     Ok(())
 }

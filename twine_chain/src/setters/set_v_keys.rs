@@ -163,10 +163,6 @@ mod test {
         let mut twine_chain_storage_data = vec![];
         twine_chain_storage_data_dummy.serialize(&mut twine_chain_storage_data)?;
         let twine_chain_storage_space_value = twine_chain_storage_data.len(); // exact
-        println!(
-            "twine_chain_storage_space_value = {}",
-            twine_chain_storage_space_value
-        );
 
         // Gives role TwineOperationHandler to InitialChainAdmin
         let role_manager_dummy_data = TwineChainRoleManager {

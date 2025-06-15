@@ -326,7 +326,6 @@ pub fn add_role_in_twine_chain(
     address: &Pubkey,
     role: RoleType,
 ) -> Vec<Instruction> {
-    println!("Inside add role instruction");
     let payload = TwineChainInstruction::AddRoleInTwineChain {
         address: *address,
         role: role,
@@ -426,10 +425,8 @@ impl TwineChainInstruction {
                 })
             }
             12 => {
-                println!("Checking inside 12");
                 let payload = AddRoleInTwineChainPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
-                println!("DESERIALIZATION?");
                 Ok(Self::AddRoleInTwineChain {
                     address: payload.address,
                     role: payload.role,

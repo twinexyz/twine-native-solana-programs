@@ -5,16 +5,20 @@ use crate::core::state::{
 use crate::utils::address_derivation::{
     derive_commitment_pda, derive_role_manager, derive_twine_chain_storage, verify_derived_address,
 };
+use crate::utils::constants::CHAIN_ID;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
-use solana_program::program_pack::IsInitialized;
-
+#[cfg(not(test))]
+use solana_program::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
+    program_pack::IsInitialized,
     pubkey::Pubkey,
+    sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 
@@ -99,6 +103,15 @@ pub fn finalize_batch(
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
+    let clock = Clock::get()?;
+    msg!(
+        "event=BatchFinalizationSuccessful start_block={} end_block={} chain_id={} batch_hash={:?} slot_number={}",
+        start_block,
+        end_block,
+        CHAIN_ID,
+        calculated_batch_hash,
+        clock.slot
+    );
     Ok(())
 }
 
@@ -178,8 +191,25 @@ fn validate_pdas(
         return Err(ProgramCustomError::Unauthorized.into());
     }
 
-    println!("Batch Finalization Successful!");
     Ok(twine_chain_storage_data)
+}
+
+#[cfg(test)]
+use mock_clock::Clock;
+
+#[cfg(test)]
+mod mock_clock {
+    use solana_program::program_error::ProgramError;
+
+    pub struct Clock {
+        pub slot: u64,
+    }
+
+    impl Clock {
+        pub fn get() -> Result<Clock, ProgramError> {
+            Ok(Clock { slot: 1000 })
+        }
+    }
 }
 
 #[cfg(test)]
