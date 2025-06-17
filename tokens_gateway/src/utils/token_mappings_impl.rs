@@ -1,8 +1,12 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{TokenDecimalMapping, TokenDecimalMappings};
 use num_bigint::BigUint;
 use num_traits::ops::checked::{CheckedDiv, CheckedMul};
 use solana_program::program_error::ProgramError;
+
+use crate::core::{
+    error::ProgramCustomError,
+    state::{TokenDecimalMappingData, TokenDecimalMappings},
+};
+
 
 impl TokenDecimalMappings {
     pub fn update_mapping(
@@ -17,7 +21,7 @@ impl TokenDecimalMappings {
             mapping.l1_decimals = l1_decimals;
             mapping.l2_decimals = l2_decimals;
         } else {
-            self.mappings.push(TokenDecimalMapping {
+            self.mappings.push(TokenDecimalMappingData {
                 l1_token: l1_token.to_string(),
                 l2_token: l2_token.to_string(),
                 l1_decimals,
@@ -27,7 +31,7 @@ impl TokenDecimalMappings {
         Ok(())
     }
 
-    pub fn get_mapping(&self, l1_token: &str) -> Option<&TokenDecimalMapping> {
+    pub fn get_mapping(&self, l1_token: &str) -> Option<&TokenDecimalMappingData> {
         self.mappings.iter().find(|m| m.l1_token == l1_token)
     }
 

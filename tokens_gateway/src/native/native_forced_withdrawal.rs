@@ -1,25 +1,37 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{SignMessageInfo, TokenDecimalMappings};
-use crate::utils::constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX};
-use crate::utils::ethereum_checks::is_valid_ethereum_address;
-#[cfg(not(test))]
-use crate::utils::recover_address::recover_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
-
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
+    msg,
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::Sysvar,
 };
-use twine_chain::core::state::{
-    ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer,
+use twine_chain::{
+    core::{
+        instruction::TwineChainInstruction,
+        state::{ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer},
+    },
+    ID as twine_chain_program_id,
 };
+#[cfg(not(test))]
+use crate::utils::recover_address::recover_address;
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{SignMessageInfo, TokenDecimalMappings},
+    },
+    utils::{
+        address_derivation::derive_native_token_vault_data,
+        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
+};
+
 
 pub fn forced_native_token_withdrawal(
     program_id: &Pubkey,
@@ -31,6 +43,7 @@ pub fn forced_native_token_withdrawal(
     amount: u64,
     signature: Vec<u8>,
 ) -> ProgramResult {
+    let _ = program_id;
     let account_info_iter = &mut accounts.iter();
 
     let user_account = next_account_info(account_info_iter)?;
@@ -61,25 +74,24 @@ pub fn forced_native_token_withdrawal(
         return Err(ProgramCustomError::InvalidAccount.into());
     }
 
-    if !is_valid_ethereum_address(&to_l1_pubkey)? {
+    if is_valid_ethereum_address(&to_l1_pubkey)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
 
-    if forced_withdrawal_messages_buffer_acc.owner != program_id {
+    if forced_withdrawal_messages_buffer_acc.owner != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if role_manager_acc.owner != program_id {
+    if role_manager_acc.owner != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
 
     let token_decimal_mapping =
-        TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
+        TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])?;
 
     let decimal_mapping = token_decimal_mapping
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
-
     let l2_amount = TokenDecimalMappings::convert_l1_to_l2(
         amount,
         decimal_mapping.l1_decimals,
@@ -87,8 +99,8 @@ pub fn forced_native_token_withdrawal(
     )
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
-    let forced_withdrawal_messages_buffer = ForcedWithdrawMessagesBuffer::try_from_slice(
-        &forced_withdrawal_messages_buffer_acc.data.borrow(),
+    let forced_withdrawal_messages_buffer = ForcedWithdrawMessagesBuffer::deserialize(
+        &mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..],
     )
     .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -119,24 +131,19 @@ pub fn forced_native_token_withdrawal(
 
     // Verify signature
     let recovered_address = recover_address(sign_info.clone(), signature)?;
-
-    if recovered_address != withdraw_info.from_twine_address {
+    if recovered_address.to_lowercase() != withdraw_info.from_twine_address.to_lowercase() {
         return Err(ProgramCustomError::PublicKeyMismatch.into());
     }
 
-    let native_data_seeds = &[NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes()];
-    let (_, native_data_bump) = Pubkey::find_program_address(native_data_seeds, program_id);
+    let (_, native_data_bump) = derive_native_token_vault_data();
 
-    let discriminator: u8 = 6;
+    let payload = TwineChainInstruction::AppendForcedWithdrawalMessage {
+        withdraw_info: withdraw_info,
+    };
 
-   
-    let mut withdraw_info_data = Vec::new();
-    withdraw_info
-        .serialize(&mut withdraw_info_data)
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+    let mut append_instruction_data = vec![];
 
-    let mut append_instruction_data = vec![discriminator];
-    append_instruction_data.extend_from_slice(&withdraw_info_data);
+    append_instruction_data.extend(payload.try_to_vec().unwrap());
 
     let append_instruction_accounts = vec![
         AccountMeta::new(*forced_withdrawal_messages_buffer_acc.key, false),
@@ -188,14 +195,15 @@ fn recover_address(
     // Return the expected address to make verification pass
     Ok("0x1234567890123456789012345678901234567890".to_string())
 }
+
 #[cfg(test)]
 use mock_clock::Clock;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::{NativeTokenVaultData, TokenDecimalMapping, TokenDecimalMappings};
-    use solana_program::{account_info::AccountInfo,clock::Epoch, pubkey::Pubkey, system_program};
+    use crate::core::state::{NativeTokenVaultData, TokenDecimalMappingData, TokenDecimalMappings};
+    use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
     use twine_chain::core::state::ForcedWithdrawMessagesBuffer;
 
     fn create_test_account<'a>(
@@ -221,7 +229,7 @@ mod tests {
     #[test]
     fn test_forced_native_token_withdrawal_success() {
         let program_id = Pubkey::new_unique();
-        let twine_chain_program_id = Pubkey::new_unique();
+        let twine_chain_programs_id = Pubkey::new_unique();
 
         // Setup keys
         let user_key = Pubkey::new_unique();
@@ -247,7 +255,7 @@ mod tests {
 
         let token_mappings = TokenDecimalMappings {
             is_initialized: true,
-            mappings: vec![TokenDecimalMapping {
+            mappings: vec![TokenDecimalMappingData {
                 l1_token: "11111111111111111111111111111111".to_string(),
                 l2_token: "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
                 l1_decimals: 9,
@@ -322,7 +330,7 @@ mod tests {
         );
 
         let twine_chain_program_account = create_test_account(
-            &twine_chain_program_id,
+            &twine_chain_programs_id,
             false,
             false,
             &mut twine_chain_lamports,

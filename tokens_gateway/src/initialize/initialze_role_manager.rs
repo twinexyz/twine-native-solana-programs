@@ -1,11 +1,9 @@
-use crate::core::state::TokensGatewayRoleManager;
+use crate::core::state::{RoleType, TokensGatewayRoleManager};
+use crate::utils::address_derivation::derive_gateway_role_manager;
 use crate::utils::constants::{
     INITIAL_CHAIN_ADMIN, ROLE_MANAGER_ACCOUNT_SIZE, ROLE_MANAGER_PREFIX,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use crate::utils::address_derivation::{
-    derive_role_manager,
-};
 
 #[cfg(not(test))]
 use solana_program::program::invoke_signed;
@@ -21,41 +19,38 @@ use solana_program::{
 };
 
 pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-    msg!("Initializing Role Manager");
     let account_info_iter = &mut accounts.iter();
     let role_manager_acc = next_account_info(account_info_iter)?;
     let chain_admin_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
- msg!("Inside Role 1");
+
     validate_accounts(
         role_manager_acc,
         chain_admin_acc,
         system_program,
         program_id,
     )?;
- msg!("Inside Role 2");
     let rent = Rent::default();
-     msg!("Inside Role 3");
-    let (_, role_bump) = derive_role_manager(program_id);
+    let (_, role_bump) = derive_gateway_role_manager();
 
-        let required_lamports = rent.minimum_balance(ROLE_MANAGER_ACCOUNT_SIZE);
-        let create_ix = system_instruction::create_account(
-            chain_admin_acc.key,
-            role_manager_acc.key,
-            required_lamports,
-            ROLE_MANAGER_ACCOUNT_SIZE as u64,
-            program_id,
-        );
-        invoke_signed(
-            &create_ix,
-            &[
-                chain_admin_acc.clone(),
-                role_manager_acc.clone(),
-                system_program.clone(),
-            ],
-            &[&[ROLE_MANAGER_PREFIX.as_bytes(), &[role_bump]]],
-        )?;
-   
+    let required_lamports = rent.minimum_balance(ROLE_MANAGER_ACCOUNT_SIZE);
+    let create_ix = system_instruction::create_account(
+        chain_admin_acc.key,
+        role_manager_acc.key,
+        required_lamports,
+        ROLE_MANAGER_ACCOUNT_SIZE as u64,
+        program_id,
+    );
+    invoke_signed(
+        &create_ix,
+        &[
+            chain_admin_acc.clone(),
+            role_manager_acc.clone(),
+            system_program.clone(),
+        ],
+        &[&[ROLE_MANAGER_PREFIX.as_bytes(), &[role_bump]]],
+    )?;
+
     let chain_admin: Pubkey = INITIAL_CHAIN_ADMIN
         .parse()
         .map_err(|_| ProgramError::InvalidArgument)?;
@@ -63,13 +58,12 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
     let role_manager = TokensGatewayRoleManager {
         is_initialized: true,
         chain_admin,
-        roles: Vec::new(),
+        roles: vec![(chain_admin, RoleType::TwineOperationHandler)],
     };
 
     let mut data = role_manager_acc.data.borrow_mut();
     role_manager.serialize(&mut &mut data[..])?;
 
-    msg!("Role Manager initialized successfully");
     Ok(())
 }
 
@@ -84,12 +78,10 @@ fn validate_accounts(
     program_id: &Pubkey,
 ) -> ProgramResult {
     if !chain_admin_acc.is_signer {
-        msg!("Chain admin must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
     }
 
     if system_program.key != &solana_program::system_program::id() {
-        msg!("Invalid system program");
         return Err(ProgramError::IncorrectProgramId);
     }
     // Check if account is already initialized
@@ -105,10 +97,9 @@ fn validate_accounts(
         }
     }
 
-    let (expected_role_manager_key, _) = derive_role_manager(program_id);
+    let (expected_role_manager_key, _) = derive_gateway_role_manager();
 
     if expected_role_manager_key != *role_manager_acc.key {
-        msg!("Role Manager PDA key mismatch.");
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -134,7 +125,9 @@ fn invoke_signed(
 mod test {
     use super::*;
     use crate::core::state::TokensGatewayRoleManager;
-    use solana_program::{account_info::AccountInfo, pubkey::Pubkey,clock::Epoch, rent::Rent, system_program};
+    use solana_program::{
+        account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, rent::Rent, system_program,
+    };
     use std::str::FromStr;
 
     fn create_test_account_info<'a>(
@@ -276,7 +269,11 @@ mod test {
             deserialized.chain_admin, chain_admin_key,
             "Chain admin should be set"
         );
-        assert!(deserialized.roles.is_empty(), "Roles should be empty");
+        assert_eq!(
+            deserialized.roles[0],
+            (chain_admin_key, RoleType::TwineOperationHandler),
+            "Role should be assigned to chain_admin"
+        );
 
         Ok(())
     }

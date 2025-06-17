@@ -1,7 +1,7 @@
-use solana_program::{account_info::AccountInfo,msg, entrypoint::ProgramResult, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
-use crate::core::error::ProgramCustomError;
-use crate::core::instruction::GatewayInstruction;
+use crate::core::{error::ProgramCustomError, instruction::GatewayInstruction};
+
 use crate::finalize_withdrawal::{finalize_native_withdrawal, finalize_spl_withdrawal};
 use crate::initialize::{initialize_tokens_gateway, initialze_role_manager};
 use crate::native::{native_deposit, native_forced_withdrawal};
@@ -14,7 +14,6 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!("process_instruction");
     // Parse the instruction.
     let instruction = GatewayInstruction::unpack_instruction(instruction_data)
         .map_err(|_| ProgramCustomError::InvalidInstructionData)?;

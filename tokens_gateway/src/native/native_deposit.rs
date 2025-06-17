@@ -1,11 +1,6 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{NativeTokenVaultData, TokenDecimalMappings};
-use crate::utils::constants::NATIVE_TOKEN_VAULT_DATA_PREFIX;
-use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
-
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -13,12 +8,29 @@ use solana_program::{
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
-    sysvar::Sysvar,
     pubkey::Pubkey,
     system_instruction,
+    sysvar::Sysvar,
 };
-use twine_chain::core::state::{DepositMessageInfo, DepositMessagesBuffer};
-use twine_chain::utils::constants::DEPOSIT_BUFFER_PREFIX;
+use twine_chain::{
+    core::{
+        instruction::TwineChainInstruction,
+        state::{DepositMessageInfo, DepositMessagesBuffer},
+    },
+    utils::constants::DEPOSIT_BUFFER_PREFIX,
+    ID as twine_chain_program_id,
+};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{NativeTokenVaultData, TokenDecimalMappings},
+    },
+    utils::{
+        address_derivation::derive_native_token_vault_data,
+        constants::NATIVE_TOKEN_VAULT_DATA_PREFIX, ethereum_checks::is_valid_ethereum_address,
+    },
+};
 
 // Handles native token (SOL) deposits
 pub fn native_token_deposit(
@@ -45,10 +57,9 @@ pub fn native_token_deposit(
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let deposit_messages_buffer_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let role_manager_acc = next_account_info(account_info_iter)?;
+    let role_manager_acc = next_account_info(account_info_iter)?; // twine chain rolemanager
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
-
     if !user_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -66,6 +77,7 @@ pub fn native_token_deposit(
 
     let transfer_ix =
         system_instruction::transfer(user_account.key, native_token_vault_acc.key, amount);
+
     invoke(
         &transfer_ix,
         &[
@@ -74,8 +86,9 @@ pub fn native_token_deposit(
             system_program.clone(),
         ],
     )?;
+
     let mut vault_data =
-        NativeTokenVaultData::try_from_slice(&native_token_vault_data_acc.data.borrow())
+        NativeTokenVaultData::deserialize(&mut &native_token_vault_data_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     vault_data.total_deposits = vault_data
@@ -84,13 +97,14 @@ pub fn native_token_deposit(
         .ok_or(ProgramError::InvalidArgument)?;
 
     vault_data
-        .serialize(&mut *native_token_vault_data_acc.data.borrow_mut())
+        .serialize(&mut &mut native_token_vault_data_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    let token_decimal_mapping =
-        TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
+    let token_decimal_mappings_data =
+        TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let decimal_mapping = token_decimal_mapping
+    let decimal_mapping = token_decimal_mappings_data
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
 
@@ -102,14 +116,14 @@ pub fn native_token_deposit(
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
     let (expected_deposit_pda, _) =
-        Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], program_id);
+        Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], &twine_chain_program_id);
 
     if expected_deposit_pda != *deposit_messages_buffer_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
 
     let deposit_message_buffer =
-        DepositMessagesBuffer::try_from_slice(&deposit_messages_buffer_acc.data.borrow())
+        DepositMessagesBuffer::deserialize(&mut &deposit_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = deposit_message_buffer.deposit_nonce + 1;
@@ -126,33 +140,36 @@ pub fn native_token_deposit(
         l2_token,
         amount: l2_amount,
     };
+    
+    let payload = TwineChainInstruction::AppendDepositMessage {
+        deposit_info: deposit_info,
+    };
 
-    let native_data_seeds = &[NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes()];
-    let (_, native_data_bump) = Pubkey::find_program_address(native_data_seeds, program_id);
+    let mut append_instruction_data = vec![];
 
-    //instructions number in TwineChainInstruction
-    let discriminator: u8 = 5;
-
-    let mut deposit_info_data = Vec::new();
-
-    deposit_info
-        .serialize(&mut deposit_info_data)
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
-    let mut append_instruction_data = vec![discriminator];
-    append_instruction_data.extend_from_slice(&deposit_info_data);
+    append_instruction_data.extend(payload.try_to_vec().unwrap());
 
     let append_instruction_accounts = vec![
         AccountMeta::new(*deposit_messages_buffer_acc.key, false),
-        AccountMeta::new_readonly(*role_manager_acc.key, false),
+        AccountMeta::new(*role_manager_acc.key, false),
         AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
     ];
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     let append_instruction = Instruction {
         program_id: *twine_chain_program.key,
         accounts: append_instruction_accounts,
         data: append_instruction_data,
     };
+    
+    let (_, native_data_bump) = derive_native_token_vault_data();
+    let seeds = &[
+        NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
+        &[native_data_bump],
+    ];
+    let signer_seeds = &[&seeds[..]];
 
     invoke_signed(
         &append_instruction,
@@ -160,16 +177,10 @@ pub fn native_token_deposit(
             deposit_messages_buffer_acc.clone(),
             role_manager_acc.clone(),
             native_token_vault_data_acc.clone(),
+            twine_chain_program.clone(),
         ],
-        &[&[
-            NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
-            &[native_data_bump],
-        ]],
+        signer_seeds,
     )?;
-    msg!(
-        "Native token deposit successful: {} lamports deposited",
-        amount
-    );
 
     Ok(())
 }
@@ -194,9 +205,8 @@ mod mock_clock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::{NativeTokenVaultData, TokenDecimalMapping, TokenDecimalMappings};
-    use solana_program::{account_info::AccountInfo, clock::Epoch,pubkey::Pubkey, system_program};
-
+    use crate::core::state::{NativeTokenVaultData, TokenDecimalMappingData, TokenDecimalMappings};
+    use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
 
     fn create_test_account<'a>(
         key: &'a Pubkey,
@@ -232,7 +242,7 @@ mod tests {
             Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], &program_id);
         let token_decimal_mappings_key = Pubkey::new_unique();
         let role_manager_key = Pubkey::new_unique();
-        let twine_chain_program_id = Pubkey::new_unique();
+        let twine_chain_id = Pubkey::new_unique();
 
         let mut native_token_vault_data = NativeTokenVaultData {
             is_initialized: true,
@@ -243,7 +253,7 @@ mod tests {
 
         let mut token_mappings_data = TokenDecimalMappings {
             is_initialized: true,
-            mappings: vec![TokenDecimalMapping {
+            mappings: vec![TokenDecimalMappingData {
                 l1_token: "11111111111111111111111111111111".to_string(),
                 l2_token: "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
                 l1_decimals: 9,

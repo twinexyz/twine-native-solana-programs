@@ -1,11 +1,6 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{SplTokensVaultData, TokenDecimalMappings};
-use crate::utils::constants::SPL_TOKENS_VAULT_DATA_PREFIX;
-use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
-use solana_program::pubkey::Pubkey;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -13,13 +8,34 @@ use solana_program::{
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
+    pubkey::Pubkey,
     sysvar::Sysvar,
 };
-use spl_token::instruction as token_instruction;
-use spl_token::solana_program::program_pack::Pack;
-use spl_token::state::Account as TokenAccount;
-use twine_chain::core::state::{DepositMessageInfo, DepositMessagesBuffer};
-use twine_chain::utils::constants::DEPOSIT_BUFFER_PREFIX;
+use spl_token::{
+    instruction as token_instruction,
+    solana_program::program_pack::Pack,
+    state::Account as TokenAccount,
+};
+use twine_chain::{
+    core::{
+        instruction::TwineChainInstruction,
+        state::{DepositMessageInfo, DepositMessagesBuffer},
+    },
+    utils::constants::DEPOSIT_BUFFER_PREFIX,
+    ID as twine_chain_program_id,
+};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{SplTokensVaultData, TokenDecimalMappings},
+    },
+    utils::{
+        constants::SPL_TOKENS_VAULT_DATA_PREFIX,
+        ethereum_checks::is_valid_ethereum_address,
+    },
+};
+
 
 pub fn spl_token_deposit(
     program_id: &Pubkey,
@@ -44,6 +60,7 @@ pub fn spl_token_deposit(
     if amount == 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
+
     if l1_token == "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidToken.into());
     }
@@ -62,6 +79,7 @@ pub fn spl_token_deposit(
     if spl_data_key != *spl_tokens_vault_data_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
+
     let user_token_data = TokenAccount::unpack(&user_token_account.data.borrow())
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -69,9 +87,8 @@ pub fn spl_token_deposit(
         msg!("User token account has insufficient funds");
         return Err(ProgramCustomError::InsufficientFundsForTransfer.into());
     }
-
     let token_decimal_mappings =
-        TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
+        TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])?;
     let decimal_mapping = token_decimal_mappings
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
@@ -84,10 +101,10 @@ pub fn spl_token_deposit(
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
     let transfer_instruction = token_instruction::transfer(
-        token_program.key,
-        user_token_account.key,
-        spl_tokens_vault_acc.key,
-        user.key,
+        &spl_token::id(),
+        &user_token_account.key,
+        &spl_tokens_vault_acc.key,
+        &user.key,
         &[],
         amount,
     )?;
@@ -103,26 +120,28 @@ pub fn spl_token_deposit(
     )?;
 
     let mut spl_tokens_vault_data =
-        SplTokensVaultData::try_from_slice(&spl_tokens_vault_data_acc.data.borrow())
+        SplTokensVaultData::deserialize(&mut &spl_tokens_vault_data_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
     spl_tokens_vault_data.update_deposit(*mint.key, amount)?;
 
     spl_tokens_vault_data
-        .serialize(&mut *spl_tokens_vault_data_acc.data.borrow_mut())
+        .serialize(&mut &mut spl_tokens_vault_data_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     let (expected_deposit_pda, _) =
-        Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], program_id);
+        Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], &twine_chain_program_id);
 
     if expected_deposit_pda != *deposit_messages_buffer_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
 
     let deposit_message_buffer =
-        DepositMessagesBuffer::try_from_slice(&deposit_messages_buffer_acc.data.borrow())
+        DepositMessagesBuffer::deserialize(&mut &deposit_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = deposit_message_buffer.deposit_nonce + 1;
+
     let clock = Clock::get()?;
 
     let deposit_info = DepositMessageInfo {
@@ -136,17 +155,16 @@ pub fn spl_token_deposit(
         amount: l2_amount,
     };
 
-    let discriminator: u8 = 5;
+   let payload = TwineChainInstruction::AppendDepositMessage {
+        deposit_info: deposit_info,
+    };
 
-    let mut deposit_info_data = Vec::new();
-    deposit_info
-        .serialize(&mut deposit_info_data)
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+    let mut append_instruction_data = vec![];
 
-    let mut append_instruction_data = vec![discriminator];
-    append_instruction_data.extend_from_slice(&deposit_info_data);
+    append_instruction_data.extend(payload.try_to_vec().unwrap());
 
-    let append_instruction_accounts = vec![
+
+    let append_instruction_accounts: Vec<AccountMeta> = vec![
         AccountMeta::new(*deposit_messages_buffer_acc.key, false),
         AccountMeta::new_readonly(*role_manager_acc.key, false),
         AccountMeta::new_readonly(*spl_tokens_vault_data_acc.key, true),
@@ -168,6 +186,7 @@ pub fn spl_token_deposit(
     )?;
 
     msg!("SPL token deposit successful");
+
     Ok(())
 }
 #[cfg(test)]
@@ -191,9 +210,9 @@ mod mock_clock {
 mod tests {
     use super::*;
     use crate::core::state::{
-        SplTokensVaultData, TokenDecimalMapping, TokenDecimalMappings, TokenDepositData,
+        SplTokensVaultData, TokenDecimalMappingData, TokenDecimalMappings, TokenDepositData,
     };
-    use solana_program::{account_info::AccountInfo, clock::Epoch,pubkey::Pubkey, system_program};
+    use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
     use spl_token::state::Account as TokenAccount;
     use twine_chain::core::state::DepositMessagesBuffer;
 
@@ -250,7 +269,7 @@ mod tests {
             Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], &program_id);
         let token_decimal_mappings_key = Pubkey::new_unique();
         let role_manager_key = Pubkey::new_unique();
-        let twine_chain_program_id = Pubkey::new_unique();
+        let twine_chain_programs_id = Pubkey::new_unique();
         let spl_token_program_id = spl_token::id();
 
         let mut user_token_account_data = create_token_account_data(mint_key, user_key, 1_000_000);
@@ -267,7 +286,7 @@ mod tests {
 
         let mut token_mappings_data = TokenDecimalMappings {
             is_initialized: true,
-            mappings: vec![TokenDecimalMapping {
+            mappings: vec![TokenDecimalMappingData {
                 l1_token: mint_key.to_string(),
                 l2_token: "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
                 l1_decimals: 6,
@@ -398,7 +417,7 @@ mod tests {
         );
 
         let twine_chain_program_account = create_test_account(
-            &twine_chain_program_id,
+            &twine_chain_programs_id,
             false,
             false,
             &mut twine_chain_lamports,

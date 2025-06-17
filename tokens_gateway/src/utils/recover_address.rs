@@ -1,7 +1,6 @@
 use sha3::{Digest, Keccak256};
 use solana_secp256k1_recover::secp256k1_recover;
 use solana_program::{program_error::ProgramError,msg};
-
 use crate::core::state::SignMessageInfo;
 
 pub(crate) fn recover_address(
@@ -18,7 +17,7 @@ pub(crate) fn recover_address(
     message_hasher.update(&message);
     let message_hash = message_hasher.finalize();
     let message_signed: [u8; 32] = message_hash.into();
-
+  
     // Extracting signature and recovery key from given signature
     let (signature, v) = signature.split_at(64);
 
@@ -31,6 +30,7 @@ pub(crate) fn recover_address(
             return Err(ProgramError::InvalidArgument);
         }
     }
+
 
     let mut recovery_id = *v.first().unwrap();
     if recovery_id > 3 {

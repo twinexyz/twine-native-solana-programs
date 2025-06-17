@@ -1,9 +1,3 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{SignMessageInfo, TokenDecimalMappings};
-use crate::utils::constants::{CHAIN_ID, SPL_TOKENS_VAULT_DATA_PREFIX};
-use crate::utils::ethereum_checks::is_valid_ethereum_address;
-#[cfg(not(test))]
-use crate::utils::recover_address::recover_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
@@ -11,17 +5,37 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
+    msg,
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::Sysvar,
 };
-
 use spl_token::ID as TOKEN_PROGRAM_ID;
 use std::str::FromStr;
-use twine_chain::core::state::{
-    ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer,
+use twine_chain::{
+    core::{
+        instruction::TwineChainInstruction,
+        state::{ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer},
+    },
+    ID as twine_chain_program_id,
 };
+
+#[cfg(not(test))]
+use crate::utils::recover_address::recover_address;
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{SignMessageInfo, TokenDecimalMappings},
+    },
+    utils::{
+        constants::{CHAIN_ID, SPL_TOKENS_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+        
+    },
+};
+
 
 pub fn forced_spl_token_withdrawal(
     program_id: &Pubkey,
@@ -38,6 +52,7 @@ pub fn forced_spl_token_withdrawal(
     let user_account = next_account_info(account_info_iter)?;
     let to_token_account = next_account_info(account_info_iter)?;
     let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
+    let mint = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let forced_withdrawal_messages_buffer_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
@@ -54,6 +69,10 @@ pub fn forced_spl_token_withdrawal(
         return Err(ProgramCustomError::InvalidArgument.into());
     }
 
+    if l1_token != mint.key.to_string() {
+        return Err(ProgramCustomError::InvalidArgument.into());
+    }
+
     if !is_valid_ethereum_address(&l2_token)? {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
@@ -66,9 +85,10 @@ pub fn forced_spl_token_withdrawal(
         return Err(ProgramCustomError::InvalidAccount.into());
     }
 
-    if role_manager_acc.owner != program_id {
+    if role_manager_acc.owner != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
+
     let parsed_to_pubkey =
         Pubkey::from_str(&to_l1_pubkey).map_err(|_| ProgramError::InvalidArgument)?;
 
@@ -85,7 +105,7 @@ pub fn forced_spl_token_withdrawal(
     }
 
     let token_decimal_mapping =
-        TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
+        TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])?;
 
     let decimal_mapping = token_decimal_mapping
         .get_mapping(&l1_token)
@@ -98,8 +118,8 @@ pub fn forced_spl_token_withdrawal(
     )
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
-    let forced_withdrawal_messages_buffer = ForcedWithdrawMessagesBuffer::try_from_slice(
-        &forced_withdrawal_messages_buffer_acc.data.borrow(),
+    let forced_withdrawal_messages_buffer = ForcedWithdrawMessagesBuffer::deserialize(
+        &mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..],
     )
     .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -128,19 +148,19 @@ pub fn forced_spl_token_withdrawal(
     };
 
     let recovered_address = recover_address(sign_info.clone(), signature)?;
-    if recovered_address != withdraw_info.from_twine_address {
+
+    if recovered_address.to_lowercase() != withdraw_info.from_twine_address.to_lowercase() {
         return Err(ProgramError::InvalidArgument);
-    }
+    };
 
-    let discriminator: u8 = 6;
+    let payload = TwineChainInstruction::AppendForcedWithdrawalMessage {
+        withdraw_info: withdraw_info,
+    };
 
-    let mut withdraw_info_data = Vec::new();
-    withdraw_info
-        .serialize(&mut withdraw_info_data)
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+    let mut append_instruction_data = vec![];
 
-    let mut append_instruction_data = vec![discriminator];
-    append_instruction_data.extend_from_slice(&withdraw_info_data);
+    append_instruction_data.extend(payload.try_to_vec().unwrap());
+
     let append_instruction_accounts = vec![
         AccountMeta::new(*forced_withdrawal_messages_buffer_acc.key, false),
         AccountMeta::new_readonly(*role_manager_acc.key, false),
@@ -191,8 +211,8 @@ fn recover_address(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::{TokenDecimalMapping, TokenDecimalMappings};
-    use solana_program::{account_info::AccountInfo,clock::Epoch, pubkey::Pubkey, system_program};
+    use crate::core::state::{TokenDecimalMappingData, TokenDecimalMappings};
+    use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
     use spl_token::ID as TOKEN_PROGRAM_ID;
     use std::str::FromStr;
     use twine_chain::core::state::ForcedWithdrawMessagesBuffer;
@@ -220,7 +240,7 @@ mod tests {
     #[test]
     fn test_forced_spl_token_withdrawal_success() {
         let program_id = Pubkey::new_unique();
-        let twine_chain_program_id = Pubkey::new_unique();
+        let twine_chain_programs_id = Pubkey::new_unique();
 
         // Prepare keys
         let user_key = Pubkey::new_unique();
@@ -234,7 +254,7 @@ mod tests {
         // Prepare test data
         let token_mappings = TokenDecimalMappings {
             is_initialized: true,
-            mappings: vec![TokenDecimalMapping {
+            mappings: vec![TokenDecimalMappingData {
                 l1_token: "So11111111111111111111111111111111111111112".to_string(),
                 l2_token: "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
                 l1_decimals: 9,
@@ -331,7 +351,7 @@ mod tests {
         );
 
         let twine_chain_program_account = create_test_account(
-            &twine_chain_program_id,
+            &twine_chain_programs_id,
             false,
             false,
             &mut twine_chain_lamports,

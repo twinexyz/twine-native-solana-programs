@@ -6,22 +6,14 @@ use {
         tokens_gateway_helper::{
             fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
         },
-        *,
     },
     solana_program_test::*,
     solana_sdk::{
-        msg,
-        program_pack::Pack,
         signature::{Keypair, Signer},
-        stake,
         transaction::Transaction,
     },
     tokens_gateway::{
-        core::instruction::{
-            self,
-            GatewayInstruction::{InitializeTokensGateway, InitializeTokensGatewayRoleManager},
-        },
-        id,
+        core::instruction as tokens_gateway_instruction,
         utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
 };
@@ -40,7 +32,7 @@ async fn tokens_gateway_rolemanager_init() {
     )
     .await;
     let instructions =
-        instruction::initialize_tokens_gateway_role_manager(&accounts.chain_admin.pubkey());
+        tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&accounts.chain_admin.pubkey());
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&context.payer.pubkey()),
@@ -66,7 +58,7 @@ async fn tokens_gateway_init() {
         844073716442015,
     )
     .await;
-    let instructions = instruction::initialize_tokens_gateway(&accounts.chain_admin.pubkey());
+    let instructions = tokens_gateway_instruction::initialize_tokens_gateway(&accounts.chain_admin.pubkey());
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,

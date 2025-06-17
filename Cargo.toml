@@ -11,6 +11,7 @@ members = [
 ]
 
 [workspace.dependencies]
+
 hex = "0.4.3"
 sha3="0.10.8"
 borsh = "0.10"
@@ -18,24 +19,31 @@ thiserror = "1.0.63"
 solana-bn254 = "2.1.6"
 num-traits = "0.2"
 base64ct = "=1.6.0"
+spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
 num-bigint = "0.4.6"
 solana-program = "1.18.26"
 solana-secp256k1-recover = "2.1.6"
-
-
 tokio = { version = "1.0", features = ["macros", "rt"], default-features = false }
-libsecp256k1 = { version = "0.7.1", default-features = false }
+libsecp256k1 = { version = "0.7.1", default-features = false, features = ["hmac", "static-context"] }
 sp1-solana = { git = "https://github.com/succinctlabs/sp1-solana" }
-spl-token = {version = "3.5.0", default-features = false, features = ["no-entrypoint"] }
 tokens_gateway = { path = "./tokens_gateway", features = ["no-entrypoint"] }
 twine_chain = { path = "./twine_chain", features = ["no-entrypoint"] }
 
+
 [dev-dependencies]
+libsecp256k1  = {workspace = true}
+ethabi = "18.0.0"
+rlp = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+sha3 = {workspace = true}
+hex = {workspace = true}
 dirs = "5"
 tokio-test = "0.4"
 test-case = "3.3"
+spl-token = { workspace = true }  
 solana-sdk = "1.18.26"
 solana-program-test = "1.18.26"
+spl-associated-token-account = "2.3.0"
 borsh = { workspace = true }
 solana-program = { workspace = true }
 tokens_gateway = { workspace = true }
