@@ -7,7 +7,6 @@ pub fn is_valid_ethereum_address(address: &str) -> Result<bool, ProgramError> {
         return Ok(false);
     }
 
-    // Check if the remaining characters are valid hexadecimal
     let is_valid = address[2..].chars().all(|c| c.is_ascii_hexdigit());
 
     Ok(is_valid)

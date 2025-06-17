@@ -185,15 +185,16 @@ pub fn finalize_spl_withdrawal(
     let clock = Clock::get()?;
 
     msg!(
-        "EVENT:SPL_WITHDRAWAL_SUCCESSFUL:{}:{}:{}:{}:{}:{}:{}",
-        withdrawal_inputs.public_input.nonce,
-        withdrawal_inputs.public_input.l1_receiver_address,
-        withdrawal_inputs.public_input.l1_token_address,
-        withdrawal_inputs.public_input.l2_token_address,
-        withdrawal_inputs.public_input.chain_id,
-        actual_amount,
-        clock.slot
-    );
+    "EVENT:SPL_WITHDRAWAL_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, l2_token_address={}, chain_id={}, amount={}, slot={}",
+    withdrawal_inputs.public_input.nonce,
+    withdrawal_inputs.public_input.l1_receiver_address,
+    withdrawal_inputs.public_input.l1_token_address,
+    withdrawal_inputs.public_input.l2_token_address,
+    withdrawal_inputs.public_input.chain_id,
+    actual_amount,
+    clock.slot
+);
+
     Ok(())
 }
 

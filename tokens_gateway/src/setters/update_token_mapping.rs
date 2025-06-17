@@ -71,7 +71,7 @@ pub fn update_token_mapping(
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     msg!(
-        "TokenMappingUpdated: l1_token={}, l2_token={}, l1_decimals={}, l2_decimals={}",
+        "EVENT:TokenMappingUpdated: l1_token={}, l2_token={}, l1_decimals={}, l2_decimals={}",
         l1_token,
         l2_token,
         l1_decimals,

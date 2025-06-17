@@ -215,6 +215,16 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         .serialize(&mut &mut token_decimal_mappings_data_data[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
+    msg!(
+    "EVENT:TokensGatewayInitialized: native_token_vault={}, native_token_vault_data={}, spl_tokens_vault_data={}, executed_withdrawals_buffer={}, token_decimal_mappings={}, chain_admin={}",
+    native_token_vault_acc.key,
+    native_token_vault_data_acc.key,
+    spl_tokens_vault_data_acc.key,
+    executed_withdrawals_buffer_acc.key,
+    token_decimal_mappings_acc.key,
+    chain_admin_acc.key
+);
+
     Ok(())
 }
 

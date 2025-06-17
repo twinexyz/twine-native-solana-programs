@@ -1,13 +1,6 @@
-use crate::core::state::{RoleType, TokensGatewayRoleManager};
-use crate::utils::address_derivation::derive_gateway_role_manager;
-use crate::utils::constants::{
-    INITIAL_CHAIN_ADMIN, ROLE_MANAGER_ACCOUNT_SIZE, ROLE_MANAGER_PREFIX,
-};
 use borsh::{BorshDeserialize, BorshSerialize};
-
 #[cfg(not(test))]
 use solana_program::program::invoke_signed;
-
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -16,6 +9,14 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
+};
+
+use crate::{
+    core::state::{RoleType, TokensGatewayRoleManager},
+    utils::{
+        address_derivation::derive_gateway_role_manager,
+        constants::{INITIAL_CHAIN_ADMIN, ROLE_MANAGER_ACCOUNT_SIZE, ROLE_MANAGER_PREFIX},
+    },
 };
 
 pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
@@ -64,11 +65,14 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
     let mut data = role_manager_acc.data.borrow_mut();
     role_manager.serialize(&mut &mut data[..])?;
 
-    Ok(())
-}
+    msg!(
+        "EVENT:RoleManagerInitialized: role_manager={}, chain_admin={}, initial_role={}",
+        role_manager_acc.key,
+        chain_admin,
+        "TwineOperationHandler"
+    );
 
-pub fn get_role_manager_pda(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[ROLE_MANAGER_PREFIX.as_bytes()], program_id)
+    Ok(())
 }
 
 fn validate_accounts(
