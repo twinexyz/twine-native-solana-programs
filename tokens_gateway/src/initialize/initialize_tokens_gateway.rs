@@ -1,16 +1,23 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{
-    ExecutedWithdrawalsBuffer, NativeTokenVaultData, SplTokensVaultData, TokenDecimalMappings,
-    TokenDepositData,
-};
-use crate::utils::address_derivation::{
-    derive_executed_withdrawals_buffer, derive_native_token_vault, derive_native_token_vault_data,
-    derive_role_manager, derive_spl_tokens_vault_data, derive_token_decimal_mappings,
-};
-use crate::utils::constants::{
-    EXECUTED_WITHDRAWALS_BUFFER_PREFIX, MAX_TOKENS, NATIVE_TOKEN_VAULT_DATA_PREFIX,
-    NATIVE_TOKEN_VAULT_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX,
-    TOKEN_DECIMAL_MAPPINGS_PREFIX,
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{
+            ExecutedWithdrawalsBuffer, NativeTokenVaultData, SplTokensVaultData,
+            TokenDecimalMappings, TokenDepositData,
+        },
+    },
+    utils::{
+        address_derivation::{
+            derive_executed_withdrawals_buffer, derive_gateway_role_manager,
+            derive_native_token_vault, derive_native_token_vault_data,
+            derive_spl_tokens_vault_data, derive_token_decimal_mappings,
+        },
+        constants::{
+            EXECUTED_WITHDRAWALS_BUFFER_PREFIX, MAX_TOKENS, NATIVE_TOKEN_VAULT_DATA_PREFIX,
+            NATIVE_TOKEN_VAULT_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX, TOKEN_DECIMAL_MAPPINGS_PREFIX,
+        },
+        
+    },
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
@@ -20,11 +27,9 @@ use solana_program::{
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
-    program_pack::IsInitialized,
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
-    sysvar::Sysvar,
 };
 
 pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
@@ -61,7 +66,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     )?;
 
     // Create native token vault
-    let (_, native_token_vault_bump) = derive_native_token_vault(program_id);
+    let (_, native_token_vault_bump) = derive_native_token_vault(&program_id);
 
     let lamports = rent.minimum_balance(0);
 
@@ -86,7 +91,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         )?;
     }
 
-    let (_, native_token_vault_data_bump) = derive_native_token_vault_data(program_id);
+    let (_, native_token_vault_data_bump) = derive_native_token_vault_data(&program_id);
 
     let space = 8 + std::mem::size_of::<NativeTokenVaultData>();
 
@@ -111,7 +116,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ]],
     )?;
 
-    let (_, spl_tokens_vault_data_bump) = derive_spl_tokens_vault_data(program_id);
+    let (_, spl_tokens_vault_data_bump) = derive_spl_tokens_vault_data(&program_id);
 
     let space = 8 + 32 + 4 + (MAX_TOKENS * std::mem::size_of::<TokenDepositData>());
     let lamports = rent.minimum_balance(space);
@@ -134,7 +139,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ]],
     )?;
 
-    let (_, executed_withdrawals_buffer_bump) = derive_executed_withdrawals_buffer(program_id);
+    let (_, executed_withdrawals_buffer_bump) = derive_executed_withdrawals_buffer(&program_id);
 
     let space = 8 + ExecutedWithdrawalsBuffer::SPACE;
     let lamports = rent.minimum_balance(space);
@@ -157,7 +162,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ]],
     )?;
 
-    let (_, token_decimal_mappings_bump) = derive_token_decimal_mappings(program_id);
+    let (_, token_decimal_mappings_bump) = derive_token_decimal_mappings(&program_id);
 
     let space = 8 + 32 + 4 + (MAX_TOKENS * std::mem::size_of::<TokenDecimalMappings>());
     let lamports = rent.minimum_balance(space);
@@ -188,7 +193,6 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     native_token_vault_data
         .serialize(&mut &mut native_vault_data_data[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
     let spl_tokens_vault_data = SplTokensVaultData {
         is_initialized: true,
         total_deposited_amount: Vec::new(),
@@ -219,7 +223,16 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         .serialize(&mut &mut token_decimal_mappings_data_data[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!("Tokens Gateway initialization successful");
+    msg!(
+    "EVENT:TokensGatewayInitialized: native_token_vault={}, native_token_vault_data={}, spl_tokens_vault_data={}, executed_withdrawals_buffer={}, token_decimal_mappings={}, chain_admin={}",
+    native_token_vault_acc.key,
+    native_token_vault_data_acc.key,
+    spl_tokens_vault_data_acc.key,
+    executed_withdrawals_buffer_acc.key,
+    token_decimal_mappings_acc.key,
+    chain_admin_acc.key
+);
+
     Ok(())
 }
 
@@ -235,36 +248,34 @@ fn validate_accounts(
     program_id: &Pubkey,
 ) -> ProgramResult {
     if !chain_admin_acc.is_signer {
-        msg!("Chain admin must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
     }
 
     if system_program.key != &solana_program::system_program::id() {
-        msg!("Invalid system program");
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let (native_token_vault_key, _) = derive_native_token_vault(program_id);
+    let (native_token_vault_key, _) = derive_native_token_vault(&program_id);
     if native_token_vault_key != *native_token_vault_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (native_token_vault_data_key, _) = derive_native_token_vault_data(program_id);
+    let (native_token_vault_data_key, _) = derive_native_token_vault_data(&program_id);
     if native_token_vault_data_key != *native_token_vault_data_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data(program_id);
+    let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data(&program_id);
     if spl_tokens_vault_data_key != *spl_tokens_vault_data_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer(program_id);
+    let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer(&program_id);
     if executed_withdrawals_buffer_key != *executed_withdrawals_buffer_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (token_decimal_mappings_key, _) = derive_token_decimal_mappings(program_id);
+    let (token_decimal_mappings_key, _) = derive_token_decimal_mappings(&program_id);
     if token_decimal_mappings_key != *token_decimal_mappings_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (role_manager_key, _) = derive_role_manager(program_id);
+    let (role_manager_key, _) = derive_gateway_role_manager(&program_id);
     if role_manager_key != *role_manager_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
@@ -334,7 +345,9 @@ fn invoke_signed(
 mod test {
     use super::*;
     use crate::utils::constants::INITIAL_CHAIN_ADMIN;
-    use solana_program::{account_info::AccountInfo, pubkey::Pubkey,clock::Epoch, rent::Rent, system_program};
+    use solana_program::{
+        account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, rent::Rent, system_program,
+    };
 
     use std::str::FromStr;
 
@@ -368,7 +381,7 @@ mod test {
         let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data(&program_id);
         let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer(&program_id);
         let (token_decimal_mappings_key, _) = derive_token_decimal_mappings(&program_id);
-        let (role_manager_key, _) = derive_role_manager(&program_id);
+        let (role_manager_key, _) = derive_gateway_role_manager(&program_id);
         let chain_admin_key = Pubkey::from_str(INITIAL_CHAIN_ADMIN)?;
         let system_program_id = system_program::id();
 

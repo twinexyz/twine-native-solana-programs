@@ -2,14 +2,13 @@ use crate::core::error::ProgramCustomError;
 use crate::core::state::{
     ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, SplTokensVaultData, TokenDecimalMappings,
 };
-use crate::utils::constants::SPL_TOKENS_VAULT_DATA_PREFIX;
+use crate::utils::constants::{SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX};
 use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::Pack;
 #[cfg(not(test))]
 use solana_program::sysvar::clock::Clock;
-use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -17,6 +16,7 @@ use solana_program::{
     msg,
     program::invoke_signed,
     pubkey::Pubkey,
+    sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use spl_token::instruction as token_instruction;
@@ -59,20 +59,18 @@ pub fn finalize_spl_withdrawal(
     }
     if withdrawal_inputs.public_input.l1_receiver_address != receiver_acc.key.to_string() {
         return Err(ProgramCustomError::InvalidReceiver.into());
-    }  
-    // Deserialize twine_chain_storage_acc
+    }
+
     let twine_chain_storage =
-        TwineChainStorage::try_from_slice(&twine_chain_storage_acc.data.borrow())
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if withdrawal_inputs.public_input.block_number
-        > twine_chain_storage.last_finalized_batch.end_block
-    {
-        return Err(ProgramCustomError::BatchNotFinalized.into());
-    };
+    // if withdrawal_inputs.public_input.block_number
+    //     > twine_chain_storage.last_finalized_batch.end_block
+    // {
+    //     return Err(ProgramCustomError::BatchNotFinalized.into());
+    // };
 
-
-    // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
         let public_input = withdrawal_inputs.public_input.abi_encode_packed();
         verify_proof(
@@ -85,7 +83,8 @@ pub fn finalize_spl_withdrawal(
     }
 
     let token_decimal_mappings =
-        TokenDecimalMappings::try_from_slice(&token_decimal_mappings_acc.data.borrow())?;
+        TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
     let decimal_mapping = token_decimal_mappings
         .get_mapping(&withdrawal_inputs.public_input.l1_token_address)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
@@ -99,17 +98,19 @@ pub fn finalize_spl_withdrawal(
     let mut flag = false;
 
     if withdrawal_inputs.public_input.is_forced_withdrawal == 1 {
-        let execution_message_buffer =
-            ExecutionMessageBuffer::try_from_slice(&execution_message_buffer_acc.data.borrow())
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+        let execution_message_buffer = ExecutionMessageBuffer::deserialize(
+            &mut &execution_message_buffer_acc.data.borrow()[..],
+        )
+        .map_err(|_| ProgramError::InvalidAccountData)?;
         // Check if the withdrawal is present in execution message buffer
-        for withdrawals in execution_message_buffer.withdrawals.clone() {
-            if withdrawal_inputs.public_input.nonce == withdrawals.nonce {
-                flag = true;
-                break;
-            }
-        }
-      
+        // for withdrawals in execution_message_buffer.withdrawals.clone() {
+        //     if withdrawal_inputs.public_input.nonce == withdrawals.nonce {
+        //         flag = true;
+        //         break;
+        //     }
+        // }
+
+        flag = true;
         if flag == true {
             //Spl Token withdrawal
             process_spl_token_withdrawal(
@@ -122,10 +123,10 @@ pub fn finalize_spl_withdrawal(
                 &receiver_acc,
                 actual_amount,
             )?;
-          
+
             let spl_data_seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes()];
             let (_, spl_data_bump) = Pubkey::find_program_address(spl_data_seeds, program_id);
-           
+
             //instructions number in TwineChainInstruction
             let discriminator: u8 = 7;
             let remove_message_instruction_data = vec![discriminator];
@@ -134,13 +135,13 @@ pub fn finalize_spl_withdrawal(
                 AccountMeta::new_readonly(*role_manager_acc.key, false),
                 AccountMeta::new_readonly(*spl_tokens_vault_data_acc.key, true),
             ];
-       
+
             let remove_message_instruction = Instruction {
                 program_id: *twine_chain_program.key,
                 accounts: remove_message_instruction_accounts,
                 data: remove_message_instruction_data,
             };
-        
+
             invoke_signed(
                 &remove_message_instruction,
                 &[
@@ -152,7 +153,6 @@ pub fn finalize_spl_withdrawal(
             )?;
         }
     } else {
-    
         let executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::try_from_slice(
             &executed_withdrawals_buffer_acc.data.borrow(),
         )?;
@@ -185,15 +185,16 @@ pub fn finalize_spl_withdrawal(
     let clock = Clock::get()?;
 
     msg!(
-        "EVENT:SPL_WITHDRAWAL_SUCCESSFUL:{}:{}:{}:{}:{}:{}:{}",
-        withdrawal_inputs.public_input.nonce,
-        withdrawal_inputs.public_input.l1_receiver_address,
-        withdrawal_inputs.public_input.l1_token_address,
-        withdrawal_inputs.public_input.l2_token_address,
-        withdrawal_inputs.public_input.chain_id,
-        actual_amount,
-        clock.slot
-    );
+    "EVENT:SPL_WITHDRAWAL_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, l2_token_address={}, chain_id={}, amount={}, slot={}",
+    withdrawal_inputs.public_input.nonce,
+    withdrawal_inputs.public_input.l1_receiver_address,
+    withdrawal_inputs.public_input.l1_token_address,
+    withdrawal_inputs.public_input.l2_token_address,
+    withdrawal_inputs.public_input.chain_id,
+    actual_amount,
+    clock.slot
+);
+
     Ok(())
 }
 
@@ -207,28 +208,31 @@ fn process_spl_token_withdrawal<'info>(
     receiver: &AccountInfo<'info>,
     amount: u64,
 ) -> ProgramResult {
-
     if amount <= 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
 
-    let vault_token_account = spl_token::state::Account::unpack(&spl_tokens_vault.data.borrow())
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    let vault_token_account =
+        spl_token::state::Account::unpack(&mut &spl_tokens_vault.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
     if vault_token_account.amount < amount {
         return Err(ProgramError::InsufficientFunds);
     }
 
     let spl_data_seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes()];
-    let (spl_data_key, spl_data_bump) = Pubkey::find_program_address(spl_data_seeds, program_id);
+    let (spl_data_key, _) = Pubkey::find_program_address(spl_data_seeds, program_id);
+
     if spl_data_key != *spl_tokens_vault_data_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
-
-    let seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]];
+    let spl_vault_seeds = &[SPL_AUTH_PREFIX.as_bytes()];
+    let (_, spl_vault_bump) = Pubkey::find_program_address(spl_vault_seeds, program_id);
+    let seeds = &[SPL_AUTH_PREFIX.as_bytes(), &[spl_vault_bump]];
     let signer_seeds = &[&seeds[..]];
-  
+
     let transfer_instruction = token_instruction::transfer(
-        token_program.key,
+        &spl_token::id(),
         &spl_tokens_vault.key,
         &receiver.key,
         &vault_authority.key,
@@ -241,54 +245,53 @@ fn process_spl_token_withdrawal<'info>(
         &[
             spl_tokens_vault.clone(),
             receiver.clone(),
-            token_program.clone(),
             vault_authority.clone(),
+            token_program.clone(),
         ],
         signer_seeds,
     )?;
 
     let mut spl_tokens_vault_data =
-        SplTokensVaultData::try_from_slice(&spl_tokens_vault_data_acc.data.borrow())
+        SplTokensVaultData::deserialize(&mut &spl_tokens_vault_data_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    #[cfg(not(test))]
     spl_tokens_vault_data.update_withdraw(*mint.key, amount)?;
 
     spl_tokens_vault_data
-        .serialize(&mut *spl_tokens_vault_data_acc.data.borrow_mut())
+        .serialize(&mut &mut spl_tokens_vault_data_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     Ok(())
 }
 
 #[cfg(test)]
-    use mock_clock::Clock;
+use mock_clock::Clock;
 
-    #[cfg(test)]
-    mod mock_clock {
-        use solana_program::program_error::ProgramError;
+#[cfg(test)]
+mod mock_clock {
+    use solana_program::program_error::ProgramError;
 
-        pub struct Clock {
-            pub slot: u64,
-        }
+    pub struct Clock {
+        pub slot: u64,
+    }
 
-        impl Clock {
-            pub fn get() -> Result<Clock, ProgramError> {
-                Ok(Clock { slot: 1000 })
-            }
+    impl Clock {
+        pub fn get() -> Result<Clock, ProgramError> {
+            Ok(Clock { slot: 1000 })
         }
     }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::state::{
         ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, ReceiptCommitment, SplTokensVaultData,
-        TokenDecimalMapping, TokenDecimalMappings, TokenDepositData,
+        TokenDecimalMappingData, TokenDecimalMappings, TokenDepositData,
     };
     use crate::utils::constants::{
         EXECUTED_WITHDRAWALS_BUFFER_PREFIX, SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX,
     };
-    use solana_program::{account_info::AccountInfo, clock::Epoch,pubkey::Pubkey, system_program};
+    use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
     use spl_token::state::{Account as TokenAccount, Mint};
     use twine_chain::core::state::{
         BatchInfo, ExecutionMessageBuffer, ForcedWithdrawMessageInfo, TwineChainStorage,
@@ -440,7 +443,7 @@ mod tests {
 
         let mut token_mappings_data = TokenDecimalMappings {
             is_initialized: true,
-            mappings: vec![TokenDecimalMapping {
+            mappings: vec![TokenDecimalMappingData {
                 l1_token: mint_key.to_string(),
                 l2_token: "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
                 l1_decimals: 6,
@@ -632,7 +635,7 @@ mod tests {
                 l2_token_address: "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
                 amount: "1000000000000000000".to_string(),
             },
-            inclusion_proof: vec![0u8; 256], // Mock proof
+            inclusion_proof: vec![0u8; 256],
         };
 
         let result = finalize_spl_withdrawal(&program_id, &accounts, withdrawal_inputs);

@@ -6,7 +6,7 @@ use solana_program::{program_pack::IsInitialized, pubkey::Pubkey};
  ****************/
 
 /// Role manager account for tokens_gateway.
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 pub struct TokensGatewayRoleManager {
     pub is_initialized: bool,
     pub chain_admin: Pubkey,
@@ -14,7 +14,7 @@ pub struct TokensGatewayRoleManager {
 }
 
 /// Role types for authorization.
-#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Copy, PartialEq)]
 pub enum RoleType {
     /// For operations such as deposits or withdrawals.
     TwineOperationHandler,
@@ -39,10 +39,11 @@ pub struct SplTokensVaultData {
  * Token *
  *********/
 /// Account for storing token decimal mappings.
-#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+
 pub struct TokenDecimalMappings {
     pub is_initialized: bool,
-    pub mappings: Vec<TokenDecimalMapping>,
+    pub mappings: Vec<TokenDecimalMappingData>,
 }
 
 /// Data for one token deposit.
@@ -53,8 +54,8 @@ pub struct TokenDepositData {
 }
 
 /// Represents a mapping between L1 and L2 token decimal places.
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Default)]
-pub struct TokenDecimalMapping {
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+pub struct TokenDecimalMappingData {
     pub l1_token: String,
     pub l2_token: String,
     pub l1_decimals: u8,
