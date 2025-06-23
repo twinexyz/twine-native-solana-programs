@@ -10,7 +10,7 @@ use {
         signature::{Keypair, Signer},
         transaction::Transaction,
     },
-      tokens_gateway::{
+    tokens_gateway::{
         core::instruction as tokens_gateway_instruction,
         utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
@@ -37,7 +37,7 @@ async fn native_withdrawal_finalized_succeed() {
     let amount = 1000000000u64;
     let chain_admin = &accounts.chain_admin.pubkey();
     let l1_receiver_address = accounts.chain_admin.pubkey();
-    let chain_id  = 9u64;
+    let chain_id = 9u64;
     let block_number = 1u64;
     let nonce = 1u64;
     let is_forced_withdrawal = 1;
@@ -49,18 +49,19 @@ async fn native_withdrawal_finalized_succeed() {
     let inclusion_proof = vec![];
 
     let mut instructions = vec![];
-     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &chain_admin,
     ));
     instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(
+    instructions
+        .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
+    let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
+    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
         &chain_admin,
     ));
-    let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(&chain_admin));
     instructions.extend(tokens_gateway_instruction::update_gateway_token_mapping(
         l1_token.clone(),
         l2_token.clone(),
@@ -68,25 +69,27 @@ async fn native_withdrawal_finalized_succeed() {
         l2_decimals,
         &chain_admin,
     ));
-     instructions.extend(tokens_gateway_instruction::native_token_deposit(
+    instructions.extend(tokens_gateway_instruction::native_token_deposit(
         &chain_admin,
         receiver_twine_address,
         l1_token.clone(),
         l2_token.clone(),
         2000000000,
     ));
-    instructions.extend(tokens_gateway_instruction::finalize_native_token_withdrawal(
-        chain_id,
-        block_number,
-        nonce,
-        is_forced_withdrawal,
-        receipt_root,
-        l1_receiver_address,
-        l1_token.clone(),
-        l2_token.clone(),
-        amount.to_string(),
-        inclusion_proof,
-    ));
+    instructions.extend(
+        tokens_gateway_instruction::finalize_native_token_withdrawal(
+            chain_id,
+            block_number,
+            nonce,
+            is_forced_withdrawal,
+            receipt_root,
+            l1_receiver_address,
+            l1_token.clone(),
+            l2_token.clone(),
+            amount.to_string(),
+            inclusion_proof,
+        ),
+    );
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,

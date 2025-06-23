@@ -12,8 +12,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use spl_token::{
-    instruction as token_instruction,
-    solana_program::program_pack::Pack,
+    instruction as token_instruction, solana_program::program_pack::Pack,
     state::Account as TokenAccount,
 };
 use twine_chain::{
@@ -30,12 +29,8 @@ use crate::{
         error::ProgramCustomError,
         state::{SplTokensVaultData, TokenDecimalMappings},
     },
-    utils::{
-        constants::SPL_TOKENS_VAULT_DATA_PREFIX,
-        ethereum_checks::is_valid_ethereum_address,
-    },
+    utils::{constants::SPL_TOKENS_VAULT_DATA_PREFIX, ethereum_checks::is_valid_ethereum_address},
 };
-
 
 pub fn spl_token_deposit(
     program_id: &Pubkey,
@@ -155,14 +150,13 @@ pub fn spl_token_deposit(
         amount: l2_amount,
     };
 
-   let payload = TwineChainInstruction::AppendDepositMessage {
+    let payload = TwineChainInstruction::AppendDepositMessage {
         deposit_info: deposit_info,
     };
 
     let mut append_instruction_data = vec![];
 
     append_instruction_data.extend(payload.try_to_vec().unwrap());
-
 
     let append_instruction_accounts: Vec<AccountMeta> = vec![
         AccountMeta::new(*deposit_messages_buffer_acc.key, false),

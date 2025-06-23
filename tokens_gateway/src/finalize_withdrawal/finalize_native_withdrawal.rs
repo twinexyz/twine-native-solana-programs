@@ -145,18 +145,18 @@ pub fn finalize_native_withdrawal(
                 data: remove_message_instruction_data,
             };
 
-            // invoke_signed(
-            //     &remove_message_instruction,
-            //     &[
-            //         execution_message_buffer_acc.clone(),
-            //         role_manager.clone(),
-            //         native_token_vault_acc.clone(),
-            //     ],
-            //     &[&[
-            //         NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
-            //         &[native_data_bump],
-            //     ]],
-            // )?;
+            invoke_signed(
+                &remove_message_instruction,
+                &[
+                    execution_message_buffer_acc.clone(),
+                    role_manager.clone(),
+                    native_token_vault_acc.clone(),
+                ],
+                &[&[
+                    NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
+                    &[native_data_bump],
+                ]],
+            )?;
         }
     } else {
         let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::try_from_slice(

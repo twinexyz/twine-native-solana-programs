@@ -32,10 +32,8 @@ use crate::{
     utils::{
         constants::{CHAIN_ID, SPL_TOKENS_VAULT_DATA_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
-        
     },
 };
-
 
 pub fn forced_spl_token_withdrawal(
     program_id: &Pubkey,

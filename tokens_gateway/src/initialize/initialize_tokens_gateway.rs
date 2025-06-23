@@ -1,15 +1,23 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{
-    ExecutedWithdrawalsBuffer, NativeTokenVaultData, SplTokensVaultData, TokenDecimalMappings,
-    TokenDepositData,
-};
-use crate::utils::address_derivation::{
-    derive_executed_withdrawals_buffer, derive_gateway_role_manager, derive_native_token_vault,
-    derive_native_token_vault_data, derive_spl_tokens_vault_data, derive_token_decimal_mappings,
-};
-use crate::utils::constants::{
-    EXECUTED_WITHDRAWALS_BUFFER_PREFIX, MAX_TOKENS, NATIVE_TOKEN_VAULT_DATA_PREFIX,
-    NATIVE_TOKEN_VAULT_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX, TOKEN_DECIMAL_MAPPINGS_PREFIX,
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{
+            ExecutedWithdrawalsBuffer, NativeTokenVaultData, SplTokensVaultData,
+            TokenDecimalMappings, TokenDepositData,
+        },
+    },
+    utils::{
+        address_derivation::{
+            derive_executed_withdrawals_buffer, derive_gateway_role_manager,
+            derive_native_token_vault, derive_native_token_vault_data,
+            derive_spl_tokens_vault_data, derive_token_decimal_mappings,
+        },
+        constants::{
+            EXECUTED_WITHDRAWALS_BUFFER_PREFIX, MAX_TOKENS, NATIVE_TOKEN_VAULT_DATA_PREFIX,
+            NATIVE_TOKEN_VAULT_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX, TOKEN_DECIMAL_MAPPINGS_PREFIX,
+        },
+        
+    },
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
@@ -58,7 +66,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     )?;
 
     // Create native token vault
-    let (_, native_token_vault_bump) = derive_native_token_vault();
+    let (_, native_token_vault_bump) = derive_native_token_vault(&program_id);
 
     let lamports = rent.minimum_balance(0);
 
@@ -83,7 +91,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         )?;
     }
 
-    let (_, native_token_vault_data_bump) = derive_native_token_vault_data();
+    let (_, native_token_vault_data_bump) = derive_native_token_vault_data(&program_id);
 
     let space = 8 + std::mem::size_of::<NativeTokenVaultData>();
 
@@ -108,7 +116,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ]],
     )?;
 
-    let (_, spl_tokens_vault_data_bump) = derive_spl_tokens_vault_data();
+    let (_, spl_tokens_vault_data_bump) = derive_spl_tokens_vault_data(&program_id);
 
     let space = 8 + 32 + 4 + (MAX_TOKENS * std::mem::size_of::<TokenDepositData>());
     let lamports = rent.minimum_balance(space);
@@ -131,7 +139,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ]],
     )?;
 
-    let (_, executed_withdrawals_buffer_bump) = derive_executed_withdrawals_buffer();
+    let (_, executed_withdrawals_buffer_bump) = derive_executed_withdrawals_buffer(&program_id);
 
     let space = 8 + ExecutedWithdrawalsBuffer::SPACE;
     let lamports = rent.minimum_balance(space);
@@ -154,7 +162,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ]],
     )?;
 
-    let (_, token_decimal_mappings_bump) = derive_token_decimal_mappings();
+    let (_, token_decimal_mappings_bump) = derive_token_decimal_mappings(&program_id);
 
     let space = 8 + 32 + 4 + (MAX_TOKENS * std::mem::size_of::<TokenDecimalMappings>());
     let lamports = rent.minimum_balance(space);
@@ -247,27 +255,27 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let (native_token_vault_key, _) = derive_native_token_vault();
+    let (native_token_vault_key, _) = derive_native_token_vault(&program_id);
     if native_token_vault_key != *native_token_vault_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (native_token_vault_data_key, _) = derive_native_token_vault_data();
+    let (native_token_vault_data_key, _) = derive_native_token_vault_data(&program_id);
     if native_token_vault_data_key != *native_token_vault_data_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data();
+    let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data(&program_id);
     if spl_tokens_vault_data_key != *spl_tokens_vault_data_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer();
+    let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer(&program_id);
     if executed_withdrawals_buffer_key != *executed_withdrawals_buffer_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (token_decimal_mappings_key, _) = derive_token_decimal_mappings();
+    let (token_decimal_mappings_key, _) = derive_token_decimal_mappings(&program_id);
     if token_decimal_mappings_key != *token_decimal_mappings_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
-    let (role_manager_key, _) = derive_gateway_role_manager();
+    let (role_manager_key, _) = derive_gateway_role_manager(&program_id);
     if role_manager_key != *role_manager_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
@@ -368,12 +376,12 @@ mod test {
         let program_id = Pubkey::new_unique();
 
         // Get all the PDA keys
-        let (native_token_vault_key, _) = derive_native_token_vault();
-        let (native_token_vault_data_key, _) = derive_native_token_vault_data();
-        let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data();
-        let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer();
-        let (token_decimal_mappings_key, _) = derive_token_decimal_mappings();
-        let (role_manager_key, _) = derive_gateway_role_manager();
+        let (native_token_vault_key, _) = derive_native_token_vault(&program_id);
+        let (native_token_vault_data_key, _) = derive_native_token_vault_data(&program_id);
+        let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data(&program_id);
+        let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer(&program_id);
+        let (token_decimal_mappings_key, _) = derive_token_decimal_mappings(&program_id);
+        let (role_manager_key, _) = derive_gateway_role_manager(&program_id);
         let chain_admin_key = Pubkey::from_str(INITIAL_CHAIN_ADMIN)?;
         let system_program_id = system_program::id();
 

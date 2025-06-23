@@ -2,11 +2,9 @@
 #[cfg(test)]
 mod helpers;
 use {
-    helpers::{
-        tokens_gateway_helper::{
-            create_spl_and_mint, fund_account_for_rent_exemption, program_test,
-            TokensGatewayAccounts,get_ethereum_signature,
-        },
+    helpers::tokens_gateway_helper::{
+        create_spl_and_mint, fund_account_for_rent_exemption, get_ethereum_signature, program_test,
+        TokensGatewayAccounts,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -14,8 +12,7 @@ use {
         transaction::Transaction,
     },
     tokens_gateway::{
-        core::state::SignMessageInfo,
-        core::instruction as tokens_gateway_instruction,
+        core::instruction as tokens_gateway_instruction, core::state::SignMessageInfo,
         utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
     twine_chain::core::instruction as twine_chain_instruction,
@@ -43,7 +40,7 @@ async fn spl_forced_withdrawal_succeed() {
     let (spl_token_pubkey, user_token_account) =
         create_spl_and_mint(&mut context, &accounts.chain_admin, 9, 100).await;
     let l1_token = spl_token_pubkey.to_string();
-     let sign_info = SignMessageInfo {
+    let sign_info = SignMessageInfo {
         nonce: 1,
         chain_id: 900,
         amount: amount,
@@ -51,9 +48,9 @@ async fn spl_forced_withdrawal_succeed() {
         to_l1_pubkey: user_token_account.to_string(),
         l1_token: l1_token.to_string(),
         l2_token: l2_token.clone(),
-    }; 
+    };
     let privkey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    
+
     let signature = get_ethereum_signature(&sign_info, privkey);
 
     let mut instructions = vec![];

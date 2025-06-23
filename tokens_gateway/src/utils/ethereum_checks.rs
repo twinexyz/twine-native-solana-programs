@@ -1,6 +1,5 @@
 use solana_program::program_error::ProgramError;
 
-
 pub fn is_valid_ethereum_address(address: &str) -> Result<bool, ProgramError> {
     // Check if the address starts with "0x" and has a total length of 42 characters (including "0x")
     if !address.starts_with("0x") || address.len() != 42 {

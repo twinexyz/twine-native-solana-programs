@@ -2,10 +2,8 @@
 #[cfg(test)]
 mod helpers;
 use {
-    helpers::{
-        tokens_gateway_helper::{
-            fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
-        }
+    helpers::tokens_gateway_helper::{
+        fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -49,10 +47,11 @@ async fn native_token_deposit_succeed() {
     instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(
+    instructions
+        .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
+    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(&chain_admin));
 
     instructions.extend(tokens_gateway_instruction::update_gateway_token_mapping(
         l1_token.clone(),

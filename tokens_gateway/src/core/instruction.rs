@@ -11,10 +11,7 @@ use {
     },
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
-        instruction::{AccountMeta, Instruction},
-        program_error::ProgramError,
-        pubkey::Pubkey,
-        system_program,
+        instruction::{AccountMeta, Instruction}, msg, program_error::ProgramError, pubkey::Pubkey, system_program
     },
     twine_chain::{
         utils::address_derivation::{
@@ -155,11 +152,10 @@ pub fn initialize_tokens_gateway_role_manager(chain_admin: &Pubkey) -> Vec<Instr
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
-        AccountMeta::new(derive_gateway_role_manager().0, false),
+        AccountMeta::new(derive_gateway_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(*chain_admin, true),
         AccountMeta::new(system_program::id(), false),
     ];
-
     vec![Instruction {
         program_id: tokens_gateway_ID,
         accounts,
@@ -172,15 +168,12 @@ pub fn initialize_tokens_gateway(chain_admin: &Pubkey) -> Vec<Instruction> {
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
-        AccountMeta::new(derive_native_token_vault().0, false),
-        AccountMeta::new(derive_native_token_vault_data().0, false),
-        AccountMeta::new(derive_spl_tokens_vault_data().0, false),
-        AccountMeta::new(
-            derive_executed_withdrawals_buffer().0,
-            false,
-        ),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
-        AccountMeta::new(derive_gateway_role_manager().0, false),
+        AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_executed_withdrawals_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_gateway_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(*chain_admin, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -211,8 +204,8 @@ pub fn update_gateway_token_mapping(
 
     let accounts = vec![
         AccountMeta::new(*chain_admin, true),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
-        AccountMeta::new(derive_gateway_role_manager().0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_gateway_role_manager(&tokens_gateway_ID).0, false),
     ];
 
     vec![Instruction {
@@ -241,10 +234,10 @@ pub fn native_token_deposit(
 
     let accounts = vec![
         AccountMeta::new(*user, false),
-        AccountMeta::new(derive_native_token_vault().0, false),
-        AccountMeta::new(derive_native_token_vault_data().0, false),
+        AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_deposit_message_buffer(&twine_chain_ID).0, false),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_ID, false),
@@ -280,13 +273,13 @@ pub fn forced_native_token_withdrawal(
 
     let accounts = vec![
         AccountMeta::new(*user, true),
-        AccountMeta::new(derive_native_token_vault_data().0, false),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(
             derive_forced_withdraw_message_buffer(&twine_chain_ID).0,
             false,
         ),
         AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(twine_chain_ID, false),
     ];
 
@@ -318,11 +311,11 @@ pub fn spl_token_deposit(
     let accounts = vec![
         AccountMeta::new(*user, false),
         AccountMeta::new(*user_token_account, false),
-        AccountMeta::new(derive_spl_tokens_vault_data().0, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(spl_token::id(), false),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_deposit_message_buffer(&twine_chain_ID).0, false),
         AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
         AccountMeta::new(twine_chain_ID, false),
@@ -360,9 +353,9 @@ pub fn forced_spl_token_withdrawal(
     let accounts = vec![
         AccountMeta::new(*user, false),
         AccountMeta::new(*to_token_account, false),
-        AccountMeta::new(derive_spl_tokens_vault_data().0, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*token_mint_pubkey, false),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(
             derive_forced_withdraw_message_buffer(&twine_chain_ID).0,
             false,
@@ -411,17 +404,14 @@ pub fn finalize_native_token_withdrawal(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_native_token_vault().0, false),
-        AccountMeta::new(derive_native_token_vault_data().0, false),
+        AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_execution_message_buffer(&twine_chain_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_ID).0, false),
-        AccountMeta::new(
-            derive_executed_withdrawals_buffer().0,
-            false,
-        ),
+        AccountMeta::new(derive_executed_withdrawals_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_ID, false),
     ];
@@ -470,20 +460,17 @@ pub fn finalize_spl_token_withdrawal(
 
     let accounts = vec![
         AccountMeta::new(*user, false),
-        AccountMeta::new(derive_spl_tokens_vault_data().0, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
-        AccountMeta::new(derive_spl_vault_authority().0, false),
+        AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
         AccountMeta::new(spl_token::id(), false),
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_execution_message_buffer(&twine_chain_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_ID).0, false),
-        AccountMeta::new(
-            derive_executed_withdrawals_buffer().0,
-            false,
-        ),
+        AccountMeta::new(derive_executed_withdrawals_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_token_decimal_mappings().0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(twine_chain_ID, false),
     ];
 

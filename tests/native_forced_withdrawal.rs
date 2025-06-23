@@ -3,7 +3,8 @@
 mod helpers;
 use {
     helpers::tokens_gateway_helper::{
-        fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,get_ethereum_signature
+        fund_account_for_rent_exemption, get_ethereum_signature, program_test,
+        TokensGatewayAccounts,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -11,8 +12,7 @@ use {
         transaction::Transaction,
     },
     tokens_gateway::{
-        core::state::SignMessageInfo,
-        core::instruction as tokens_gateway_instruction,
+        core::instruction as tokens_gateway_instruction, core::state::SignMessageInfo,
         utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
     twine_chain::core::instruction as twine_chain_instruction,
@@ -46,23 +46,24 @@ async fn native_forced_withdrawal_succeed() {
         to_l1_pubkey: chain_admin.to_string(),
         l1_token: l1_token.to_string(),
         l2_token: l2_token.clone(),
-    }; 
-     let privkey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-    
+    };
+    let privkey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+
     let signature = get_ethereum_signature(&sign_info, privkey);
 
     let mut instructions = vec![];
-     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &chain_admin,
     ));
     instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(
+    instructions
+        .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
+    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(&chain_admin));
     instructions.extend(tokens_gateway_instruction::update_gateway_token_mapping(
         l1_token.clone(),
         l2_token.clone(),

@@ -2,10 +2,8 @@
 
 mod helpers;
 use {
-    helpers::{
-        tokens_gateway_helper::{
-            fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
-        },
+    helpers::tokens_gateway_helper::{
+        fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -38,10 +36,11 @@ async fn update_token_mapping_succeeds() {
     let chain_admin = &accounts.chain_admin.pubkey();
 
     let mut instructions = vec![];
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(
+    instructions
+        .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
+    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(&chain_admin));
     instructions.extend(tokens_gateway_instruction::update_gateway_token_mapping(
         l1_token,
         l2_token,

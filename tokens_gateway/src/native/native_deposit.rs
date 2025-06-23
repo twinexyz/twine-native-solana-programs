@@ -41,6 +41,7 @@ pub fn native_token_deposit(
     l2_token: String,
     amount: u64,
 ) -> ProgramResult {
+    msg!("Here in native token deposit");
     if amount == 0 {
         return Err(ProgramCustomError::InsufficientFundsForTransfer.into());
     }
@@ -60,21 +61,24 @@ pub fn native_token_deposit(
     let role_manager_acc = next_account_info(account_info_iter)?; // twine chain rolemanager
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    msg!("1");
     if !user_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
+      msg!("2");
     if user_account.lamports() < amount {
         return Err(ProgramError::InsufficientFunds);
     }
-
+    msg!("3");
     if native_token_vault_data_acc.owner != program_id {
         return Err(ProgramError::IncorrectProgramId);
     }
-
+    msg!("4");
     if !is_valid_ethereum_address(&receiver_twine_address)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
-
+    msg!("5");
     let transfer_ix =
         system_instruction::transfer(user_account.key, native_token_vault_acc.key, amount);
 
@@ -86,7 +90,7 @@ pub fn native_token_deposit(
             system_program.clone(),
         ],
     )?;
-
+    msg!("6");
     let mut vault_data =
         NativeTokenVaultData::deserialize(&mut &native_token_vault_data_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -99,7 +103,7 @@ pub fn native_token_deposit(
     vault_data
         .serialize(&mut &mut native_token_vault_data_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
+    msg!("7");
     let token_decimal_mappings_data =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -140,7 +144,7 @@ pub fn native_token_deposit(
         l2_token,
         amount: l2_amount,
     };
-    
+
     let payload = TwineChainInstruction::AppendDepositMessage {
         deposit_info: deposit_info,
     };
@@ -163,8 +167,8 @@ pub fn native_token_deposit(
         accounts: append_instruction_accounts,
         data: append_instruction_data,
     };
-    
-    let (_, native_data_bump) = derive_native_token_vault_data();
+
+    let (_, native_data_bump) = derive_native_token_vault_data(&program_id);
     let seeds = &[
         NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
         &[native_data_bump],

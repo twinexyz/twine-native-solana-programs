@@ -7,7 +7,6 @@ use crate::core::{
     state::{TokenDecimalMappingData, TokenDecimalMappings},
 };
 
-
 impl TokenDecimalMappings {
     pub fn update_mapping(
         &mut self,
@@ -34,7 +33,6 @@ impl TokenDecimalMappings {
     pub fn get_mapping(&self, l1_token: &str) -> Option<&TokenDecimalMappingData> {
         self.mappings.iter().find(|m| m.l1_token == l1_token)
     }
-
 
     pub fn convert_l1_to_l2(
         amount: u64,

@@ -1,6 +1,5 @@
-use solana_program::pubkey::Pubkey;
 use crate::core::state::{RoleType, TokensGatewayRoleManager};
-
+use solana_program::pubkey::Pubkey;
 
 impl TokensGatewayRoleManager {
     pub fn has_role(&self, address: &Pubkey, role: RoleType) -> bool {

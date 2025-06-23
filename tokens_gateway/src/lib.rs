@@ -1,10 +1,12 @@
-pub mod spl;
+#![allow(warnings)]
 pub mod core;
-pub mod utils;
-pub mod roles;
-pub mod native;
-pub mod setters;
-pub mod initialize;
 pub mod finalize_withdrawal;
+pub mod initialize;
+pub mod native;
+pub mod roles;
+pub mod setters;
+pub mod spl;
+pub mod utils;
 pub use solana_program;
-solana_program::declare_id!("8GLjy7HXicF4qojhxtLHgh7TKY9M8A7AwRkj7P5ksYW2");
+solana_program::declare_id!("D4du7dgQW4iTKVn4pRpBQbHquKC5Ws8Gt3bhYkoFs874");
+

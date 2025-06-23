@@ -53,7 +53,7 @@ async fn spl_withdrawal_finalized_succeed() {
     let spl_token_vault = get_or_create_ata(
         &mut context,
         &accounts.chain_admin,
-        &derive_spl_vault_authority().0,
+        &derive_spl_vault_authority(&tokens_gateway_ID).0,
         &spl_token_pubkey,
     )
     .await;
@@ -67,10 +67,11 @@ async fn spl_withdrawal_finalized_succeed() {
     instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(
+    instructions
+        .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
+    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(&chain_admin));
     instructions.extend(tokens_gateway_instruction::update_gateway_token_mapping(
         l1_token.clone(),
         l2_token.clone(),

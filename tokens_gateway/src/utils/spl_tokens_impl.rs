@@ -1,14 +1,9 @@
-use solana_program::{
-    msg,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::core::{
     error::ProgramCustomError,
     state::{SplTokensVaultData, TokenDepositData},
 };
-
 
 impl SplTokensVaultData {
     pub(crate) fn update_deposit(
@@ -21,13 +16,11 @@ impl SplTokensVaultData {
             .iter_mut()
             .find(|e| e.token_id == minted_token_id)
         {
-            
             entry.amount = entry
                 .amount
                 .checked_add(amount)
                 .ok_or(ProgramCustomError::Overflow)?;
         } else {
-            
             self.total_deposited_amount.push(TokenDepositData {
                 token_id: minted_token_id,
                 amount,
