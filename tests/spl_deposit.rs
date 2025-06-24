@@ -1,22 +1,26 @@
 #![allow(clippy::arithmetic_side_effects)]
 mod helpers;
-use {
-    helpers::tokens_gateway_helper::{
-        create_spl_and_mint, fund_account_for_rent_exemption, get_or_create_ata, program_test,
-        TokensGatewayAccounts,
-    },
-    solana_program_test::*,
-    solana_sdk::{
-        signature::{Keypair, Signer},
-        transaction::Transaction,
-    },
-    tokens_gateway::{
-        core::instruction as tokens_gateway_instruction,
-        utils::address_derivation::derive_spl_vault_authority,
-        utils::constants::ROLE_MANAGER_ACCOUNT_SIZE, ID as tokens_gateway_ID,
-    },
-    twine_chain::core::instruction as twine_chain_instruction,
+
+use solana_program_test::*;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
 };
+
+use helpers::tokens_gateway_helper::{
+    create_spl_and_mint, fund_account_for_rent_exemption, get_or_create_ata, program_test,
+    TokensGatewayAccounts,
+};
+use tokens_gateway::{
+    core::instruction as tokens_gateway_instruction,
+    utils::{
+        address_derivation::derive_spl_vault_authority,
+        constants::ROLE_MANAGER_ACCOUNT_SIZE,
+    },
+    ID as tokens_gateway_ID,
+};
+use twine_chain::core::instruction as twine_chain_instruction;
+
 
 #[tokio::test]
 async fn spl_token_deposit_succeed() {

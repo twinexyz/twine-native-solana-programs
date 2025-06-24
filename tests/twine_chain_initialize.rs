@@ -1,36 +1,35 @@
 mod helpers;
+use borsh::BorshDeserialize;
+use solana_program_test::*;
+use solana_sdk::{
+    rent::Rent,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
 
-use {
-    borsh::BorshDeserialize,
-    helpers::twine_chain_helper::{
-        fund_account_for_rent_exemption, program_test, TwineChainAccounts,
-    },
-    solana_program_test::*,
-    solana_sdk::{
-        rent::Rent,
-        signature::{Keypair, Signer},
-        transaction::Transaction,
-    },
-    twine_chain::{
-        core::{
-            instruction::{self},
-            state::{
-                BatchPdaAccount, BlockInfo, DepositMessagesBuffer,
-                ExecutionMessageBuffer, ForcedWithdrawMessagesBuffer, LayerZeroMessagesBuffer,
-                TwineChainRoleManager, TwineChainStorage,
-            },
+use helpers::twine_chain_helper::{
+    fund_account_for_rent_exemption, program_test, TwineChainAccounts,
+};
+use twine_chain::{
+    core::{
+        instruction::{self},
+        state::{
+            BatchPdaAccount, BlockInfo, DepositMessagesBuffer,
+            ExecutionMessageBuffer, ForcedWithdrawMessagesBuffer, LayerZeroMessagesBuffer,
+            TwineChainRoleManager, TwineChainStorage,
         },
-        id,
-        utils::{
-            address_derivation::{
-                derive_commitment_pda, derive_deposit_message_buffer,
-                derive_execution_message_buffer, derive_forced_withdraw_message_buffer,
-                derive_layer_zero_message_buffer, derive_twine_chain_storage,
-            },
-            constants::MAX_ROLES,
+    },
+    id,
+    utils::{
+        address_derivation::{
+            derive_commitment_pda, derive_deposit_message_buffer,
+            derive_execution_message_buffer, derive_forced_withdraw_message_buffer,
+            derive_layer_zero_message_buffer, derive_twine_chain_storage,
         },
+        constants::MAX_ROLES,
     },
 };
+
 
 #[tokio::test]
 
@@ -47,7 +46,7 @@ async fn twine_chain_rolemanager_init() {
     )
     .await;
 
-    let instructions = instruction::initialize_role_manager(&accounts.chain_admin.pubkey());
+    let instructions = instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey());
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&context.payer.pubkey()),
@@ -98,7 +97,7 @@ async fn twine_chain_storage_inti() {
     .await;
 
     let mut instructions = vec![];
-    instructions.extend(instruction::initialize_role_manager(
+    instructions.extend(instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
     instructions.extend(instruction::initialize_twine_chain_storage(
@@ -150,7 +149,7 @@ async fn message_buffers_init() {
     .await;
 
     let mut instructions = vec![];
-    instructions.extend(instruction::initialize_role_manager(
+    instructions.extend(instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
     instructions.extend(instruction::initialize_message_buffer(
@@ -248,7 +247,7 @@ async fn genesis_batch_inti() {
     .await;
 
     let mut instructions = vec![];
-    instructions.extend(instruction::initialize_role_manager(
+    instructions.extend(instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
     instructions.extend(instruction::initialize_genesis_batch(

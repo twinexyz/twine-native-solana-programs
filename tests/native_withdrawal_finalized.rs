@@ -1,21 +1,20 @@
 #![allow(clippy::arithmetic_side_effects)]
 #[cfg(test)]
 mod helpers;
-use {
-    helpers::tokens_gateway_helper::{
-        fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
-    },
-    solana_program_test::*,
-    solana_sdk::{
-        signature::{Keypair, Signer},
-        transaction::Transaction,
-    },
-    tokens_gateway::{
-        core::instruction as tokens_gateway_instruction,
-        utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
-    },
-    twine_chain::core::instruction as twine_chain_instruction,
+use solana_program_test::*;
+use solana_sdk::{
+    signature::{Keypair, Signer},
+    transaction::Transaction,
 };
+
+use helpers::tokens_gateway_helper::{
+    fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
+};
+use tokens_gateway::{
+    core::instruction as tokens_gateway_instruction,
+    utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
+};
+use twine_chain::core::instruction as twine_chain_instruction;
 
 #[tokio::test]
 async fn native_withdrawal_finalized_succeed() {

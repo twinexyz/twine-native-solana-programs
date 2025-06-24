@@ -5,7 +5,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-
+mod helpers;
 use twine_chain::{
     core::{
         instruction::{self},
@@ -15,11 +15,10 @@ use twine_chain::{
     utils::address_derivation::{derive_commitment_pda, derive_twine_chain_storage},
 };
 
-use crate::helpers::twine_chain_helper::{
+use helpers::twine_chain_helper::{
     fund_account_for_rent_exemption, program_test, TwineChainAccounts,
 };
 
-mod helpers;
 
 #[tokio::test]
 async fn commit_batch_test() {
@@ -39,7 +38,7 @@ async fn commit_batch_test() {
     let mut instructions = vec![];
 
     // 1. Initialize role manager
-    instructions.extend(instruction::initialize_role_manager(
+    instructions.extend(instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
 
@@ -165,7 +164,7 @@ async fn finalize_batch_test() {
     let mut instructions = vec![];
 
     // 1. Initialize role manager
-    instructions.extend(instruction::initialize_role_manager(
+    instructions.extend(instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
 

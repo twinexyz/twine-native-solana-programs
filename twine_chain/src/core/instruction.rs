@@ -120,7 +120,7 @@ struct AddRoleInTwineChainPayload {
     role: RoleType,
 }
 
-pub fn initialize_role_manager(chain_admin: &Pubkey) -> Vec<Instruction> {
+pub fn initialize_twine_chain_role_manager(chain_admin: &Pubkey) -> Vec<Instruction> {
     let payload = TwineChainInstruction::InitializeRoleManager;
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());

@@ -1,3 +1,5 @@
+mod helpers;
+
 use borsh::BorshDeserialize;
 use sha3::{Digest, Keccak256};
 use solana_program_test::*;
@@ -5,7 +7,9 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-
+use helpers::twine_chain_helper::{
+    fund_account_for_rent_exemption, program_test, TwineChainAccounts,
+};
 use twine_chain::{
     core::{
         instruction::{self},
@@ -17,12 +21,6 @@ use twine_chain::{
     id,
     utils::address_derivation::{derive_deposit_message_buffer, derive_twine_chain_storage},
 };
-
-use crate::helpers::twine_chain_helper::{
-    fund_account_for_rent_exemption, program_test, TwineChainAccounts,
-};
-
-mod helpers;
 
 #[tokio::test]
 
@@ -43,7 +41,7 @@ async fn transaction_commitment_and_finalization_test() {
     let mut instructions = vec![];
 
     // 1. Initialize role manager
-    instructions.extend(instruction::initialize_role_manager(
+    instructions.extend(instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
 
@@ -281,7 +279,8 @@ async fn transaction_commitment_and_finalization_test() {
         "Last batch's end block should be 3"
     );
     assert_eq!(
-        deposit_buffer_data.deposit_messages.len(), 0,
+        deposit_buffer_data.deposit_messages.len(),
+        0,
         "Deposit Buffer should be empty"
     );
 }
