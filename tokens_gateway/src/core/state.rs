@@ -6,7 +6,7 @@ use solana_program::{program_pack::IsInitialized, pubkey::Pubkey};
  ****************/
 
 /// Role manager account for tokens_gateway.
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 pub struct TokensGatewayRoleManager {
     pub is_initialized: bool,
     pub chain_admin: Pubkey,
@@ -14,7 +14,7 @@ pub struct TokensGatewayRoleManager {
 }
 
 /// Role types for authorization.
-#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Copy, PartialEq)]
 pub enum RoleType {
     /// For operations such as deposits or withdrawals.
     TwineOperationHandler,
@@ -32,7 +32,6 @@ pub struct NativeTokenVaultData {
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct SplTokensVaultData {
     pub is_initialized: bool,
-    pub authority: Pubkey,
     pub total_deposited_amount: Vec<TokenDepositData>,
 }
 
@@ -40,10 +39,11 @@ pub struct SplTokensVaultData {
  * Token *
  *********/
 /// Account for storing token decimal mappings.
-#[derive(BorshSerialize, BorshDeserialize, Debug, Default)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+
 pub struct TokenDecimalMappings {
     pub is_initialized: bool,
-    pub mappings: Vec<TokenDecimalMapping>,
+    pub mappings: Vec<TokenDecimalMappingData>,
 }
 
 /// Data for one token deposit.
@@ -54,8 +54,8 @@ pub struct TokenDepositData {
 }
 
 /// Represents a mapping between L1 and L2 token decimal places.
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Default)]
-pub struct TokenDecimalMapping {
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+pub struct TokenDecimalMappingData {
     pub l1_token: String,
     pub l2_token: String,
     pub l1_decimals: u8,
@@ -78,6 +78,18 @@ pub struct FinalizeInputWithdrawal {
     pub inclusion_proof: Vec<u8>,
 }
 
+/// Struct for signed messageAdd commentMore actions
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct SignMessageInfo {
+    pub nonce: u64,
+    pub chain_id: u64,
+    pub amount: u64,
+    pub from_twine_address: String,
+    pub to_l1_pubkey: String,
+    pub l1_token: String,
+    pub l2_token: String,
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct ReceiptCommitment {
     pub chain_id: u64,
@@ -89,6 +101,22 @@ pub struct ReceiptCommitment {
     pub l1_token_address: String,
     pub l2_token_address: String,
     pub amount: String,
+}
+
+impl SignMessageInfo {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::new();
+
+        encoded.extend(self.nonce.to_be_bytes());
+        encoded.extend(self.chain_id.to_be_bytes());
+        encoded.extend(self.amount.to_be_bytes());
+        encoded.extend(self.from_twine_address.as_bytes());
+        encoded.extend(self.to_l1_pubkey.as_bytes());
+        encoded.extend(self.l1_token.as_bytes());
+        encoded.extend(self.l2_token.as_bytes());
+
+        encoded
+    }
 }
 
 impl ExecutedWithdrawalsBuffer {
@@ -117,7 +145,7 @@ impl ExecutedWithdrawalsBuffer {
 /*******************************************************
  *Implementation of methods for ReceiptCommitment *
  *******************************************************/
- impl ReceiptCommitment {
+impl ReceiptCommitment {
     /// ABI encodes the receipt commitment
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::new();

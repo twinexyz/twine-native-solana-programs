@@ -1,7 +1,9 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{SplTokensVaultData, TokenDepositData};
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
+use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
+
+use crate::core::{
+    error::ProgramCustomError,
+    state::{SplTokensVaultData, TokenDepositData},
+};
 
 impl SplTokensVaultData {
     pub(crate) fn update_deposit(
@@ -17,13 +19,14 @@ impl SplTokensVaultData {
             entry.amount = entry
                 .amount
                 .checked_add(amount)
-                .ok_or(ProgramError::from(ProgramCustomError::Overflow))?;
+                .ok_or(ProgramCustomError::Overflow)?;
         } else {
             self.total_deposited_amount.push(TokenDepositData {
                 token_id: minted_token_id,
                 amount,
             });
         }
+
         Ok(())
     }
     /// Updates the withdrawal amount for a specific token
@@ -37,6 +40,10 @@ impl SplTokensVaultData {
             .iter_mut()
             .find(|e| e.token_id == minted_token_id)
         {
+            if entry.amount < amount {
+                return Err(ProgramCustomError::InsufficientFunds.into());
+            }
+
             entry.amount = entry
                 .amount
                 .checked_sub(amount)
@@ -44,6 +51,7 @@ impl SplTokensVaultData {
         } else {
             return Err(ProgramCustomError::TokenNotFound.into());
         }
+
         Ok(())
     }
 

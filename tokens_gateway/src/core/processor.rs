@@ -1,7 +1,7 @@
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
-use crate::core::error::ProgramCustomError;
-use crate::core::instruction::GatewayInstruction;
+use crate::core::{error::ProgramCustomError, instruction::GatewayInstruction};
+
 use crate::finalize_withdrawal::{finalize_native_withdrawal, finalize_spl_withdrawal};
 use crate::initialize::{initialize_tokens_gateway, initialze_role_manager};
 use crate::native::{native_deposit, native_forced_withdrawal};
@@ -19,12 +19,13 @@ pub fn process_instruction(
         .map_err(|_| ProgramCustomError::InvalidInstructionData)?;
 
     match instruction {
-        GatewayInstruction::InitializeTokensGateway => {
-            initialize_tokens_gateway::initialize_tokens_gateway(program_id, accounts)
-        }
         GatewayInstruction::InitializeTokensGatewayRoleManager => {
             initialze_role_manager::initialize_role_manager(program_id, accounts)
         }
+        GatewayInstruction::InitializeTokensGateway => {
+            initialize_tokens_gateway::initialize_tokens_gateway(program_id, accounts)
+        }
+
         GatewayInstruction::UpdateTokenMapping {
             l1_token,
             l2_token,

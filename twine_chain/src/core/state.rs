@@ -62,9 +62,10 @@ pub struct TwineChainStorage {
     pub execution_vkey: String,
     pub inclusion_vkey: String,
     pub withdrawal_vkey: String,
+    pub skip_verification: bool,
     pub last_finalized_batch: BatchInfo,
     pub last_committed_batch: BatchInfo,
-    pub last_transcation_finalized_batch: BatchInfo,
+    pub last_transaction_finalized_batch: BatchInfo,
     pub last_finalized_receipt_root: [u8; 32],
 }
 
@@ -198,32 +199,47 @@ impl LayerZeroMessageInfo {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::new();
         encoded.extend(self.message.as_bytes());
-        encoded  
+        encoded
     }
 }
 /******************************************
  * Implementations for Length Calculation *
- ******************************************/
+ *****************************************/
+
+impl TwineChainStorage {
+    pub const LEN: usize = 1    // is_initialized
+        + 4 + 512   // groth16_vk
+        + 4 + 66        // execution_vkey
+        + 4 + 66    // inclusion_vkey
+        + 4 + 66        // withdrawal_vkey
+        + 1         // skip_verification  
+        + 16        // last_finalized_batch
+        + 16        // last_committed_batch
+        + 16        // last_transcation_finalized_batch
+        + 32; // last_finalized_receipt_root
+}
 
 impl DepositMessageInfo {
-    pub const LEN: usize = 8       // nonce (u64)
-        + 32    // to_twine_address (String)
-        + 32    // l1_token (String)
-        + 32    // l2_token (String)
-        + 8     // chain_id (u64)
-        + 32    // amount (String)
-        + 8; // slot_number(u64)
+    pub const LEN: usize = 8           // nonce (u64)
+        + 8         // chain_id (u64)
+        + 8         // slot_number(u64)
+        + 4 + 44    // from_L1_publkey (String)
+        + 4 + 42    // to_twine_address (String)
+        + 4 + 44    // l1_token (String)
+        + 4 + 42    // l2_token (String)
+        + 4 + 32; // amount (String)
 }
 
 impl ForcedWithdrawMessageInfo {
     pub const LEN: usize = 8       // nonce (u64)
-        + 32    // from_twine_address (String)
-        + 32    // to_l1_pubkey (String)
-        + 32    // l1_token (String)
-        + 32    // l2_token (String)
-        + 8     // chain_id (u64)
-        + 32    // amount (String)
-        + 8; // slot_number(u64)
+        + 8         // chain_id (u64)
+        + 8         // slot_number(u64)
+        + 4 + 42    // from_twine_address (String)
+        + 4 + 44    // to_l1_pubkey (String)
+        + 4 + 44    // l1_token (String)
+        + 4 + 42    // l2_token (String)
+        + 4 + 32; // amount (String)
+                  //Total: 250 bytes
 }
 
 impl BlockInfo {
