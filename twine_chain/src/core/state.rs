@@ -91,6 +91,7 @@ pub struct DepositMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
+    pub data :  String
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]

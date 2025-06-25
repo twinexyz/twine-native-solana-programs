@@ -13,6 +13,7 @@ pub fn spl_token_deposit(
     receiver_twine_address: String,
     user_token_account: Pubkey,
     amount: u64,
+    data: String
 ) -> Result<()> {
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
@@ -33,6 +34,7 @@ pub fn spl_token_deposit(
         l1_token.to_string(),
         l2_token.clone(),
         amount,
+        data
     );
 
     let transaction = Transaction::new_signed_with_payer(

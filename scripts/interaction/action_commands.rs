@@ -23,6 +23,7 @@ pub enum Commands {
         l2_token: String,
         receiver_twine_address: String,
         amount: u64,
+        data: String
     },
     DepositSplToken {
         l1_token: Pubkey,
@@ -30,6 +31,7 @@ pub enum Commands {
         receiver_twine_address: String,
         user_token_account: Pubkey,
         amount: u64,
+        data: String
     },
     ForcedNativeWithdrawal {
         l1_token: String,

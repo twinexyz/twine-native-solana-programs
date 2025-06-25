@@ -39,6 +39,7 @@ pub fn spl_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    data: String,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let user = next_account_info(account_info_iter)?;
@@ -148,6 +149,7 @@ pub fn spl_token_deposit(
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount,
+        data:data,
     };
 
     let payload = TwineChainInstruction::AppendDepositMessage {
@@ -438,6 +440,7 @@ mod tests {
             mint_key.to_string(),
             "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
             500_000,
+           "".to_string(),
         );
         assert!(result.is_ok());
     }

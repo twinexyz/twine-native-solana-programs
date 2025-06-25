@@ -64,12 +64,12 @@ update-token-mapping:
 # make deposit-native-token amount=amount_here receiver_address=receiver_address_here l2_token=l2_token_here data=data_here
 deposit-native-token:
 	@echo "Depositing native tokens..."
-	cargo run --bin interaction -- deposit-native-token "$(SOL_PUBKEY)" "$(l2_token)" "$(receiver_address)" "$(amount)"
+	cargo run --bin interaction -- deposit-native-token "$(SOL_PUBKEY)" "$(l2_token)" "$(receiver_address)" "$(amount)" "$(data)"
 
 # make deposit-spl-token l1_token=l1_token_here l2_token=l2_token_here receiver_address=receiver_address_here user_token_account= user_token_account_here amount=amount_here data=data_here
 deposit-spl-token:
 	@echo "Depositing native tokens..."
-	cargo run --bin interaction -- deposit-spl-token "$(l1_token)" "$(l2_token)" "$(receiver_address)" "$(user_token_account)" "$(amount)"
+	cargo run --bin interaction -- deposit-spl-token "$(l1_token)" "$(l2_token)" "$(receiver_address)" "$(user_token_account)" "$(amount)" "$(data)"
 
 # make forced-native-token-withdrawal  l2Token=your_l2_token_address_here twineAccount=your_twine_account_here privateKey=your_private_key_here amount=100
 forced-native-token-withdrawal:
@@ -81,6 +81,4 @@ forced-spl-token-withdrawal:
 	@echo "Forced Spl Token Withdrawal..."
 	cargo run --bin interaction -- forced-spl-withdrawal  "$(l1Token)" "$(l2Token)" "$(twineAccount)" "$(privateKey)" "$(receiver)" "$(amount)"
 
- set-rpc:
-	cargo run --bin
 

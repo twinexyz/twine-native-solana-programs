@@ -1,31 +1,37 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{
-    BatchPdaAccount, BlockInfo, ChainCommitment, DepositMessageInfo, DepositMessagesBuffer,
-    ExecutionMessageBuffer, ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer,
-    LayerZeroMessageInfo, LayerZeroMessagesBuffer, RoleType, TwineChainRoleManager,
-    TwineChainStorage,
-};
-use crate::utils::address_derivation::{
-    derive_commitment_pda, derive_deposit_message_buffer, derive_execution_message_buffer,
-    derive_forced_withdraw_message_buffer, derive_layer_zero_message_buffer, derive_role_manager,
-    derive_twine_chain_storage, verify_derived_address,
-};
-use crate::utils::constants::CHAIN_ID;
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
-use solana_program::program_pack::IsInitialized;
-
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
-    sysvar::Sysvar,
     program_error::ProgramError,
+    program_pack::IsInitialized,
     pubkey::Pubkey,
+    sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{
+            BatchPdaAccount, BlockInfo, ChainCommitment, DepositMessageInfo, DepositMessagesBuffer,
+            ExecutionMessageBuffer, ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer,
+            LayerZeroMessageInfo, LayerZeroMessagesBuffer, RoleType, TwineChainRoleManager,
+            TwineChainStorage,
+        },
+    },
+    utils::{
+        address_derivation::{
+            derive_commitment_pda, derive_deposit_message_buffer, derive_execution_message_buffer,
+            derive_forced_withdraw_message_buffer, derive_layer_zero_message_buffer,
+            derive_role_manager, derive_twine_chain_storage, verify_derived_address,
+        },
+        constants::CHAIN_ID,
+    },
+};
 
 pub fn commit_and_finalize_transaction(
     program_id: &Pubkey,
@@ -527,6 +533,7 @@ mod test {
             l1_token: "6gEHwA9cX51JCMoQQnS78Y3FfX6fwCr4urAY2BQJkNvf".to_string(),
             l2_token: "0x1234567890abcdef1234567890abcdef12345678".to_string(),
             amount: "1000000000000000000".to_string(),
+            data: "".to_string(),
         };
         let deposit_message2 = DepositMessageInfo {
             nonce: 1,
@@ -537,6 +544,7 @@ mod test {
             l1_token: "6gEHwA9cX51JCMoQQnS78Y3FfX6fwCr4urAY2BQJkNvf".to_string(),
             l2_token: "0x1234567890abcdef1234567890abcdef12345678".to_string(),
             amount: "1000000000000000000".to_string(),
+            data: "".to_string(),
         };
         let deposit_buffer = DepositMessagesBuffer {
             is_initialized: true,

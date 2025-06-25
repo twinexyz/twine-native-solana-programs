@@ -51,6 +51,7 @@ async fn spl_token_deposit_succeed() {
     )
     .await;
     let l1_token = spl_token_pubkey.to_string();
+    let data = "".to_string();
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
@@ -81,6 +82,7 @@ async fn spl_token_deposit_succeed() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
+        data
     ));
 
     let transaction = Transaction::new_signed_with_payer(

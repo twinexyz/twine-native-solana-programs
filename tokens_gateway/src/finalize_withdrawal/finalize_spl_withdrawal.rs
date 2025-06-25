@@ -1,12 +1,4 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{
-    ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, SplTokensVaultData, TokenDecimalMappings,
-};
-use crate::utils::constants::{SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX};
-use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::program_error::ProgramError;
-use solana_program::program_pack::Pack;
 #[cfg(not(test))]
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -15,12 +7,28 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     msg,
     program::invoke_signed,
+    program_error::ProgramError,
+    program_pack::Pack,
     pubkey::Pubkey,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use spl_token::instruction as token_instruction;
 use twine_chain::core::state::{ExecutionMessageBuffer, TwineChainStorage};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{
+            ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, SplTokensVaultData,
+            TokenDecimalMappings,
+        },
+    },
+    utils::{
+        constants::{SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
+};
 
 pub fn finalize_spl_withdrawal(
     program_id: &Pubkey,

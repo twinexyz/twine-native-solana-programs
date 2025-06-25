@@ -40,45 +40,39 @@ pub fn native_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    data: String,
 ) -> ProgramResult {
-    msg!("Here in native token deposit");
     if amount == 0 {
         return Err(ProgramCustomError::InsufficientFundsForTransfer.into());
     }
-
     if l1_token != "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
     }
+    if !is_valid_ethereum_address(&receiver_twine_address)? {
+        return Err(ProgramCustomError::InvalidReceiver.into());
+    }
 
     let account_info_iter = &mut accounts.iter();
-
-    // Account[0]: the depositor (user) - must be a signer
     let user_account = next_account_info(account_info_iter)?;
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let deposit_messages_buffer_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let role_manager_acc = next_account_info(account_info_iter)?; // twine chain rolemanager
+    let twine_chain_role_manager_acc = next_account_info(account_info_iter)?; // twine chain rolemanager
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
-    msg!("1");
-    if !user_account.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-      msg!("2");
-    if user_account.lamports() < amount {
-        return Err(ProgramError::InsufficientFunds);
-    }
-    msg!("3");
-    if native_token_vault_data_acc.owner != program_id {
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    msg!("4");
-    if !is_valid_ethereum_address(&receiver_twine_address)? {
-        return Err(ProgramCustomError::InvalidReceiver.into());
-    }
-    msg!("5");
+    validate_accounts(
+        user_account,
+        native_token_vault_acc,
+        native_token_vault_data_acc,
+        token_decimal_mappings_acc,
+        twine_chain_role_manager_acc,
+        system_program,
+        twine_chain_program,
+        program_id,
+    )?;
+
     let transfer_ix =
         system_instruction::transfer(user_account.key, native_token_vault_acc.key, amount);
 
@@ -90,7 +84,7 @@ pub fn native_token_deposit(
             system_program.clone(),
         ],
     )?;
-    msg!("6");
+
     let mut vault_data =
         NativeTokenVaultData::deserialize(&mut &native_token_vault_data_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -103,7 +97,6 @@ pub fn native_token_deposit(
     vault_data
         .serialize(&mut &mut native_token_vault_data_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    msg!("7");
     let token_decimal_mappings_data =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -143,6 +136,7 @@ pub fn native_token_deposit(
         l1_token,
         l2_token,
         amount: l2_amount,
+        data,
     };
 
     let payload = TwineChainInstruction::AppendDepositMessage {
@@ -155,7 +149,7 @@ pub fn native_token_deposit(
 
     let append_instruction_accounts = vec![
         AccountMeta::new(*deposit_messages_buffer_acc.key, false),
-        AccountMeta::new(*role_manager_acc.key, false),
+        AccountMeta::new(*twine_chain_role_manager_acc.key, false),
         AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
     ];
     if twine_chain_program.key != &twine_chain_program_id {
@@ -179,7 +173,7 @@ pub fn native_token_deposit(
         &append_instruction,
         &[
             deposit_messages_buffer_acc.clone(),
-            role_manager_acc.clone(),
+            twine_chain_role_manager_acc.clone(),
             native_token_vault_data_acc.clone(),
             twine_chain_program.clone(),
         ],
@@ -188,6 +182,50 @@ pub fn native_token_deposit(
 
     Ok(())
 }
+
+fn validate_accounts(
+    user: &AccountInfo,
+    native_token_vault_acc: &AccountInfo,
+    native_token_vault_data_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    role_manager_acc: &AccountInfo,
+    system_program: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    if native_token_vault_acc.owner != program_id {
+        msg!("Invalid native token vault account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if native_token_vault_data_acc.owner != program_id {
+        msg!("Invalid native token vault data account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if token_decimal_mappings_acc.owner != program_id {
+        msg!("Invalid token decimal mappings account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    if role_manager_acc.owner != &twine_chain_program_id {
+        msg!("Invalid role manager account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        msg!("Invalid Twine chain program account");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    // Validate system program
+    if system_program.key != &solana_program::system_program::ID {
+        msg!("Invalid system program account");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 use mock_clock::Clock;
 
@@ -390,6 +428,7 @@ mod tests {
             "11111111111111111111111111111111".to_string(),
             "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
             500_000,
+            "".to_string(),
         );
 
         assert!(result.is_ok());

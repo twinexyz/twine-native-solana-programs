@@ -1,16 +1,3 @@
-#[cfg(not(test))]
-use crate::utils::recover_address::recover_address;
-use crate::{
-    core::{
-        error::ProgramCustomError,
-        state::{SignMessageInfo, TokenDecimalMappings},
-    },
-    utils::{
-        address_derivation::derive_native_token_vault_data,
-        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX},
-        ethereum_checks::is_valid_ethereum_address,
-    },
-};
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
@@ -30,6 +17,20 @@ use twine_chain::{
         state::{ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer},
     },
     ID as twine_chain_program_id,
+};
+
+#[cfg(not(test))]
+use crate::utils::recover_address::recover_address;
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{SignMessageInfo, TokenDecimalMappings},
+    },
+    utils::{
+        address_derivation::derive_native_token_vault_data,
+        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
 };
 
 pub fn forced_native_token_withdrawal(

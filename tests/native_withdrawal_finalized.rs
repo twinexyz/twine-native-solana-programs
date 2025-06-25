@@ -74,6 +74,7 @@ async fn native_withdrawal_finalized_succeed() {
         l1_token.clone(),
         l2_token.clone(),
         2000000000,
+        "".to_string(),
     ));
     instructions.extend(
         tokens_gateway_instruction::finalize_native_token_withdrawal(

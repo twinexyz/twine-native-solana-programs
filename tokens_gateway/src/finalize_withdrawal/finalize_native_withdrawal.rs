@@ -1,16 +1,10 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{
-    ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, NativeTokenVaultData, TokenDecimalMappings,
-};
-use crate::utils::constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX};
-use crate::utils::ethereum_checks::is_valid_ethereum_address;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::instruction::{AccountMeta, Instruction};
 #[cfg(not(test))]
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
     msg,
     program::invoke_signed,
     program_error::ProgramError,
@@ -19,6 +13,20 @@ use solana_program::{
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use twine_chain::core::state::TwineChainStorage;
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{
+            ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, NativeTokenVaultData,
+            TokenDecimalMappings,
+        },
+    },
+    utils::{
+        constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
+};
 
 pub fn finalize_native_withdrawal(
     program_id: &Pubkey,

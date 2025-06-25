@@ -1,13 +1,14 @@
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
-use crate::core::{error::ProgramCustomError, instruction::GatewayInstruction};
-
-use crate::finalize_withdrawal::{finalize_native_withdrawal, finalize_spl_withdrawal};
-use crate::initialize::{initialize_tokens_gateway, initialze_role_manager};
-use crate::native::{native_deposit, native_forced_withdrawal};
-use crate::roles::roles_manager::{add_role, remove_role, set_role_chain_admin};
-use crate::setters::update_token_mapping;
-use crate::spl::{spl_deposit, spl_forced_withdrawal};
+use crate::{
+    core::{error::ProgramCustomError, instruction::GatewayInstruction},
+    finalize_withdrawal::{finalize_native_withdrawal, finalize_spl_withdrawal},
+    initialize::{initialize_tokens_gateway, initialze_role_manager},
+    native::{native_deposit, native_forced_withdrawal},
+    roles::roles_manager::{add_role, remove_role, set_role_chain_admin},
+    setters::update_token_mapping,
+    spl::{spl_deposit, spl_forced_withdrawal},
+};
 
 pub fn process_instruction(
     program_id: &Pubkey,
@@ -53,6 +54,7 @@ pub fn process_instruction(
             l1_token,
             l2_token,
             amount,
+            data,
         } => native_deposit::native_token_deposit(
             program_id,
             accounts,
@@ -60,12 +62,14 @@ pub fn process_instruction(
             l1_token,
             l2_token,
             amount,
+            data,
         ),
         GatewayInstruction::SplTokenDepoist {
             receiver_twine_address,
             l1_token,
             l2_token,
             amount,
+            data,
         } => spl_deposit::spl_token_deposit(
             program_id,
             accounts,
@@ -73,6 +77,7 @@ pub fn process_instruction(
             l1_token,
             l2_token,
             amount,
+            data,
         ),
         GatewayInstruction::NativeTokenForcedWithdrawal {
             from_twine_address,

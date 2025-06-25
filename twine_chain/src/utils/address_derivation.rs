@@ -1,9 +1,9 @@
-use crate::core::error::ProgramCustomError;
-use crate::utils::constants::*;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
     pubkey::Pubkey,
 };
+
+use crate::{core::error::ProgramCustomError, utils::constants::*};
 
 pub fn derive_deposit_message_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], program_id)

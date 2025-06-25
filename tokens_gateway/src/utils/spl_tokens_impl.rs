@@ -1,5 +1,4 @@
 use solana_program::{msg, program_error::ProgramError, pubkey::Pubkey};
-
 use crate::core::{
     error::ProgramCustomError,
     state::{SplTokensVaultData, TokenDepositData},

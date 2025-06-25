@@ -71,6 +71,7 @@ async fn transaction_commitment_and_finalization_test() {
         l1_token: "6gEHwA9cX51JCMoQQnS78Y3FfX6fwCr4urAY2BQJkNvf".to_string(),
         l2_token: "0x1234567890abcdef1234567890abcdef12345678".to_string(),
         amount: "1000000000000000000".to_string(),
+        data: "".to_string(),
     };
     let deposit_message2 = DepositMessageInfo {
         nonce: 1,
@@ -81,6 +82,7 @@ async fn transaction_commitment_and_finalization_test() {
         l1_token: "6gEHwA9cX51JCMoQQnS78Y3FfX6fwCr4urAY2BQJkNvf".to_string(),
         l2_token: "0x1234567890abcdef1234567890abcdef12345678".to_string(),
         amount: "1000000000000000000".to_string(),
+        data: "".to_string(),
     };
 
     instructions.extend(instruction::append_deposit_message(
