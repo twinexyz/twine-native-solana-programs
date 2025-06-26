@@ -1,12 +1,3 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{
-    BatchPdaAccount, BlockInfo, RoleType, TwineChainRoleManager, TwineChainStorage,
-};
-use crate::utils::address_derivation::{
-    derive_commitment_pda, derive_role_manager, derive_twine_chain_storage, verify_derived_address,
-};
-use crate::utils::constants::CHAIN_ID;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
 #[cfg(not(test))]
@@ -21,6 +12,20 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{BatchPdaAccount, BlockInfo, RoleType, TwineChainRoleManager, TwineChainStorage},
+    },
+    utils::{
+        address_derivation::{
+            derive_commitment_pda, derive_role_manager, derive_twine_chain_storage,
+            verify_derived_address,
+        },
+        constants::CHAIN_ID,
+    },
+};
 
 pub fn finalize_batch(
     program_id: &Pubkey,

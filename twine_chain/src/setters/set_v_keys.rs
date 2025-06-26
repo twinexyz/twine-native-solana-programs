@@ -1,14 +1,19 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{RoleType, TwineChainRoleManager, TwineChainStorage};
-use crate::utils::address_derivation::{
-    derive_role_manager, derive_twine_chain_storage, verify_derived_address,
-};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     program_error::ProgramError,
     pubkey::Pubkey,
+};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{RoleType, TwineChainRoleManager, TwineChainStorage},
+    },
+    utils::address_derivation::{
+        derive_role_manager, derive_twine_chain_storage, verify_derived_address,
+    },
 };
 
 pub fn set_v_keys(
@@ -72,8 +77,9 @@ fn validate_accounts(
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     // Checks if signer has required role(TwineOperationHandler)
-    let role_manager_data = TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
     if !role_manager_data.has_role(
         twine_operation_handler_acc.key,

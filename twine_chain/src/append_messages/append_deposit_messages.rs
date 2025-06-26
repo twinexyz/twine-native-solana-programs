@@ -1,18 +1,21 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{
-    DepositMessageInfo, DepositMessagesBuffer, RoleType, TwineChainRoleManager,
-};
-use crate::utils::address_derivation::{
-    derive_deposit_message_buffer, derive_role_manager, verify_derived_address,
-};
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::msg;
-use solana_program::program_pack::IsInitialized;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
+    program_pack::IsInitialized,
     pubkey::Pubkey,
+};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{DepositMessageInfo, DepositMessagesBuffer, RoleType, TwineChainRoleManager},
+    },
+    utils::address_derivation::{
+        derive_deposit_message_buffer, derive_role_manager, verify_derived_address,
+    },
 };
 
 pub fn append_deposit_message(
@@ -236,6 +239,7 @@ mod test {
             l1_token: "6gEHwA9cX51JCMoQQnS78Y3FfX6fwCr4urAY2BQJkNvf".to_string(),
             l2_token: "0x1234567890abcdef1234567890abcdef12345678".to_string(),
             amount: "1000000000000000000".to_string(),
+            data: "".to_string(),
         };
 
         let result = append_deposit_message(&program_id, &accounts, dummy_msg);

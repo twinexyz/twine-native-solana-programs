@@ -37,6 +37,7 @@ async fn native_token_deposit_succeed() {
     let amount = 1u64;
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
+    let data = "".to_string();
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
@@ -65,6 +66,7 @@ async fn native_token_deposit_succeed() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
+        data
     ));
 
     let transaction = Transaction::new_signed_with_payer(

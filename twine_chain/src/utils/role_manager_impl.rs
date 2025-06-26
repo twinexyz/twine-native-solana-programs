@@ -1,5 +1,5 @@
-use crate::core::state::{RoleType, TwineChainRoleManager};
 use solana_program::pubkey::Pubkey;
+use crate::core::state::{RoleType, TwineChainRoleManager};
 
 impl TwineChainRoleManager {
     pub fn has_role(&self, address: &Pubkey, role: RoleType) -> bool {

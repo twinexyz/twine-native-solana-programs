@@ -1,16 +1,3 @@
-#[cfg(not(test))]
-use crate::utils::recover_address::recover_address;
-use crate::{
-    core::{
-        error::ProgramCustomError,
-        state::{SignMessageInfo, TokenDecimalMappings},
-    },
-    utils::{
-        address_derivation::derive_native_token_vault_data,
-        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX},
-        ethereum_checks::is_valid_ethereum_address,
-    },
-};
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
@@ -32,6 +19,20 @@ use twine_chain::{
     ID as twine_chain_program_id,
 };
 
+#[cfg(not(test))]
+use crate::utils::recover_address::recover_address;
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{SignMessageInfo, TokenDecimalMappings},
+    },
+    utils::{
+        address_derivation::derive_native_token_vault_data,
+        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
+};
+
 pub fn forced_native_token_withdrawal(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -42,40 +43,47 @@ pub fn forced_native_token_withdrawal(
     amount: u64,
     signature: Vec<u8>,
 ) -> ProgramResult {
-    let _ = program_id;
-    let account_info_iter = &mut accounts.iter();
-
-    let user_account = next_account_info(account_info_iter)?;
-    let native_token_vault_data_acc = next_account_info(account_info_iter)?;
-    let forced_withdrawal_messages_buffer_acc = next_account_info(account_info_iter)?;
-    let role_manager_acc = next_account_info(account_info_iter)?;
-    let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let twine_chain_program = next_account_info(account_info_iter)?;
-
-    // Perform necessary checks
     if amount == 0 {
         return Err(ProgramError::InvalidArgument);
-    }
-
-    if !user_account.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
     }
 
     if l1_token != "11111111111111111111111111111111" {
         return Err(ProgramError::InvalidArgument);
     }
 
-    if !is_valid_ethereum_address(&l2_token)? {
-        return Err(ProgramCustomError::InvalidL2Token.into());
-    }
-
     if !is_valid_ethereum_address(&from_twine_address)? {
         return Err(ProgramCustomError::InvalidAccount.into());
+    }
+
+    if !is_valid_ethereum_address(&l2_token)? {
+        return Err(ProgramCustomError::InvalidL2Token.into());
     }
 
     if is_valid_ethereum_address(&to_l1_pubkey)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+
+    let _ = program_id;
+    let account_info_iter = &mut accounts.iter();
+    let user_account = next_account_info(account_info_iter)?;
+    let native_token_vault_data_acc = next_account_info(account_info_iter)?;
+    let forced_withdrawal_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let role_manager_acc = next_account_info(account_info_iter)?;
+    let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
+    let twine_chain_program = next_account_info(account_info_iter)?;
+    if !user_account.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    validate_accounts(
+        user_account,
+        native_token_vault_data_acc,
+        forced_withdrawal_messages_buffer_acc,
+        role_manager_acc,
+        token_decimal_mappings_acc,
+        twine_chain_program,
+        program_id,
+    )?;
 
     if forced_withdrawal_messages_buffer_acc.owner != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
@@ -168,6 +176,48 @@ pub fn forced_native_token_withdrawal(
             &[native_data_bump],
         ]],
     )?;
+
+    Ok(())
+}
+
+fn validate_accounts(
+    user_account: &AccountInfo,
+    native_token_vault_data_acc: &AccountInfo,
+    forced_withdrawal_messages_buffer_acc: &AccountInfo,
+    role_manager_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    if !user_account.is_signer {
+        msg!("User account must be a signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    if native_token_vault_data_acc.owner != program_id {
+        msg!("Invalid native token vault data account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if forced_withdrawal_messages_buffer_acc.owner != &twine_chain_program_id {
+        msg!("Invalid forced withdrawal messages buffer account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    if role_manager_acc.owner != &twine_chain_program_id {
+        msg!("Invalid role manager account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    
+    if token_decimal_mappings_acc.owner != program_id {
+        msg!("Invalid token decimal mappings account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        msg!("Invalid Twine chain program account");
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     Ok(())
 }

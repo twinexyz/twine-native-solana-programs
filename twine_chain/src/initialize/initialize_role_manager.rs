@@ -1,9 +1,3 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{RoleType, TwineChainRoleManager};
-use crate::utils::address_derivation::{
-    derive_role_manager, verify_derived_address, verify_system_program,
-};
-use crate::utils::constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES, ROLE_MANAGER_PREFIX};
 use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(not(test))]
 use solana_program::program::invoke_signed;
@@ -16,6 +10,17 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
+};
+
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{RoleType, TwineChainRoleManager},
+    },
+    utils::{
+        address_derivation::{derive_role_manager, verify_derived_address, verify_system_program},
+        constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES, ROLE_MANAGER_PREFIX},
+    },
 };
 
 pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
@@ -62,14 +67,14 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
         token_gateway_program: Pubkey::default(),
         roles: vec![
             (chain_admin, RoleType::TwineOperationHandler),
-            (chain_admin, RoleType::MessageAppender)
+            (chain_admin, RoleType::MessageAppender),
         ],
     };
 
     role_manager_data
         .serialize(&mut &mut role_manager_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    
+
     msg!("Role Manager Initialized");
     Ok(())
 }

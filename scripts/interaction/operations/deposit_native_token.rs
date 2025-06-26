@@ -10,6 +10,7 @@ pub fn native_token_deposit(
     l2_token: String,
     receiver_twine_address: String,
     amount: u64,
+    data: String
 ) -> Result<()> {
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
@@ -21,6 +22,7 @@ pub fn native_token_deposit(
         l1_token.clone(),
         l2_token.clone(),
         amount,
+        data
     );
 
     let transaction = Transaction::new_signed_with_payer(

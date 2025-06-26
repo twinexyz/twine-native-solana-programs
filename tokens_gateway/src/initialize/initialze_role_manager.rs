@@ -30,7 +30,6 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
         system_program,
         program_id,
     )?;
-    msg!("2");
     let rent = Rent::default();
     let (_, role_bump) = derive_gateway_role_manager(&program_id);
 
@@ -81,7 +80,6 @@ fn validate_accounts(
     system_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
-      msg!("1");
     if !chain_admin_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -103,8 +101,7 @@ fn validate_accounts(
     }
 
     let (expected_role_manager_key, _) = derive_gateway_role_manager(&program_id);
-    msg!("Expected Role Manager: {}",expected_role_manager_key);
-    msg!("sent role Manager: {}",*role_manager_acc.key);
+
     if expected_role_manager_key != *role_manager_acc.key {
         return Err(ProgramError::InvalidAccountData);
     }

@@ -39,7 +39,23 @@ pub fn spl_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    data: String,
 ) -> ProgramResult {
+    if amount == 0 {
+        return Err(ProgramCustomError::InvalidAmount.into());
+    }
+
+    if l1_token == "11111111111111111111111111111111" {
+        return Err(ProgramCustomError::InvalidToken.into());
+    }
+
+    if !is_valid_ethereum_address(&l2_token)? {
+        return Err(ProgramCustomError::InvalidL2Token.into());
+    }
+    if !is_valid_ethereum_address(&receiver_twine_address)? {
+        return Err(ProgramCustomError::InvalidReceiver.into());
+    }
+
     let account_info_iter = &mut accounts.iter();
     let user = next_account_info(account_info_iter)?;
     let user_token_account = next_account_info(account_info_iter)?;
@@ -52,23 +68,9 @@ pub fn spl_token_deposit(
     let role_manager_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
-    if amount == 0 {
-        return Err(ProgramCustomError::InvalidAmount.into());
-    }
-
-    if l1_token == "11111111111111111111111111111111" {
-        return Err(ProgramCustomError::InvalidToken.into());
-    }
     if l1_token != mint.key.to_string() {
         return Err(ProgramCustomError::InvalidToken.into());
     }
-    if !is_valid_ethereum_address(&l2_token)? {
-        return Err(ProgramCustomError::InvalidL2Token.into());
-    }
-    if !is_valid_ethereum_address(&receiver_twine_address)? {
-        return Err(ProgramCustomError::InvalidReceiver.into());
-    }
-
     let spl_data_seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes()];
     let (spl_data_key, spl_data_bump) = Pubkey::find_program_address(spl_data_seeds, program_id);
     if spl_data_key != *spl_tokens_vault_data_acc.key {
@@ -148,6 +150,7 @@ pub fn spl_token_deposit(
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount,
+        data: data,
     };
 
     let payload = TwineChainInstruction::AppendDepositMessage {
@@ -199,6 +202,80 @@ mod mock_clock {
             Ok(Clock { slot: 1000 })
         }
     }
+}
+
+pub struct ValidatedSplDepositData {
+    pub user_token_data: TokenAccount,
+    pub spl_tokens_vault_data: SplTokensVaultData,
+    pub token_decimal_mappings: TokenDecimalMappings,
+    pub deposit_message_buffer: DepositMessagesBuffer,
+    pub spl_data_bump: u8,
+    pub l2_amount: String,
+}
+
+fn validate_accounts(
+    user: &AccountInfo,
+    user_token_account: &AccountInfo,
+    spl_tokens_vault_data_acc: &AccountInfo,
+    spl_tokens_vault_acc: &AccountInfo,
+    mint: &AccountInfo,
+    token_program: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    deposit_messages_buffer_acc: &AccountInfo,
+    role_manager_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    if !user.is_signer {
+        msg!("User must be signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    if user_token_account.owner != &spl_token::id() {
+        msg!("Invalid user token account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if spl_tokens_vault_data_acc.owner != program_id {
+        msg!("Invalid SPL tokens vault data account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if spl_tokens_vault_acc.owner != &spl_token::id() {
+        msg!("Invalid SPL tokens vault account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if mint.owner != &spl_token::id() {
+        msg!("Invalid mint account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if token_program.key != &spl_token::id() {
+        msg!("Invalid token program account");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if token_decimal_mappings_acc.owner != program_id {
+        msg!("Invalid token decimal mappings account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if deposit_messages_buffer_acc.owner != &twine_chain_program_id {
+        msg!("Invalid deposit messages buffer account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if role_manager_acc.owner != &twine_chain_program_id {
+        msg!("Invalid role manager account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+    if twine_chain_program.key != &twine_chain_program_id {
+        msg!("Invalid Twine chain program account");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -438,6 +515,7 @@ mod tests {
             mint_key.to_string(),
             "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
             500_000,
+            "".to_string(),
         );
         assert!(result.is_ok());
     }

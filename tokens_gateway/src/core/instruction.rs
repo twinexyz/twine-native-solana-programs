@@ -1,25 +1,28 @@
-use {
-    super::state::{FinalizeInputWithdrawal, ReceiptCommitment, RoleType},
-    crate::{
-        utils::address_derivation::{
-            derive_executed_withdrawals_buffer, derive_gateway_role_manager,
-            derive_native_token_vault, derive_native_token_vault_data,
-            derive_spl_tokens_vault_data, derive_spl_vault_authority,
-            derive_token_decimal_mappings,
-        },
-        ID as tokens_gateway_ID,
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    system_program,
+};
+use twine_chain::{
+    utils::address_derivation::{
+        derive_deposit_message_buffer, derive_execution_message_buffer,
+        derive_forced_withdraw_message_buffer, derive_role_manager, derive_twine_chain_storage,
     },
-    borsh::{BorshDeserialize, BorshSerialize},
-    solana_program::{
-        instruction::{AccountMeta, Instruction}, msg, program_error::ProgramError, pubkey::Pubkey, system_program
+    ID as twine_chain_ID,
+};
+
+use super::state::{FinalizeInputWithdrawal, ReceiptCommitment, RoleType};
+
+use crate::{
+    utils::address_derivation::{
+        derive_executed_withdrawals_buffer, derive_gateway_role_manager, derive_native_token_vault,
+        derive_native_token_vault_data, derive_spl_tokens_vault_data, derive_spl_vault_authority,
+        derive_token_decimal_mappings,
     },
-    twine_chain::{
-        utils::address_derivation::{
-            derive_deposit_message_buffer, derive_execution_message_buffer,
-            derive_forced_withdraw_message_buffer, derive_role_manager, derive_twine_chain_storage,
-        },
-        ID as twine_chain_ID,
-    },
+    ID as tokens_gateway_ID,
 };
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -48,12 +51,14 @@ pub enum GatewayInstruction {
         l1_token: String,
         l2_token: String,
         amount: u64,
+        data: String,
     },
     SplTokenDepoist {
         receiver_twine_address: String,
         l1_token: String,
         l2_token: String,
         amount: u64,
+        data: String,
     },
     NativeTokenForcedWithdrawal {
         from_twine_address: String,
@@ -107,6 +112,7 @@ struct NativeTokenDepoistPayload {
     l1_token: String,
     l2_token: String,
     amount: u64,
+    data: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -115,6 +121,7 @@ struct SplTokenDepoistPayload {
     l1_token: String,
     l2_token: String,
     amount: u64,
+    data: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -171,7 +178,10 @@ pub fn initialize_tokens_gateway(chain_admin: &Pubkey) -> Vec<Instruction> {
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_executed_withdrawals_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(
+            derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
+            false,
+        ),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_gateway_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(*chain_admin, true),
@@ -221,12 +231,14 @@ pub fn native_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    data: String,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::NativeTokenDepoist {
         receiver_twine_address,
         l1_token,
         l2_token,
         amount,
+        data,
     };
 
     let mut data = vec![];
@@ -298,12 +310,14 @@ pub fn spl_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    data: String,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::SplTokenDepoist {
         receiver_twine_address,
         l1_token,
         l2_token,
         amount,
+        data,
     };
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
@@ -408,7 +422,10 @@ pub fn finalize_native_token_withdrawal(
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_execution_message_buffer(&twine_chain_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_ID).0, false),
-        AccountMeta::new(derive_executed_withdrawals_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(
+            derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
+            false,
+        ),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
@@ -467,7 +484,10 @@ pub fn finalize_spl_token_withdrawal(
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_execution_message_buffer(&twine_chain_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_ID).0, false),
-        AccountMeta::new(derive_executed_withdrawals_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(
+            derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
+            false,
+        ),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
@@ -531,6 +551,7 @@ impl GatewayInstruction {
                     l1_token: payload.l1_token,
                     l2_token: payload.l2_token,
                     amount: payload.amount,
+                    data: payload.data,
                 })
             }
 
@@ -542,6 +563,7 @@ impl GatewayInstruction {
                     l1_token: payload.l1_token,
                     l2_token: payload.l2_token,
                     amount: payload.amount,
+                    data: payload.data,
                 })
             }
 

@@ -1,16 +1,18 @@
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
-use crate::append_messages::{
-    append_deposit_messages, append_withdrawal_messages, remove_withdrawal_message,
+use crate::{
+    append_messages::{
+        append_deposit_messages, append_withdrawal_messages, remove_withdrawal_message,
+    },
+    commit_finalize::{commit_and_finalize_txn, commit_batch, finalize_batch},
+    core::instruction::TwineChainInstruction,
+    initialize::{
+        initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
+        initialize_twine_chain_storage,
+    },
+    role::roles_manager::add_role,
+    setters::{set_token_gateway, set_v_keys},
 };
-use crate::commit_finalize::{commit_and_finalize_txn, commit_batch, finalize_batch};
-use crate::core::instruction::TwineChainInstruction;
-use crate::initialize::{
-    initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
-    initialize_twine_chain_storage,
-};
-use crate::role::roles_manager::add_role;
-use crate::setters::{set_token_gateway, set_v_keys};
 
 pub fn process_instruction(
     program_id: &Pubkey,

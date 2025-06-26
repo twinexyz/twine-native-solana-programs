@@ -30,8 +30,9 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             l2_token,
             receiver_twine_address,
             amount,
+            data,
         } => {
-            let result = native_token_deposit(l1_token, l2_token, receiver_twine_address, amount);
+            let result = native_token_deposit(l1_token, l2_token, receiver_twine_address, amount,data);
             println!("Result: {:?}", result);
         }
         Commands::DepositSplToken {
@@ -40,8 +41,9 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             receiver_twine_address,
             user_token_account,
             amount,
+            data,
         } => {
-            let result = spl_token_deposit(l1_token, l2_token, receiver_twine_address, user_token_account,amount);
+            let result = spl_token_deposit(l1_token, l2_token, receiver_twine_address, user_token_account,amount,data);
             println!("Result: {:?}", result);
         }
         Commands::ForcedNativeWithdrawal {

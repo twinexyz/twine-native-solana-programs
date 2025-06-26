@@ -1,5 +1,3 @@
-use crate::core::error::ProgramCustomError;
-use crate::core::state::{RoleType, TwineChainRoleManager};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -7,6 +5,11 @@ use solana_program::{
     msg,
     program_error::ProgramError,
     pubkey::Pubkey,
+};
+
+use crate::core::{
+    error::ProgramCustomError,
+    state::{RoleType, TwineChainRoleManager},
 };
 
 pub fn set_role_chain_admin(
