@@ -45,29 +45,11 @@ pub fn forced_spl_token_withdrawal(
     amount: u64,
     signature: Vec<u8>,
 ) -> ProgramResult {
-    let account_info_iter = &mut accounts.iter();
-
-    let user_account = next_account_info(account_info_iter)?;
-    let to_token_account = next_account_info(account_info_iter)?;
-    let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
-    let mint = next_account_info(account_info_iter)?;
-    let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let forced_withdrawal_messages_buffer_acc = next_account_info(account_info_iter)?;
-    let role_manager_acc = next_account_info(account_info_iter)?;
-    let twine_chain_program = next_account_info(account_info_iter)?;
-
-    // Perform necessary checks
     if amount == 0 {
         return Err(ProgramError::InvalidArgument);
     }
-    if !user_account.is_signer {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-    if l1_token == "11111111111111111111111111111111" {
-        return Err(ProgramCustomError::InvalidArgument.into());
-    }
 
-    if l1_token != mint.key.to_string() {
+    if l1_token == "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
 
@@ -79,12 +61,18 @@ pub fn forced_spl_token_withdrawal(
         return Err(ProgramCustomError::InvalidArgument.into());
     }
 
-    if to_token_account.owner != &TOKEN_PROGRAM_ID {
-        return Err(ProgramCustomError::InvalidAccount.into());
-    }
+    let account_info_iter = &mut accounts.iter();
+    let user_account = next_account_info(account_info_iter)?;
+    let to_token_account = next_account_info(account_info_iter)?;
+    let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
+    let mint = next_account_info(account_info_iter)?;
+    let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
+    let forced_withdrawal_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let role_manager_acc = next_account_info(account_info_iter)?;
+    let twine_chain_program = next_account_info(account_info_iter)?;
 
-    if role_manager_acc.owner != &twine_chain_program_id {
-        return Err(ProgramError::IncorrectProgramId);
+    if l1_token != mint.key.to_string() {
+        return Err(ProgramCustomError::InvalidArgument.into());
     }
 
     let parsed_to_pubkey =
@@ -179,6 +167,60 @@ pub fn forced_spl_token_withdrawal(
         ],
         &[&[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]]],
     )?;
+    Ok(())
+}
+
+fn validate_accounts(
+    user_account: &AccountInfo,
+    to_token_account: &AccountInfo,
+    spl_tokens_vault_data_acc: &AccountInfo,
+    mint: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    forced_withdrawal_messages_buffer_acc: &AccountInfo,
+    role_manager_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    if !user_account.is_signer {
+        msg!("User must be signer");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    if to_token_account.owner != &TOKEN_PROGRAM_ID {
+        msg!("Invalid to_token_account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if spl_tokens_vault_data_acc.owner != program_id {
+        msg!("Invalid SPL tokens vault data account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if mint.owner != &TOKEN_PROGRAM_ID {
+        msg!("Invalid mint account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if token_decimal_mappings_acc.owner != program_id {
+        msg!("Invalid token decimal mappings account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if forced_withdrawal_messages_buffer_acc.owner != &twine_chain_program_id {
+        msg!("Invalid forced withdrawal messages buffer account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if role_manager_acc.owner != &twine_chain_program_id {
+        msg!("Invalid role manager account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        msg!("Invalid Twine chain program account");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
     Ok(())
 }
 #[cfg(test)]
