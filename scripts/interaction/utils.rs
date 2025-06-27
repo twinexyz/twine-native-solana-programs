@@ -3,8 +3,8 @@ use ethabi::{encode as abi_encode, Token};
 use libsecp256k1::{sign, Message, SecretKey};
 use sha3::{Digest, Keccak256};
 use solana_client::rpc_client::RpcClient;
-use solana_program::{pubkey::Pubkey};
 use solana_sdk::{
+    pubkey::Pubkey,
     program_pack::Pack,
     signature::{read_keypair_file, Keypair, Signer},
     system_instruction,
