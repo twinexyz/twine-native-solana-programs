@@ -12,7 +12,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
-use twine_chain::core::{instruction::TwineChainInstruction, state::TwineChainStorage};
+use twine_chain::core::{instruction::TwineChainInstruction, state::{ExecutionMessageBuffer, TwineChainStorage}};
 
 use crate::{
     core::{
@@ -34,7 +34,6 @@ pub fn finalize_native_withdrawal(
     accounts: &[AccountInfo],
     withdrawal_inputs: FinalizeInputWithdrawal,
 ) -> ProgramResult {
-    println!("Inside finalize withdraw function");
     let account_info_iter = &mut accounts.iter();
 
     let native_token_vault_acc = next_account_info(account_info_iter)?;
@@ -78,11 +77,11 @@ pub fn finalize_native_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    // if withdrawal_inputs.public_input.block_number
-    //     > twine_chain_storage.last_finalized_batch.end_block
-    // {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    if withdrawal_inputs.public_input.block_number
+        > twine_chain_storage.last_finalized_batch.end_block
+    {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -112,22 +111,19 @@ pub fn finalize_native_withdrawal(
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
     let mut flag = false;
-    println!("chaliraxa1");
 
     if withdrawal_inputs.public_input.is_forced_withdrawal == 1 {
         let execution_message_buffer =
-            TokenDecimalMappings::deserialize(&mut &execution_message_buffer_acc.data.borrow()[..])
+            ExecutionMessageBuffer::deserialize(&mut &execution_message_buffer_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        // for withdrawals in execution_message_buffer.withdrawals.clone() {
-        //     if withdrawal_inputs.public_input.nonce == withdrawals.nonce {
-        //         flag = true;
-        //         break;
-        //     }
-        // }
-        println!("chaliraxa2");
+        for withdrawals in execution_message_buffer.withdrawals.clone() {
+            if withdrawal_inputs.public_input.nonce == withdrawals.nonce {
+                flag = true;
+                break;
+            }
+        }
 
-        flag = true;
         if flag == true {
             // Native token (SOL) withdrawal
             process_native_token_withdrawal(
@@ -138,7 +134,6 @@ pub fn finalize_native_withdrawal(
                 &receiver_acc,
                 actual_amount,
             )?;
-            println!("chaliraxa4");
 
             let payload = TwineChainInstruction::RemoveWithdrawalMessage {
                 nonce: withdrawal_inputs.public_input.nonce,
@@ -166,8 +161,6 @@ pub fn finalize_native_withdrawal(
             ];
             let signer_seeds = &[&seeds[..]];
 
-            println!("chaliraxa5");
-
             invoke_signed(
                 &remove_message_instruction,
                 &[
@@ -177,9 +170,7 @@ pub fn finalize_native_withdrawal(
                 ],
                 signer_seeds,
             )?;
-            println!("chaliraxa6");
         }
-        println!("chaliraxa7");
     } else {
         let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::try_from_slice(
             &executed_withdrawals_buffer_acc.data.borrow(),
@@ -237,9 +228,13 @@ fn process_native_token_withdrawal<'info>(
     if amount <= 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
+    println!("Before lamports check");
+
     if native_token_vault.lamports() <= amount {
         return Err(ProgramCustomError::InsufficientFunds.into());
     };
+        println!("After lamports check");
+
     let native_vault_seeds = &[NATIVE_TOKEN_VAULT_PREFIX.as_bytes()];
     let (native_vault_key, native_vault_bump) =
         Pubkey::find_program_address(native_vault_seeds, program_id);

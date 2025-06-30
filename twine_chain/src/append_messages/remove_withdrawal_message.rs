@@ -48,15 +48,12 @@ pub fn remove_withdrawal_message(
     if !execution_buffer_data.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());
     }
-    println!("Is initialized case passed");
-    println!("Execution buffer data: {:?}", execution_buffer_data.withdrawals);
-
+    
     let index = execution_buffer_data
         .withdrawals
         .iter()
         .position(|msg| msg.nonce == nonce)
         .ok_or(ProgramCustomError::NonceNotFound)?;
-    println!("Removing..");
 
     // Remove the withdrawal message at the specified index
     execution_buffer_data.withdrawals.remove(index);
@@ -64,8 +61,6 @@ pub fn remove_withdrawal_message(
     execution_buffer_data
         .serialize(&mut &mut execution_message_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
-    println!("Passed..");
 
     Ok(())
 }

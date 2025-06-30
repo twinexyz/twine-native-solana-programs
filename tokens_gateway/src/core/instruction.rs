@@ -397,6 +397,7 @@ pub fn finalize_native_token_withdrawal(
     amount: String,
     inclusion_proof: Vec<u8>,
 ) -> Vec<Instruction> {
+    println!("Amount inside instruction {}", amount);
     let payload = GatewayInstruction::FinalzeNativeWithdrawal {
         withdrawal_inputs: FinalizeInputWithdrawal {
             public_input: ReceiptCommitment {

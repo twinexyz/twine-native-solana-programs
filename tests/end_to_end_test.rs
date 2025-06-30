@@ -146,6 +146,7 @@ async fn end_to_end_test() {
         data,
     ));
 
+    let amount_to_withdraw = 1000000000u64;
     // 10. Forced withdraw Native token
     initialize_and_bridge_instructions.extend(
         tokens_gateway_instruction::forced_native_token_withdrawal(
@@ -336,6 +337,34 @@ async fn end_to_end_test() {
         transaction_info,
     ));
 
+    /*****************************
+     * Finalize Naive Withdrawal *
+     ****************************/
+    let chain_id = 9u64;
+    let block_number = 1u64;
+    let nonce = 1u64;
+    let is_forced_withdrawal = 1;
+    let receipt_root: [u8; 32] = [
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+        0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19,
+        0x1a, 0x1b,
+    ];
+    let inclusion_proof = vec![];
+    let l1_receiver_address = accounts.chain_admin.pubkey();
+    finalization_instructions.extend(
+        tokens_gateway_instruction::finalize_native_token_withdrawal(
+            chain_id,
+            block_number,
+            nonce,
+            is_forced_withdrawal,
+            receipt_root,
+            l1_receiver_address,
+            l1_token.clone(),
+            l2_token.clone(),
+            amount_to_withdraw.to_string(),
+            inclusion_proof,
+        ),
+    );
     // Making the transaction:
     let finalization_transaction = Transaction::new_signed_with_payer(
         &finalization_instructions,
