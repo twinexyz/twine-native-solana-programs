@@ -193,11 +193,6 @@ fn validate_accounts(
     twine_chain_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
-    if native_token_vault_acc.owner != program_id {
-        msg!("Invalid native token vault account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
-
     if native_token_vault_data_acc.owner != program_id {
         msg!("Invalid native token vault data account owner");
         return Err(ProgramError::IncorrectProgramId);

@@ -414,7 +414,7 @@ pub fn finalize_native_token_withdrawal(
         },
     };
 
-    let mut data = vec![10];
+    let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
@@ -472,7 +472,7 @@ pub fn finalize_spl_token_withdrawal(
         },
     };
 
-    let mut data = vec![11];
+    let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
@@ -494,6 +494,73 @@ pub fn finalize_spl_token_withdrawal(
         AccountMeta::new(twine_chain_ID, false),
     ];
 
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn set_gateway_role_chain_admin(new_admin: Pubkey, chain_admin: Pubkey) -> Vec<Instruction> {
+    let payload = GatewayInstruction::SetGatewayRoleChainAdmin {
+        new_admin: new_admin,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(chain_admin, true),
+    ];
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn add_role_in_gateway(
+    account_address: Pubkey,
+    role: RoleType,
+    chain_admin: Pubkey,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::AddRoleInGateway {
+        address: account_address,
+        role: role,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(chain_admin, true),
+    ];
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn remove_role(
+    account_address: Pubkey,
+    role: RoleType,
+    chain_admin: Pubkey,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::RemoveRoleInGateway {
+        address: account_address,
+        role: role,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(chain_admin, true),
+    ];
     vec![Instruction {
         program_id: tokens_gateway_ID,
         accounts,

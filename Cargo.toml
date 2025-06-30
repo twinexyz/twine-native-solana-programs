@@ -28,19 +28,19 @@ path = "scripts/interaction/main.rs"
 
 
 [workspace.dependencies]
-solana-sdk               = "1.18.26"
+solana-sdk               = "=2.1.6"
 base64ct                 = "=1.6.0"
 borsh                    = "0.10"
 hex                      = "0.4.3"
 num-bigint               = "0.4.6"
 num-traits               = "0.2"
 sha3                     = "0.10.8"
-solana-bn254             = "2.1.6"
-solana-program           = "1.18.26"
-solana-secp256k1-recover = "2.1.6"
+solana-bn254             = "=2.1.6"
+solana-program           = "=2.1.6"
+solana-secp256k1-recover = "=2.1.6"
 libsecp256k1             = { version = "0.7.1", default-features = false, features = ["hmac", "static-context"] }
 sp1-solana               = { git = "https://github.com/succinctlabs/sp1-solana" }
-spl-token                = { version = "4.0.0", features = ["no-entrypoint"] }
+spl-token                = { version = "6.0", features = ["no-entrypoint"] }
 thiserror                = "1.0.63"
 tokio                    = { version = "1.0", features = ["macros", "rt"], default-features = false }
 tokens_gateway           = { path = "./tokens_gateway", features = ["no-entrypoint"] }
@@ -48,7 +48,7 @@ twine_chain              = { path = "./twine_chain", features = ["no-entrypoint"
 
 
 [dependencies]
-solana-client                = "1.18"
+solana-client                = "=2.1.6"
 tokens_gateway               = { workspace = true }
 twine_chain                  = { workspace = true }
 clap                         = { version = "4.5", features = ["derive"] }
@@ -59,7 +59,7 @@ ethabi                       = "18.0.0"
 libsecp256k1                 = { workspace = true }
 solana-program               = { workspace = true }
 spl-token                    = { workspace = true }
-spl-associated-token-account = "2.3.0"
+spl-associated-token-account = "3.0"
 hex                          = { workspace = true }
 dirs                         = "5"
 sha3                         = { workspace = true }
@@ -75,9 +75,9 @@ rlp                          = "0.5"
 serde                        = { version = "1.0", features = ["derive"] }
 sha3                         = { workspace = true }
 solana-program               = { workspace = true }
-solana-program-test          = "1.18.26"
+solana-program-test          = "=2.1.6"
 solana-sdk                   = { workspace = true }
-spl-associated-token-account = "2.3.0"
+spl-associated-token-account = "3.0"
 spl-token                    = { workspace = true }
 test-case                    = "3.3"
 tokio-test                   = "0.4"
