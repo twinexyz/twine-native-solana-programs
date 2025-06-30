@@ -12,7 +12,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
-use twine_chain::core::state::TwineChainStorage;
+use twine_chain::core::{instruction::TwineChainInstruction, state::{ExecutionMessageBuffer, TwineChainStorage}};
 
 use crate::{
     core::{
@@ -23,6 +23,7 @@ use crate::{
         },
     },
     utils::{
+        address_derivation::derive_native_token_vault_data,
         constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
     },
@@ -76,11 +77,11 @@ pub fn finalize_native_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    // if withdrawal_inputs.public_input.block_number
-    //     > twine_chain_storage.last_finalized_batch.end_block
-    // {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    if withdrawal_inputs.public_input.block_number
+        > twine_chain_storage.last_finalized_batch.end_block
+    {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -113,17 +114,16 @@ pub fn finalize_native_withdrawal(
 
     if withdrawal_inputs.public_input.is_forced_withdrawal == 1 {
         let execution_message_buffer =
-            TokenDecimalMappings::deserialize(&mut &execution_message_buffer_acc.data.borrow()[..])
+            ExecutionMessageBuffer::deserialize(&mut &execution_message_buffer_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        // for withdrawals in execution_message_buffer.withdrawals.clone() {
-        //     if withdrawal_inputs.public_input.nonce == withdrawals.nonce {
-        //         flag = true;
-        //         break;
-        //     }
-        // }
+        for withdrawals in execution_message_buffer.withdrawals.clone() {
+            if withdrawal_inputs.public_input.nonce == withdrawals.nonce {
+                flag = true;
+                break;
+            }
+        }
 
-        flag = true;
         if flag == true {
             // Native token (SOL) withdrawal
             process_native_token_withdrawal(
@@ -135,16 +135,17 @@ pub fn finalize_native_withdrawal(
                 actual_amount,
             )?;
 
-            let native_data_seeds = &[NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes()];
-            let (_, native_data_bump) = Pubkey::find_program_address(native_data_seeds, program_id);
+            let payload = TwineChainInstruction::RemoveWithdrawalMessage {
+                nonce: withdrawal_inputs.public_input.nonce,
+            };
 
-            //instructions number in TwineChainInstruction
-            let discriminator: u8 = 7;
-            let remove_message_instruction_data = vec![discriminator];
+            let mut remove_message_instruction_data = vec![];
+            remove_message_instruction_data.extend(payload.try_to_vec().unwrap());
+
             let remove_message_instruction_accounts = vec![
                 AccountMeta::new(*execution_message_buffer_acc.key, false),
                 AccountMeta::new_readonly(*role_manager.key, false),
-                AccountMeta::new_readonly(*native_token_vault_acc.key, true),
+                AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
             ];
 
             let remove_message_instruction = Instruction {
@@ -153,17 +154,21 @@ pub fn finalize_native_withdrawal(
                 data: remove_message_instruction_data,
             };
 
+            let (_, native_data_bump) = derive_native_token_vault_data(&program_id);
+            let seeds = &[
+                NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
+                &[native_data_bump],
+            ];
+            let signer_seeds = &[&seeds[..]];
+
             invoke_signed(
                 &remove_message_instruction,
                 &[
                     execution_message_buffer_acc.clone(),
                     role_manager.clone(),
-                    native_token_vault_acc.clone(),
+                    native_token_vault_data_acc.clone(),
                 ],
-                &[&[
-                    NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
-                    &[native_data_bump],
-                ]],
+                signer_seeds,
             )?;
         }
     } else {
@@ -223,9 +228,13 @@ fn process_native_token_withdrawal<'info>(
     if amount <= 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
+    println!("Before lamports check");
+
     if native_token_vault.lamports() <= amount {
         return Err(ProgramCustomError::InsufficientFunds.into());
     };
+        println!("After lamports check");
+
     let native_vault_seeds = &[NATIVE_TOKEN_VAULT_PREFIX.as_bytes()];
     let (native_vault_key, native_vault_bump) =
         Pubkey::find_program_address(native_vault_seeds, program_id);

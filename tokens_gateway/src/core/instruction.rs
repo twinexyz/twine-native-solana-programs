@@ -397,6 +397,7 @@ pub fn finalize_native_token_withdrawal(
     amount: String,
     inclusion_proof: Vec<u8>,
 ) -> Vec<Instruction> {
+    println!("Amount inside instruction {}", amount);
     let payload = GatewayInstruction::FinalzeNativeWithdrawal {
         withdrawal_inputs: FinalizeInputWithdrawal {
             public_input: ReceiptCommitment {
@@ -427,7 +428,7 @@ pub fn finalize_native_token_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_ID, false),

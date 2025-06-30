@@ -57,7 +57,7 @@ pub fn add_role(
     let mut role_manager =
         TwineChainRoleManager::deserialize(&mut &role_manager_info.data.borrow()[..])?;
     role_manager.roles.push((address, role));
-    role_manager.serialize(&mut *role_manager_info.data.borrow_mut())?;
+    role_manager.serialize(&mut &mut role_manager_info.data.borrow_mut()[..])?;
 
     msg!("Role added successfully.");
     Ok(())

@@ -44,7 +44,7 @@ pub fn remove_withdrawal_message(
     if !execution_buffer_data.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());
     }
-
+    
     let index = execution_buffer_data
         .withdrawals
         .iter()
@@ -57,6 +57,7 @@ pub fn remove_withdrawal_message(
     execution_buffer_data
         .serialize(&mut &mut execution_message_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
     Ok(())
 }
 

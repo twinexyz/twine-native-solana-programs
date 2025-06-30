@@ -12,9 +12,13 @@ use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction, utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
+    core::instruction as tokens_gateway_instruction,
+    id,
+    utils::{
+        address_derivation::derive_native_token_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
+    },
 };
-use twine_chain::core::instruction as twine_chain_instruction;
+use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
 
 #[tokio::test]
 async fn native_token_deposit_succeed() {
@@ -38,6 +42,7 @@ async fn native_token_deposit_succeed() {
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let data = "".to_string();
+    let native_token_valut_data_account = derive_native_token_vault_data(&id()).0;
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
@@ -46,6 +51,11 @@ async fn native_token_deposit_succeed() {
     ));
     instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &chain_admin,
+    ));
+    instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
+        &chain_admin,
+        &native_token_valut_data_account,
+        RoleType::MessageAppender,
     ));
     instructions
         .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
@@ -66,7 +76,7 @@ async fn native_token_deposit_succeed() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
-        data
+        data,
     ));
 
     let transaction = Transaction::new_signed_with_payer(
