@@ -25,10 +25,12 @@ pub fn remove_withdrawal_message(
     accounts: &[AccountInfo],
     nonce: u64,
 ) -> ProgramResult {
+    println!("Inisde Remove withdraw function");
     let account_iter = &mut accounts.iter();
     let execution_message_buffer_acc = next_account_info(account_iter)?;
     let role_manager_acc = next_account_info(account_iter)?;
     let initializer_acc = next_account_info(account_iter)?;
+    println!("Before account validation");
 
     validate_accounts(
         program_id,
@@ -36,20 +38,25 @@ pub fn remove_withdrawal_message(
         role_manager_acc,
         initializer_acc,
     )?;
+    println!("After account validation");
 
     let mut execution_buffer_data =
         ExecutionMessageBuffer::deserialize(&mut &execution_message_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
+    println!("Deserialization successful");
 
     if !execution_buffer_data.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());
     }
+    println!("Is initialized case passed");
+    println!("Execution buffer data: {:?}", execution_buffer_data.withdrawals);
 
     let index = execution_buffer_data
         .withdrawals
         .iter()
         .position(|msg| msg.nonce == nonce)
         .ok_or(ProgramCustomError::NonceNotFound)?;
+    println!("Removing..");
 
     // Remove the withdrawal message at the specified index
     execution_buffer_data.withdrawals.remove(index);
@@ -57,6 +64,9 @@ pub fn remove_withdrawal_message(
     execution_buffer_data
         .serialize(&mut &mut execution_message_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
+    println!("Passed..");
+
     Ok(())
 }
 

@@ -12,7 +12,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
-use twine_chain::core::state::TwineChainStorage;
+use twine_chain::core::{instruction::TwineChainInstruction, state::TwineChainStorage};
 
 use crate::{
     core::{
@@ -23,6 +23,7 @@ use crate::{
         },
     },
     utils::{
+        address_derivation::derive_native_token_vault_data,
         constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
     },
@@ -33,6 +34,7 @@ pub fn finalize_native_withdrawal(
     accounts: &[AccountInfo],
     withdrawal_inputs: FinalizeInputWithdrawal,
 ) -> ProgramResult {
+    println!("Inside finalize withdraw function");
     let account_info_iter = &mut accounts.iter();
 
     let native_token_vault_acc = next_account_info(account_info_iter)?;
@@ -110,6 +112,7 @@ pub fn finalize_native_withdrawal(
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
     let mut flag = false;
+    println!("chaliraxa1");
 
     if withdrawal_inputs.public_input.is_forced_withdrawal == 1 {
         let execution_message_buffer =
@@ -122,6 +125,7 @@ pub fn finalize_native_withdrawal(
         //         break;
         //     }
         // }
+        println!("chaliraxa2");
 
         flag = true;
         if flag == true {
@@ -134,17 +138,19 @@ pub fn finalize_native_withdrawal(
                 &receiver_acc,
                 actual_amount,
             )?;
+            println!("chaliraxa4");
 
-            let native_data_seeds = &[NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes()];
-            let (_, native_data_bump) = Pubkey::find_program_address(native_data_seeds, program_id);
+            let payload = TwineChainInstruction::RemoveWithdrawalMessage {
+                nonce: withdrawal_inputs.public_input.nonce,
+            };
 
-            //instructions number in TwineChainInstruction
-            let discriminator: u8 = 7;
-            let remove_message_instruction_data = vec![discriminator];
+            let mut remove_message_instruction_data = vec![];
+            remove_message_instruction_data.extend(payload.try_to_vec().unwrap());
+
             let remove_message_instruction_accounts = vec![
                 AccountMeta::new(*execution_message_buffer_acc.key, false),
                 AccountMeta::new_readonly(*role_manager.key, false),
-                AccountMeta::new_readonly(*native_token_vault_acc.key, true),
+                AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
             ];
 
             let remove_message_instruction = Instruction {
@@ -153,19 +159,27 @@ pub fn finalize_native_withdrawal(
                 data: remove_message_instruction_data,
             };
 
+            let (_, native_data_bump) = derive_native_token_vault_data(&program_id);
+            let seeds = &[
+                NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
+                &[native_data_bump],
+            ];
+            let signer_seeds = &[&seeds[..]];
+
+            println!("chaliraxa5");
+
             invoke_signed(
                 &remove_message_instruction,
                 &[
                     execution_message_buffer_acc.clone(),
                     role_manager.clone(),
-                    native_token_vault_acc.clone(),
+                    native_token_vault_data_acc.clone(),
                 ],
-                &[&[
-                    NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
-                    &[native_data_bump],
-                ]],
+                signer_seeds,
             )?;
+            println!("chaliraxa6");
         }
+        println!("chaliraxa7");
     } else {
         let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::try_from_slice(
             &executed_withdrawals_buffer_acc.data.borrow(),

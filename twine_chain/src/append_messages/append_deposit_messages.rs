@@ -36,18 +36,18 @@ pub fn append_deposit_message(
     )?;
 
     // Validate data length
-    let total_len = 8
-        + 8
-        + 8
-        + (4 + deposit_info.from_l1_pubkey.len())
-        + (4 + deposit_info.to_twine_address.len())
-        + (4 + deposit_info.l1_token.len())
-        + (4 + deposit_info.l2_token.len())
-        + (4 + deposit_info.amount.len());
+    // let total_len = 8
+    //     + 8
+    //     + 8
+    //     + (4 + deposit_info.from_l1_pubkey.len())
+    //     + (4 + deposit_info.to_twine_address.len())
+    //     + (4 + deposit_info.l1_token.len())
+    //     + (4 + deposit_info.l2_token.len())
+    //     + (4 + deposit_info.amount.len());
 
-    if total_len > DepositMessageInfo::LEN {
-        return Err(ProgramCustomError::InvalidDataLength.into());
-    }
+    // if total_len > DepositMessageInfo::LEN {
+    //     return Err(ProgramCustomError::InvalidDataLength.into());
+    // }
 
     // Deserialize account data
     let mut deposits =

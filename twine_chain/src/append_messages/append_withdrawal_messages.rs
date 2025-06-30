@@ -39,18 +39,18 @@ pub fn append_forced_withdrawal_message(
     )?;
 
     // Validate data length
-    let total_len = 8
-        + 8
-        + 8
-        + (4 + withdraw_info.from_twine_address.len())
-        + (4 + withdraw_info.to_l1_pubkey.len())
-        + (4 + withdraw_info.l1_token.len())
-        + (4 + withdraw_info.l2_token.len())
-        + (4 + withdraw_info.amount.len());
+    // let total_len = 8
+    //     + 8
+    //     + 8
+    //     + (4 + withdraw_info.from_twine_address.len())
+    //     + (4 + withdraw_info.to_l1_pubkey.len())
+    //     + (4 + withdraw_info.l1_token.len())
+    //     + (4 + withdraw_info.l2_token.len())
+    //     + (4 + withdraw_info.amount.len());
 
-    if total_len > ForcedWithdrawMessageInfo::LEN {
-        return Err(ProgramCustomError::InvalidDataLength.into());
-    }
+    // if total_len > ForcedWithdrawMessageInfo::LEN {
+    //     return Err(ProgramCustomError::InvalidDataLength.into());
+    // }
 
     // Deserialize account data
     let mut withdrawals = ForcedWithdrawMessagesBuffer::deserialize(

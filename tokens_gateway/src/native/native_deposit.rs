@@ -93,6 +93,7 @@ pub fn native_token_deposit(
         .total_deposits
         .checked_add(amount)
         .ok_or(ProgramError::InvalidArgument)?;
+   
 
     vault_data
         .serialize(&mut &mut native_token_vault_data_acc.data.borrow_mut()[..])
