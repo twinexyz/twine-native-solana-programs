@@ -25,12 +25,10 @@ pub fn remove_withdrawal_message(
     accounts: &[AccountInfo],
     nonce: u64,
 ) -> ProgramResult {
-    println!("Inisde Remove withdraw function");
     let account_iter = &mut accounts.iter();
     let execution_message_buffer_acc = next_account_info(account_iter)?;
     let role_manager_acc = next_account_info(account_iter)?;
     let initializer_acc = next_account_info(account_iter)?;
-    println!("Before account validation");
 
     validate_accounts(
         program_id,
@@ -38,12 +36,10 @@ pub fn remove_withdrawal_message(
         role_manager_acc,
         initializer_acc,
     )?;
-    println!("After account validation");
 
     let mut execution_buffer_data =
         ExecutionMessageBuffer::deserialize(&mut &execution_message_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
-    println!("Deserialization successful");
 
     if !execution_buffer_data.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());
