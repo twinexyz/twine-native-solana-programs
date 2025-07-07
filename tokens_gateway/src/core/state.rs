@@ -16,7 +16,6 @@ pub struct TokensGatewayRoleManager {
 /// Role types for authorization.
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Copy, PartialEq)]
 pub enum RoleType {
-    /// For operations such as deposits or withdrawals.
     TwineOperationHandler,
 }
 /**************
