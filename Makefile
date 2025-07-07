@@ -16,9 +16,25 @@ SOL_PUBKEY = 11111111111111111111111111111111
 #        Help Target
 # ==============================
 help:
+	@echo ""
 	@echo "Available targets:"
-
-
+	@echo "  build                           Build the project"
+	@echo "  build-sbf                       Build the project for SBF"
+	@echo "  clean                           Clean build artifacts"
+	@echo "  test                            Run tests"
+	@echo "  deploy                          Deploy programs"
+	@echo "  update-tokens-gateway           Update the tokens gateway"
+	@echo "  keygen-tokens-gateway-program-id    Generate pubkey for tokens gateway"
+	@echo "  keygen-twine-chain-program-id       Generate pubkey for twine chain"
+	@echo "  start-validator                 Start a new solana-test-validator"
+	@echo "  initialize                      Initialize programs"
+	@echo "  create-spl-token                Create a new SPL token"
+	@echo "  update-token-mapping            Update token mapping"
+	@echo "  deposit-native-token            Deposit native tokens"
+	@echo "  deposit-spl-token               Deposit SPL tokens"
+	@echo "  forced-native-token-withdrawal  Forced native token withdrawal"
+	@echo "  forced-spl-token-withdrawal     Forced SPL token withdrawal"
+	@echo ""
 # Build the project
 build:
 	$(CARGO) build --workspace
