@@ -1,5 +1,3 @@
-#![allow(clippy::arithmetic_side_effects)]
-
 mod helpers;
 
 use solana_program_test::*;

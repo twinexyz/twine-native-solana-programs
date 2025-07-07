@@ -1,4 +1,3 @@
-#![allow(clippy::arithmetic_side_effects)]
 use crate::utils::{create_spl_and_mint, get_default_keypair, get_rpc_client};
 
 pub fn create_spl_token() {

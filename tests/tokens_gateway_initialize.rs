@@ -1,7 +1,5 @@
-#![allow(clippy::arithmetic_side_effects)]
-
 mod helpers;
-
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -12,7 +10,11 @@ use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction, utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
+    core::instruction as tokens_gateway_instruction,
+    core::state::{TokensGatewayRoleManager,NativeTokenVaultData},
+    id as tokens_gateway_id,
+    utils::address_derivation::{derive_gateway_role_manager, derive_native_token_vault_data},
+    utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
 };
 
 #[tokio::test]
@@ -41,6 +43,21 @@ async fn tokens_gateway_rolemanager_init() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+
+    let tokens_gateway_rolemanager_account = context
+        .banks_client
+        .get_account(derive_gateway_role_manager(&tokens_gateway_id()).0)
+        .await
+        .unwrap()
+        .expect("Twine chain storage account not found");
+
+    let tokens_gateway_rolemanager_data: TokensGatewayRoleManager =
+        TokensGatewayRoleManager::deserialize(&mut &tokens_gateway_rolemanager_account.data[..])
+            .expect("Failed to deserialize RoleManager");
+    assert!(
+        tokens_gateway_rolemanager_data.is_initialized,
+        "Rolemanager should be initialized"
+    );
 }
 
 #[tokio::test]
@@ -68,4 +85,18 @@ async fn tokens_gateway_init() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+    let native_token_vault_account = context
+        .banks_client
+        .get_account(derive_native_token_vault_data(&tokens_gateway_id()).0)
+        .await
+        .unwrap()
+        .expect("Native Token Vault Data Account Not Found");
+
+    let native_token_vault_data: NativeTokenVaultData =
+        NativeTokenVaultData::deserialize(&mut &native_token_vault_account.data[..])
+            .expect("Failed to deserialize Native Token Vault Data");
+    assert!(
+        native_token_vault_data.is_initialized,
+        "Native Token Vault should be initialized"
+    );
 }

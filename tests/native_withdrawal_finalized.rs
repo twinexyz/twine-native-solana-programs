@@ -1,4 +1,3 @@
-#![allow(clippy::arithmetic_side_effects)]
 #[cfg(test)]
 mod helpers;
 use solana_program_test::*;
@@ -135,5 +134,5 @@ async fn native_withdrawal_finalized_succeed() {
 
     let error = context.banks_client.process_transaction(transaction).await;
 
-    println!("Transaction status: {:?}", error);
+    println!("Transaction status: {:?}", error);   
 }

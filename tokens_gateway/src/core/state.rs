@@ -22,7 +22,7 @@ pub enum RoleType {
 /**************
  * Vault Data *
  **************/
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug,PartialEq)]
 pub struct NativeTokenVaultData {
     pub is_initialized: bool,
     pub total_deposits: u64,
