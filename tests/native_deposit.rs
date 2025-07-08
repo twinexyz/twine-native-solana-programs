@@ -1,7 +1,7 @@
-#![allow(clippy::arithmetic_side_effects)]
 #[cfg(test)]
 mod helpers;
 
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -13,12 +13,18 @@ use helpers::tokens_gateway_helper::{
 };
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction,
-    id,
-    utils::{
-        address_derivation::derive_native_token_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
-    },
+    id as tokens_gateway_id,
+    utils::address_derivation::{derive_native_token_vault_data},
+    utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
 };
-use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{DepositMessagesBuffer, RoleType},
+    },
+    id as twine_chain_id,
+    utils::address_derivation::derive_deposit_message_buffer,
+};
 
 #[tokio::test]
 async fn native_token_deposit_succeed() {
@@ -42,7 +48,7 @@ async fn native_token_deposit_succeed() {
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let data = "".to_string();
-    let native_token_valut_data_account = derive_native_token_vault_data(&id()).0;
+    let native_token_valut_data_account = derive_native_token_vault_data(&tokens_gateway_id()).0;
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
@@ -89,4 +95,17 @@ async fn native_token_deposit_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+    let deposit_message_buffer_account = context
+        .banks_client
+        .get_account(derive_deposit_message_buffer(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Deposit Message Account Not Found");
+    let deposit_message_buffer_data: DepositMessagesBuffer =
+        DepositMessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
+            .expect("Failed to deserialize Deposit Message Buffer Data");
+    assert!(
+        deposit_message_buffer_data.deposit_nonce == 1,
+        "Deposit not successfull"
+    );
 }

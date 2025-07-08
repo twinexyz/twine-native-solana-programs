@@ -1,4 +1,3 @@
-#![allow(clippy::arithmetic_side_effects)]
 use crate::utils::{get_default_keypair, get_or_create_ata, get_rpc_client};
 use anyhow::{Context,Result};
 use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};

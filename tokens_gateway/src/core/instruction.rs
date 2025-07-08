@@ -545,7 +545,7 @@ pub fn add_role_in_gateway(
     }]
 }
 
-pub fn remove_role(
+pub fn remove_role_in_gateway(
     account_address: Pubkey,
     role: RoleType,
     chain_admin: Pubkey,

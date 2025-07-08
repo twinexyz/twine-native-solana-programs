@@ -16,13 +16,12 @@ pub struct TokensGatewayRoleManager {
 /// Role types for authorization.
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, Copy, PartialEq)]
 pub enum RoleType {
-    /// For operations such as deposits or withdrawals.
     TwineOperationHandler,
 }
 /**************
  * Vault Data *
  **************/
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug,PartialEq)]
 pub struct NativeTokenVaultData {
     pub is_initialized: bool,
     pub total_deposits: u64,

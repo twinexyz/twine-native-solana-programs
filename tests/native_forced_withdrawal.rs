@@ -1,7 +1,7 @@
-#![allow(clippy::arithmetic_side_effects)]
 #[cfg(test)]
 mod helpers;
 
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -18,7 +18,11 @@ use tokens_gateway::{
         address_derivation::derive_native_token_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
 };
-use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
+use twine_chain::{
+    core::{instruction as twine_chain_instruction, state::{RoleType,ForcedWithdrawMessagesBuffer}},
+    id as twine_chain_id,
+    utils::address_derivation::derive_forced_withdraw_message_buffer,
+};
 
 #[tokio::test]
 async fn native_forced_withdrawal_succeed() {
@@ -100,4 +104,19 @@ async fn native_forced_withdrawal_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+    let forced_withdraw_message_buffer_account = context
+        .banks_client
+        .get_account(derive_forced_withdraw_message_buffer(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Forced Message Buffer Not Found");
+
+      let forced_withdraw_message_buffer_data: ForcedWithdrawMessagesBuffer =
+        ForcedWithdrawMessagesBuffer::deserialize(&mut &forced_withdraw_message_buffer_account.data[..])
+            .expect("Failed to deserialize Native Token Vault Data");
+      assert!(
+    forced_withdraw_message_buffer_data.withdraw_nonce == 1,
+    "Forced Withdrawal Not successful"
+
+      )
 }

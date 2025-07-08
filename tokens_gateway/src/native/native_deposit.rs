@@ -58,7 +58,7 @@ pub fn native_token_deposit(
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let deposit_messages_buffer_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let twine_chain_role_manager_acc = next_account_info(account_info_iter)?; // twine chain rolemanager
+    let twine_chain_role_manager_acc = next_account_info(account_info_iter)?; 
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 

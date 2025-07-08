@@ -1,4 +1,3 @@
-#![allow(clippy::arithmetic_side_effects)]
 #[cfg(test)]
 mod helpers;
 
