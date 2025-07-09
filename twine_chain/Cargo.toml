@@ -3,5 +3,18 @@ name = "twine_chain"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib","lib"]
+name = "twine_chain"
+
+
+[features]
+no-entrypoint = []
+
+
 [dependencies]
-solana-program = "2.2.1"
+borsh = { workspace = true }
+thiserror = { workspace = true }
+solana-program = { workspace = true }
+sha3 = { workspace = true }
+sp1-solana = { workspace = true }

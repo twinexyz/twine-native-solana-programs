@@ -1,0 +1,25 @@
+[package]
+name = "tokens_gateway"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "tokens_gateway"
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+borsh                    = { workspace = true }
+hex                      = { workspace = true }
+libsecp256k1             = { workspace = true }
+num-bigint               = { workspace = true }
+num-traits               = { workspace = true }
+sha3                     = { workspace = true }
+solana-program           = { workspace = true }
+solana-secp256k1-recover = { workspace = true }
+sp1-solana               = { workspace = true }
+spl-token                = { workspace = true }
+thiserror                = { workspace = true }
+twine_chain              = { path = "../twine_chain", features = ["no-entrypoint"] }
