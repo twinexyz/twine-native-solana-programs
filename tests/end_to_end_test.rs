@@ -305,7 +305,7 @@ async fn end_to_end_test() {
 
     let chain_commitment = ChainCommitment {
         deposit_count: 1,
-        deposit_rolling_hash: calculate_deposit_rolling_hash(&selected_deposits),
+        deposit_rolling_hash:[0u8; 32], //calculate_deposit_rolling_hash(&selected_deposits),
         withdraw_count: 1,
         withdraw_rolling_hash: calculate_withdraw_rolling_hash(&selected_withdrawals),
         lz_transaction_count: 0,

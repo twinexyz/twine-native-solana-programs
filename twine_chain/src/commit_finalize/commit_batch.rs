@@ -1,4 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+#[cfg(not(test))]
+use solana_program::clock::Clock;
+#[cfg(not(test))]
+use solana_program::program::invoke_signed;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -10,35 +14,23 @@ use solana_program::{
     system_instruction,
     sysvar::Sysvar,
 };
-#[cfg(not(test))]
-use solana_program::clock::Clock;
-#[cfg(not(test))]
-use solana_program::program::invoke_signed;
 
 use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            BatchPdaAccount, 
-            BlockInfo, 
-            CommitBatchInfo, 
-            RoleType, 
-            TwineChainRoleManager, 
+            BatchPdaAccount, BlockInfo, CommitBatchInfo, RoleType, TwineChainRoleManager,
             TwineChainStorage,
         },
     },
     utils::{
         address_derivation::{
-            derive_commitment_pda, 
-            derive_role_manager, 
-            derive_twine_chain_storage, 
-            verify_derived_address,
-            verify_system_program,
+            derive_commitment_pda, derive_role_manager, derive_twine_chain_storage,
+            verify_derived_address, verify_system_program,
         },
         constants::{CHAIN_ID, COMMITMENT_PDA_PREFIX},
     },
 };
-
 
 pub fn commit_batch(
     program_id: &Pubkey,
@@ -348,6 +340,8 @@ mod test {
 
         let twine_chain_data = TwineChainStorage {
             is_initialized: true,
+            last_copied_deposit_nonce: 0,
+            last_copied_forced_withdrawal_nonce: 0,
             groth16_vk: Vec::new(),
             execution_vkey: String::from(""),
             inclusion_vkey: String::from(""),

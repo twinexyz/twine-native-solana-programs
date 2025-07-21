@@ -16,6 +16,7 @@ use crate::{
     utils::address_derivation::{
         derive_deposit_message_buffer, derive_role_manager, verify_derived_address,
     },
+    commit_finalize::commit_and_finalize_txn::calculate_deposit_rolling_hash,
 };
 
 pub fn append_deposit_message(
@@ -35,20 +36,6 @@ pub fn append_deposit_message(
         initializer_acc,
     )?;
 
-    // Validate data length
-    // let total_len = 8
-    //     + 8
-    //     + 8
-    //     + (4 + deposit_info.from_l1_pubkey.len())
-    //     + (4 + deposit_info.to_twine_address.len())
-    //     + (4 + deposit_info.l1_token.len())
-    //     + (4 + deposit_info.l2_token.len())
-    //     + (4 + deposit_info.amount.len());
-
-    // if total_len > DepositMessageInfo::LEN {
-    //     return Err(ProgramCustomError::InvalidDataLength.into());
-    // }
-
     // Deserialize account data
     let mut deposits =
         DepositMessagesBuffer::deserialize(&mut &deposit_message_buffer_acc.data.borrow()[..])
@@ -60,7 +47,7 @@ pub fn append_deposit_message(
     }
 
     // Update Deposits
-    deposits.deposit_messages.push(deposit_info.clone());
+    deposits.deposit_messages.push(calculate_deposit_rolling_hash(&[deposit_info.clone()]));
     deposits.deposit_nonce += 1;
 
     deposits
@@ -113,7 +100,7 @@ fn validate_accounts(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::utils::constants::{INITIAL_CHAIN_ADMIN, MAX_QUEUE_SIZE, MAX_ROLES};
+    use crate::utils::constants::{CHAIN_ID, INITIAL_CHAIN_ADMIN, MAX_QUEUE_SIZE, MAX_ROLES};
     use solana_program::{clock::Epoch, rent::Rent, system_program};
     use std::str::FromStr;
 
@@ -163,6 +150,7 @@ mod test {
         let buffer = DepositMessagesBuffer {
             is_initialized: true,
             deposit_nonce: 0,
+            chain_id: CHAIN_ID,
             deposit_messages: vec![],
         };
 

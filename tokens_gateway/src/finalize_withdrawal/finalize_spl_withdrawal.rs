@@ -419,6 +419,8 @@ mod tests {
         .unwrap();
         let mut twine_storage = TwineChainStorage {
             is_initialized: true,
+            last_copied_deposit_nonce:0,
+            last_copied_forced_withdrawal_nonce:0,
             groth16_vk: vec![0u8; 32],
             execution_vkey: "execution_vkey_string".to_string(),
             inclusion_vkey: "inclusion_vkey_string".to_string(),

@@ -243,7 +243,7 @@ mod mock_clock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::{NativeTokenVaultData, TokenDecimalMappingData, TokenDecimalMappings};
+    use crate::{core::state::{NativeTokenVaultData, TokenDecimalMappingData, TokenDecimalMappings}, utils::constants::CHAIN_ID};
     use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
 
     fn create_test_account<'a>(
@@ -304,6 +304,7 @@ mod tests {
         let mut deposit_buffer_data = DepositMessagesBuffer {
             is_initialized: true,
             deposit_nonce: 5,
+            chain_id: CHAIN_ID,
             deposit_messages: vec![],
         }
         .try_to_vec()

@@ -27,7 +27,7 @@ use crate::{
             derive_role_manager, verify_derived_address, verify_owner, verify_system_program,
         },
         constants::{
-            DEPOSIT_BUFFER_PREFIX, EXECUTION_MESSAGE_BUFFER_PREFIX,
+            CHAIN_ID,DEPOSIT_BUFFER_PREFIX, EXECUTION_MESSAGE_BUFFER_PREFIX,
             FORCED_WITHDRAWAL_BUFFER_PREFIX, LAYER_ZERO_BUFFER_PREFIX,
         },
     },
@@ -114,6 +114,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     let deposit_buffer_data = DepositMessagesBuffer {
         is_initialized: true,
         deposit_nonce: 0,
+        chain_id: CHAIN_ID,
         deposit_messages: Vec::new(),
     };
 

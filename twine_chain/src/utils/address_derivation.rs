@@ -29,6 +29,36 @@ pub fn derive_twine_chain_storage(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[TWINE_CHAIN_STORAGE_PREFIX.as_bytes()], program_id)
 }
 
+pub fn derive_deposit_messages_replicator(
+    program_id: &Pubkey,
+    start_nonce: u64,
+    end_nonce: u64,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            DEPOSIT_MEESSAGES_REPLICATOR_PREFIX.as_bytes(),
+            &start_nonce.to_be_bytes(),
+            &end_nonce.to_be_bytes(),
+        ],
+        program_id,
+    )
+}
+
+pub fn derive_forced_withdraw_messages_replicator(
+    program_id: &Pubkey,
+    start_nonce: u64,
+    end_nonce: u64,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            FORCED_WITHDRAWAL_MEESSAGES_REPLICATOR_PREFIX.as_bytes(),
+            &start_nonce.to_be_bytes(),
+            &end_nonce.to_be_bytes(),
+        ],
+        program_id,
+    )
+}
+
 pub fn derive_commitment_pda(
     program_id: &Pubkey,
     start_block: u64,

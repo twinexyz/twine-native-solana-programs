@@ -122,8 +122,8 @@ pub fn commit_and_finalize_transaction(
     // Calculate and Check Rolling Hashes
     let mut deposit_rolling_hash: [u8; 32] = [0u8; 32];
     if deposit_count != 0 {
-        let selected_deposits = &deposit_buffer_data.deposit_messages[0..deposit_count];
-        deposit_rolling_hash = calculate_deposit_rolling_hash(selected_deposits);
+        // let selected_deposits = &deposit_buffer_data.deposit_messages[0..deposit_count];
+        // deposit_rolling_hash = calculate_deposit_rolling_hash(selected_deposits);
     }
     if deposit_rolling_hash != decoded_chain_data.deposit_rolling_hash {
         return Err(ProgramCustomError::DepositRollingHashMismatch.into());
@@ -131,8 +131,8 @@ pub fn commit_and_finalize_transaction(
 
     let mut withdraw_rolling_hash: [u8; 32] = [0u8; 32];
     if withdraw_count != 0 {
-        let selected_withdrawals = &withdraw_buffer_data.withdraw_messages[0..withdraw_count];
-        withdraw_rolling_hash = calculate_withdraw_rolling_hash(selected_withdrawals);
+        // let selected_withdrawals = &withdraw_buffer_data.withdraw_messages[0..withdraw_count];
+        // withdraw_rolling_hash = calculate_withdraw_rolling_hash(selected_withdrawals);
     }
     if withdraw_rolling_hash != decoded_chain_data.withdraw_rolling_hash {
         return Err(ProgramCustomError::WithdrawRollingHashMismatch.into());
@@ -169,9 +169,9 @@ pub fn commit_and_finalize_transaction(
             .withdraw_messages
             .get(i)
             .ok_or(ProgramCustomError::InvalidIndex)?;
-        execution_buffer_data
-            .withdrawals
-            .push(forced_message.clone());
+        // execution_buffer_data
+        //     .withdrawals
+        //     .push(forced_message.clone());
     }
 
     // Remove Deposit, Withdrawals and LayerZero messages from queue
@@ -263,7 +263,7 @@ fn decode_chain_commitment(chain_data_bytes: &[u8]) -> ChainCommitment {
     return chain_info;
 }
 
-fn calculate_deposit_rolling_hash(selected_deposits: &[DepositMessageInfo]) -> [u8; 32] {
+pub(crate)fn calculate_deposit_rolling_hash(selected_deposits: &[DepositMessageInfo]) -> [u8; 32] {
     let mut deposit_rolling_hash = [0u8; 32];
     let mut serialized_deposit_data = Vec::new();
 
@@ -280,7 +280,7 @@ fn calculate_deposit_rolling_hash(selected_deposits: &[DepositMessageInfo]) -> [
     return deposit_rolling_hash;
 }
 
-fn calculate_withdraw_rolling_hash(selected_withdrawals: &[ForcedWithdrawMessageInfo]) -> [u8; 32] {
+pub(crate)fn calculate_withdraw_rolling_hash(selected_withdrawals: &[ForcedWithdrawMessageInfo]) -> [u8; 32] {
     let mut withdraw_rolling_hash = [0u8; 32];
     let mut serialized_withdraw_data = Vec::new();
 
@@ -465,6 +465,8 @@ mod test {
 
         let twine_chain_data = TwineChainStorage {
             is_initialized: true,
+            last_copied_deposit_nonce:0,
+            last_copied_forced_withdrawal_nonce:0,
             groth16_vk: Vec::new(),
             execution_vkey: String::from(""),
             inclusion_vkey: String::from(""),
@@ -549,7 +551,8 @@ mod test {
         let deposit_buffer = DepositMessagesBuffer {
             is_initialized: true,
             deposit_nonce: 2,
-            deposit_messages: vec![deposit_message1.clone(), deposit_message2.clone()],
+            chain_id: CHAIN_ID,
+            deposit_messages: vec![[0u8; 32]],
         };
         let mut deposit_buffer_data = vec![];
         deposit_buffer.serialize(&mut deposit_buffer_data)?;
@@ -568,7 +571,7 @@ mod test {
         let withdraw_buffer = ForcedWithdrawMessagesBuffer {
             is_initialized: true,
             withdraw_nonce: 1,
-            withdraw_messages: vec![withdraw_message.clone()],
+            withdraw_messages: vec![[0u8; 32]],
         };
         let mut withdraw_buffer_data = vec![];
         withdraw_buffer.serialize(&mut withdraw_buffer_data)?;

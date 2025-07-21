@@ -24,18 +24,35 @@ pub enum RoleType {
  * Message Buffers *
  *******************/
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub struct DepositMessagesBuffer {
     pub is_initialized: bool,
     pub deposit_nonce: u64,
-    pub deposit_messages: Vec<DepositMessageInfo>,
+    pub chain_id: u64,
+    pub deposit_messages: Vec<[u8; 32]>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub struct DepositMessagesReplicator {
+    pub is_initialized: bool,
+    pub start_nonce: u64,
+    pub end_nonce: u64,
+    pub deposit_messages: Vec<[u8; 32]>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct ForcedWithdrawMessagesBuffer {
     pub is_initialized: bool,
     pub withdraw_nonce: u64,
-    pub withdraw_messages: Vec<ForcedWithdrawMessageInfo>,
+    pub withdraw_messages: Vec<[u8; 32]>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub struct ForcedWithdrawMessagesReplicator {
+    pub is_initialized: bool,
+    pub start_nonce: u64,
+    pub end_nonce: u64,
+    pub withdraw_messages: Vec<[u8; 32]>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -58,6 +75,8 @@ pub struct ExecutionMessageBuffer {
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TwineChainStorage {
     pub is_initialized: bool,
+    pub last_copied_deposit_nonce: u64,
+    pub last_copied_forced_withdrawal_nonce: u64,
     pub groth16_vk: Vec<u8>,
     pub execution_vkey: String,
     pub inclusion_vkey: String,
@@ -91,7 +110,7 @@ pub struct DepositMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
-    pub data :  String
+    pub data: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]

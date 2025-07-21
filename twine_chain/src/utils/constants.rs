@@ -1,9 +1,13 @@
-pub const CHAIN_ID: usize = 900;
+pub const CHAIN_ID: u64 = 900;
+pub const MESSAGE_NONCE_GAP: u64 = 50;
+pub const MAX_MESSAGE_NONCE: usize = 50;
 pub const MAX_ROLES: usize = 50;
 pub const DISCRIMINATOR: usize = 8;
 pub const MAX_QUEUE_SIZE: usize = 45;
 pub const NATIVE_DATA_PREFIX: &str = "native_data";
 pub const COMMITMENT_PDA_PREFIX: &str = "twine_batch";
+pub const DEPOSIT_MEESSAGES_REPLICATOR_PREFIX: &str = "deposit_messages_replicator_prefix";
+pub const FORCED_WITHDRAWAL_MEESSAGES_REPLICATOR_PREFIX: &str = "forced_withdrawal_messages_replicator_prefix";
 pub const ROLE_MANAGER_PREFIX: &str = "role_manager_storage";
 pub const TWINE_CHAIN_STORAGE_PREFIX: &str = "twine_chain_storage";
 pub const DEPOSIT_BUFFER_PREFIX: &str = "deposit_messages_buffer";

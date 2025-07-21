@@ -19,15 +19,12 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_role_manager, 
-            derive_twine_chain_storage, 
-            verify_derived_address,
+            derive_role_manager, derive_twine_chain_storage, verify_derived_address,
             verify_system_program,
         },
         constants::TWINE_CHAIN_STORAGE_PREFIX,
     },
 };
-
 
 pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_iter = &mut accounts.iter();
@@ -80,6 +77,8 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
 
     let twine_chain_storage_data = TwineChainStorage {
         is_initialized: true,
+        last_copied_deposit_nonce: 0,
+        last_copied_forced_withdrawal_nonce: 0,
         groth16_vk: Vec::new(),
         execution_vkey: String::from(""),
         inclusion_vkey: String::from(""),

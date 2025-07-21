@@ -287,6 +287,8 @@ mod test {
 
         let twine_chain_data = TwineChainStorage {
             is_initialized: true,
+            last_copied_deposit_nonce: 0,
+            last_copied_forced_withdrawal_nonce: 0,
             groth16_vk: Vec::new(),
             execution_vkey: String::from(""),
             inclusion_vkey: String::from(""),

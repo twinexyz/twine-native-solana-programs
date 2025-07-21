@@ -280,9 +280,9 @@ fn validate_accounts(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::state::{
+    use crate::{core::state::{
         SplTokensVaultData, TokenDecimalMappingData, TokenDecimalMappings, TokenDepositData,
-    };
+    }, utils::constants::CHAIN_ID};
     use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
     use spl_token::state::Account as TokenAccount;
     use twine_chain::core::state::DepositMessagesBuffer;
@@ -325,7 +325,7 @@ mod tests {
         data
     }
     #[test]
-    fn test_spl_token_withdrawal_success() {
+    fn test_spl_token_deposit_success() {
         let program_id = Pubkey::new_unique();
         let system_program_id = system_program::id();
 
@@ -370,6 +370,7 @@ mod tests {
         let mut deposit_buffer_data = DepositMessagesBuffer {
             is_initialized: true,
             deposit_nonce: 5,
+            chain_id: CHAIN_ID,
             deposit_messages: vec![],
         }
         .try_to_vec()

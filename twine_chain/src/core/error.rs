@@ -54,6 +54,10 @@ pub enum ProgramCustomError {
     #[error("Finalization should be done in sequence")]
     InvalidBlockFinalizationSequence,
     #[error("Blocks must be comitted in sequential order")]
+    InvalidStartNonce,
+    #[error("Messages must be copied in sequential order")]
+    InvalidNonceGap,
+    #[error("Copied Nonce must have required gap")]
     InvalidBlockCommitmentSequence,
     #[error("The provided account did not sign the transaction.")]
     InvalidSigner,

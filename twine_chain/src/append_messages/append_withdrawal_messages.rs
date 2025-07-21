@@ -19,6 +19,7 @@ use crate::{
     utils::address_derivation::{
         derive_forced_withdraw_message_buffer, derive_role_manager, verify_derived_address,
     },
+    commit_finalize::commit_and_finalize_txn::calculate_withdraw_rolling_hash
 };
 
 pub fn append_forced_withdrawal_message(
@@ -64,7 +65,7 @@ pub fn append_forced_withdrawal_message(
     }
 
     // Update Withdrawals
-    withdrawals.withdraw_messages.push(withdraw_info.clone());
+    withdrawals.withdraw_messages.push(calculate_withdraw_rolling_hash(&[withdraw_info.clone()]));
     withdrawals.withdraw_nonce += 1;
 
     withdrawals
