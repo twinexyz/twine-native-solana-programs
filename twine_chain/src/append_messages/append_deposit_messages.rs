@@ -47,7 +47,7 @@ pub fn append_deposit_message(
     }
 
     // Update Deposits
-    // deposits.messages.push(&deposit_info.abi_encode_packed());
+    deposits.messages.push(deposit_info.calculate_rolling_hash());
     deposits.message_nonce += 1;
 
     deposits

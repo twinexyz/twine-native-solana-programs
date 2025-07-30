@@ -30,7 +30,7 @@ use crate::{
         state::{SignMessageInfo, TokenDecimalMappings},
     },
     utils::{
-        constants::{CHAIN_ID, SPL_TOKENS_VAULT_DATA_PREFIX},
+        constants::{CHAIN_ID, SPL_TOKENS_VAULT_DATA_PREFIX,FORCED_WITHDRAW_TRANSACTION},
         ethereum_checks::is_valid_ethereum_address,
     },
 };
@@ -122,6 +122,7 @@ pub fn forced_spl_token_withdrawal(
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount.to_string(),
+        txn_type:FORCED_WITHDRAW_TRANSACTION.to_string()
     };
     let sign_info = SignMessageInfo {
         nonce: u64_nonce,

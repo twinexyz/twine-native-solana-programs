@@ -134,42 +134,6 @@ pub fn finalize_native_withdrawal(
                 &receiver_acc,
                 actual_amount,
             )?;
-
-            let payload = TwineChainInstruction::RemoveWithdrawalMessage {
-                nonce: withdrawal_inputs.public_input.nonce,
-            };
-
-            let mut remove_message_instruction_data = vec![];
-            remove_message_instruction_data.extend(payload.try_to_vec().unwrap());
-
-            let remove_message_instruction_accounts = vec![
-                AccountMeta::new(*execution_message_buffer_acc.key, false),
-                AccountMeta::new_readonly(*role_manager.key, false),
-                AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
-            ];
-
-            let remove_message_instruction = Instruction {
-                program_id: *twine_chain_program.key,
-                accounts: remove_message_instruction_accounts,
-                data: remove_message_instruction_data,
-            };
-
-            let (_, native_data_bump) = derive_native_token_vault_data(&program_id);
-            let seeds = &[
-                NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes(),
-                &[native_data_bump],
-            ];
-            let signer_seeds = &[&seeds[..]];
-
-            invoke_signed(
-                &remove_message_instruction,
-                &[
-                    execution_message_buffer_acc.clone(),
-                    role_manager.clone(),
-                    native_token_vault_data_acc.clone(),
-                ],
-                signer_seeds,
-            )?;
         }
     } else {
         let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::try_from_slice(

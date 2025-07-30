@@ -55,7 +55,7 @@ pub fn finalize_batch(
     )?;
 
     // Checking if batch is filled
-    let mut current_batch_data =
+    let current_batch_data =
         BatchPdaAccount::deserialize(&mut &current_batch_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 

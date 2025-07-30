@@ -2,7 +2,7 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 
 use crate::{
     append_messages::{
-        append_deposit_messages, append_withdrawal_messages, remove_withdrawal_message,
+        append_deposit_messages, append_withdrawal_messages,
     },
     commit_finalize::{commit_batch, finalize_batch},
     core::instruction::TwineChainInstruction,
@@ -70,10 +70,6 @@ pub fn process_instruction(
                 accounts,
                 genesis_block_hash,
             )
-        }
-
-        TwineChainInstruction::RemoveWithdrawalMessage { nonce } => {
-            remove_withdrawal_message::remove_withdrawal_message(program_id, accounts, nonce)
         }
 
         TwineChainInstruction::CommitBatch {

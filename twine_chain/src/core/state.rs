@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use sha3::{Digest, Keccak256};
 use solana_program::{program_pack::IsInitialized, pubkey::Pubkey};
 /****************
  * Role Manager *
@@ -40,8 +41,6 @@ pub struct MessagesReplicator {
     pub messages: Vec<[u8; 32]>,
 }
 
-
-
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct LayerZeroMessagesBuffer {
     pub is_initialized: bool,
@@ -64,16 +63,16 @@ pub struct TwineChainStorage {
     pub is_initialized: bool,
     pub last_copied_deposit_nonce: u64,
     pub last_copied_forced_withdrawal_nonce: u64,
-    pub total_msg_handled_on_twine:u64, 
-    pub last_committed_batch_number:u64,
-    pub last_finalized_batch_number:u64,
+    pub total_msg_handled_on_twine: u64,
+    pub last_committed_batch_number: u64,
+    pub last_finalized_batch_number: u64,
     pub groth16_vk: Vec<u8>,
     pub execution_vkey: String,
     pub inclusion_vkey: String,
     pub withdrawal_vkey: String,
     pub skip_verification: bool,
     pub last_committed_batch_hash: [u8; 32],
-    pub last_finalized_batch_hash:[u8; 32],
+    pub last_finalized_batch_hash: [u8; 32],
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -97,6 +96,7 @@ pub struct DepositMessageInfo {
     pub l2_token: String,
     pub amount: String,
     pub data: String,
+    pub txn_type:String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -109,6 +109,7 @@ pub struct ForcedWithdrawMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
+    pub txn_type:String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -119,7 +120,6 @@ pub struct LayerZeroMessageInfo {
 /*****************************
  * Data Storage Informations *
  *****************************/
-
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct ChainCommitment {
@@ -154,8 +154,20 @@ impl DepositMessageInfo {
         encoded.extend(self.l1_token.as_bytes());
         encoded.extend(self.l2_token.as_bytes());
         encoded.extend(self.amount.as_bytes());
+        encoded.extend(self.data.as_bytes());
+        encoded.extend(self.txn_type.as_bytes());
 
         encoded
+    }
+
+    pub fn calculate_rolling_hash(&self) -> [u8; 32] {
+        let mut serialized = Vec::new();
+        serialized.extend_from_slice(&self.abi_encode_packed());
+
+        let hash = Keccak256::digest(&serialized);
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hash[..32]);
+        result
     }
 }
 
@@ -171,8 +183,18 @@ impl ForcedWithdrawMessageInfo {
         encoded.extend(self.l1_token.as_bytes());
         encoded.extend(self.l2_token.as_bytes());
         encoded.extend(self.amount.as_bytes());
+        encoded.extend(self.txn_type.as_bytes());
 
         encoded
+    }
+    pub fn calculate_rolling_hash(&self) -> [u8; 32] {
+        let mut serialized = Vec::new();
+        serialized.extend_from_slice(&self.abi_encode_packed());
+
+        let hash = Keccak256::digest(&serialized);
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hash[..32]);
+        result
     }
 }
 
@@ -224,7 +246,7 @@ impl ForcedWithdrawMessageInfo {
 }
 
 impl BatchPdaAccount {
-    pub const LEN: usize = 1+ 32; 
+    pub const LEN: usize = 1 + 32;
 }
 
 /******************************************************

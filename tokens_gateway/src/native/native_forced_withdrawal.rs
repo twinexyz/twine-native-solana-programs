@@ -28,7 +28,7 @@ use crate::{
     },
     utils::{
         address_derivation::derive_native_token_vault_data,
-        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX},
+        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX,FORCED_WITHDRAW_TRANSACTION},
         ethereum_checks::is_valid_ethereum_address,
     },
 };
@@ -124,6 +124,7 @@ pub fn forced_native_token_withdrawal(
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount.to_string(),
+        txn_type:FORCED_WITHDRAW_TRANSACTION.to_string()
     };
 
     let sign_info = SignMessageInfo {

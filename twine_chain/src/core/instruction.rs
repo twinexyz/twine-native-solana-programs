@@ -40,9 +40,6 @@ pub enum TwineChainInstruction {
     InitializeGenesisBatch {
         genesis_block_hash: [u8; 32],
     },
-    RemoveWithdrawalMessage {
-        nonce: u64,
-    },
     CommitBatch {
         batch_number: u64,
         batch_hash: [u8; 32],
@@ -84,11 +81,6 @@ struct AppendForcedWithdrawalMessage {
 #[derive(BorshDeserialize)]
 struct InitializeGenesisBatchPayload {
     genesis_block_hash: [u8; 32],
-}
-
-#[derive(BorshDeserialize)]
-struct RemoveWithdrawalMessagePayload {
-    nonce: u64,
 }
 
 #[derive(BorshDeserialize)]
@@ -349,13 +341,6 @@ impl TwineChainInstruction {
                 })
             }
             8 => {
-                let payload = RemoveWithdrawalMessagePayload::try_from_slice(rest)
-                    .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::RemoveWithdrawalMessage {
-                    nonce: payload.nonce,
-                })
-            }
-            9 => {
                 let payload = CommitBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::CommitBatch {
@@ -363,7 +348,7 @@ impl TwineChainInstruction {
                     batch_hash: payload.batch_hash,
                 })
             }
-            10 => {
+            9 => {
                 let payload = FinalizeBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::FinalizeBatch {
@@ -372,7 +357,7 @@ impl TwineChainInstruction {
                     execution_proof: payload.execution_proof,
                 })
             }
-            11 => {
+            10 => {
                 let payload = AddRoleInTwineChainPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::AddRoleInTwineChain {

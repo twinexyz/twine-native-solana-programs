@@ -20,7 +20,7 @@ use twine_chain::{
         instruction::TwineChainInstruction,
         state::{DepositMessageInfo, MessagesBuffer},
     },
-    utils::constants::MESSAGES_BUFFER_PREFIX,
+    utils::constants::{MESSAGES_BUFFER_PREFIX,FORCED_WITHDRAW_MESSAGE_TYPE},
     ID as twine_chain_program_id,
 };
 
@@ -29,7 +29,7 @@ use crate::{
         error::ProgramCustomError,
         state::{SplTokensVaultData, TokenDecimalMappings},
     },
-    utils::{constants::SPL_TOKENS_VAULT_DATA_PREFIX, ethereum_checks::is_valid_ethereum_address},
+    utils::{constants::{SPL_TOKENS_VAULT_DATA_PREFIX,DEPOSIT_TRANSACTION}, ethereum_checks::is_valid_ethereum_address},
 };
 
 pub fn spl_token_deposit(
@@ -160,6 +160,7 @@ pub fn spl_token_deposit(
         l2_token: l2_token,
         amount: l2_amount,
         data: data,
+        txn_type:DEPOSIT_TRANSACTION.to_string(),
     };
 
     let payload = TwineChainInstruction::AppendDepositMessage {

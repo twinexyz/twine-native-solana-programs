@@ -59,11 +59,11 @@ pub fn append_forced_withdrawal_message(
     if !withdrawals.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());
     }
-
     // Update Withdrawals
-    // withdrawals
-    //     .messages
-    //     .push(calculate_withdraw_rolling_hash(&[withdraw_info.clone()]));
+    withdrawals
+        .messages
+        .push(withdraw_info.calculate_rolling_hash());
+    
     withdrawals.message_nonce += 1;
 
     withdrawals
