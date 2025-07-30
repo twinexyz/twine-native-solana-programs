@@ -19,9 +19,9 @@ use tokens_gateway::{
     },
 };
 use twine_chain::{
-    core::{instruction as twine_chain_instruction, state::{RoleType,ForcedWithdrawMessagesBuffer}},
+    core::{instruction as twine_chain_instruction, state::{RoleType,MessagesBuffer}},
     id as twine_chain_id,
-    utils::address_derivation::derive_forced_withdraw_message_buffer,
+    utils::address_derivation::derive_messages_buffer,
 };
 
 #[tokio::test]
@@ -106,16 +106,16 @@ async fn native_forced_withdrawal_succeed() {
     println!("Transaction status: {:?}", error);
     let forced_withdraw_message_buffer_account = context
         .banks_client
-        .get_account(derive_forced_withdraw_message_buffer(&twine_chain_id()).0)
+        .get_account(derive_messages_buffer(&twine_chain_id()).0)
         .await
         .unwrap()
         .expect("Forced Message Buffer Not Found");
 
-      let forced_withdraw_message_buffer_data: ForcedWithdrawMessagesBuffer =
-        ForcedWithdrawMessagesBuffer::deserialize(&mut &forced_withdraw_message_buffer_account.data[..])
+      let forced_withdraw_message_buffer_data: MessagesBuffer =
+        MessagesBuffer::deserialize(&mut &forced_withdraw_message_buffer_account.data[..])
             .expect("Failed to deserialize Native Token Vault Data");
       assert!(
-    forced_withdraw_message_buffer_data.withdraw_nonce == 1,
+    forced_withdraw_message_buffer_data.message_nonce == 1,
     "Forced Withdrawal Not successful"
 
       )

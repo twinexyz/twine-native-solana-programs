@@ -52,7 +52,7 @@ pub enum ProgramCustomError {
     #[error("Commitment of Empty Batch not allowed")]
     EmptyBatchCommitment,
     #[error("Finalization should be done in sequence")]
-    InvalidBlockFinalizationSequence,
+    InvalidBatchFinalizationSequence,
     #[error("Blocks must be comitted in sequential order")]
     InvalidStartNonce,
     #[error("Messages must be copied in sequential order")]

@@ -15,9 +15,9 @@ use solana_program::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{DepositMessageInfo, DepositMessagesBuffer},
+        state::{DepositMessageInfo, MessagesBuffer},
     },
-    utils::constants::DEPOSIT_BUFFER_PREFIX,
+    utils::constants::MESSAGES_BUFFER_PREFIX,
     ID as twine_chain_program_id,
 };
 
@@ -56,7 +56,7 @@ pub fn native_token_deposit(
     let user_account = next_account_info(account_info_iter)?;
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
-    let deposit_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let messages_buffer_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let twine_chain_role_manager_acc = next_account_info(account_info_iter)?; 
     let system_program = next_account_info(account_info_iter)?;
@@ -114,17 +114,17 @@ pub fn native_token_deposit(
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
     let (expected_deposit_pda, _) =
-        Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], &twine_chain_program_id);
+        Pubkey::find_program_address(&[MESSAGES_BUFFER_PREFIX.as_bytes()], &twine_chain_program_id);
 
-    if expected_deposit_pda != *deposit_messages_buffer_acc.key {
+    if expected_deposit_pda != *messages_buffer_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
 
     let deposit_message_buffer =
-        DepositMessagesBuffer::deserialize(&mut &deposit_messages_buffer_acc.data.borrow()[..])
+        MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let u64_nonce = deposit_message_buffer.deposit_nonce + 1;
+    let u64_nonce = deposit_message_buffer.message_nonce + 1;
 
     let clock = Clock::get()?;
 
@@ -149,7 +149,7 @@ pub fn native_token_deposit(
     append_instruction_data.extend(payload.try_to_vec().unwrap());
 
     let append_instruction_accounts = vec![
-        AccountMeta::new(*deposit_messages_buffer_acc.key, false),
+        AccountMeta::new(*messages_buffer_acc.key, false),
         AccountMeta::new(*twine_chain_role_manager_acc.key, false),
         AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
     ];
@@ -173,7 +173,7 @@ pub fn native_token_deposit(
     invoke_signed(
         &append_instruction,
         &[
-            deposit_messages_buffer_acc.clone(),
+            messages_buffer_acc.clone(),
             twine_chain_role_manager_acc.clone(),
             native_token_vault_data_acc.clone(),
             twine_chain_program.clone(),
@@ -277,7 +277,7 @@ mod tests {
         let (native_token_vault_data_key, _) =
             Pubkey::find_program_address(&[NATIVE_TOKEN_VAULT_DATA_PREFIX.as_bytes()], &program_id);
         let (deposit_buffer_key, _) =
-            Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], &program_id);
+            Pubkey::find_program_address(&[MESSAGES_BUFFER_PREFIX.as_bytes()], &program_id);
         let token_decimal_mappings_key = Pubkey::new_unique();
         let role_manager_key = Pubkey::new_unique();
         let twine_chain_id = Pubkey::new_unique();
@@ -301,11 +301,11 @@ mod tests {
         .try_to_vec()
         .unwrap();
 
-        let mut deposit_buffer_data = DepositMessagesBuffer {
+        let mut deposit_buffer_data = MessagesBuffer {
             is_initialized: true,
-            deposit_nonce: 5,
+            message_nonce: 5,
             chain_id: CHAIN_ID,
-            deposit_messages: vec![],
+            messages: vec![],
         }
         .try_to_vec()
         .unwrap();

@@ -25,35 +25,22 @@ pub enum RoleType {
  *******************/
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
-pub struct DepositMessagesBuffer {
+pub struct MessagesBuffer {
     pub is_initialized: bool,
-    pub deposit_nonce: u64,
+    pub message_nonce: u64,
     pub chain_id: u64,
-    pub deposit_messages: Vec<[u8; 32]>,
+    pub messages: Vec<[u8; 32]>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
-pub struct DepositMessagesReplicator {
+pub struct MessagesReplicator {
     pub is_initialized: bool,
     pub start_nonce: u64,
     pub end_nonce: u64,
-    pub deposit_messages: Vec<[u8; 32]>,
+    pub messages: Vec<[u8; 32]>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct ForcedWithdrawMessagesBuffer {
-    pub is_initialized: bool,
-    pub withdraw_nonce: u64,
-    pub withdraw_messages: Vec<[u8; 32]>,
-}
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
-pub struct ForcedWithdrawMessagesReplicator {
-    pub is_initialized: bool,
-    pub start_nonce: u64,
-    pub end_nonce: u64,
-    pub withdraw_messages: Vec<[u8; 32]>,
-}
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct LayerZeroMessagesBuffer {
@@ -77,23 +64,22 @@ pub struct TwineChainStorage {
     pub is_initialized: bool,
     pub last_copied_deposit_nonce: u64,
     pub last_copied_forced_withdrawal_nonce: u64,
+    pub total_msg_handled_on_twine:u64, 
+    pub last_committed_batch_number:u64,
+    pub last_finalized_batch_number:u64,
     pub groth16_vk: Vec<u8>,
     pub execution_vkey: String,
     pub inclusion_vkey: String,
     pub withdrawal_vkey: String,
     pub skip_verification: bool,
-    pub last_finalized_batch: BatchInfo,
-    pub last_committed_batch: BatchInfo,
-    pub last_transaction_finalized_batch: BatchInfo,
-    pub last_finalized_receipt_root: [u8; 32],
+    pub last_committed_batch_hash: [u8; 32],
+    pub last_finalized_batch_hash:[u8; 32],
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct BatchPdaAccount {
     pub is_initialized: bool,
-    pub infos: Vec<BlockInfo>,
-    pub verified: bool,
-    pub is_full: bool,
+    pub batch_hash: [u8; 32],
 }
 
 /*******************************
@@ -134,19 +120,6 @@ pub struct LayerZeroMessageInfo {
  * Data Storage Informations *
  *****************************/
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct BatchInfo {
-    pub start_block: u64,
-    pub end_block: u64,
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct BlockInfo {
-    pub previous_hash: [u8; 32],
-    pub block_hash: [u8; 32],
-    pub transaction_root: [u8; 32],
-    pub receipt_root: [u8; 32],
-}
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct ChainCommitment {
@@ -169,18 +142,6 @@ pub struct CommitBatchInfo {
 /********************************
  * Implementations for encoding *
  ********************************/
-impl BlockInfo {
-    pub fn abi_encode_packed(&self) -> Vec<u8> {
-        let mut encoded: Vec<u8> = Vec::with_capacity(BlockInfo::LEN);
-
-        encoded.extend(self.previous_hash);
-        encoded.extend(self.block_hash);
-        encoded.extend(self.transaction_root);
-        encoded.extend(self.receipt_root);
-
-        encoded
-    }
-}
 
 impl DepositMessageInfo {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
@@ -262,11 +223,8 @@ impl ForcedWithdrawMessageInfo {
                   //Total: 250 bytes
 }
 
-impl BlockInfo {
-    pub const LEN: usize = 32   //prev_hash(32)
-    + 32    //block_hash(32)    
-    + 32    //transaction_root(32)
-    + 32; //receipt_root(32)
+impl BatchPdaAccount {
+    pub const LEN: usize = 1+ 32; 
 }
 
 /******************************************************
@@ -278,16 +236,12 @@ impl IsInitialized for TwineChainRoleManager {
         self.is_initialized
     }
 }
-impl IsInitialized for DepositMessagesBuffer {
+impl IsInitialized for MessagesBuffer {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
-impl IsInitialized for ForcedWithdrawMessagesBuffer {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
+
 impl IsInitialized for LayerZeroMessagesBuffer {
     fn is_initialized(&self) -> bool {
         self.is_initialized

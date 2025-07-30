@@ -16,7 +16,7 @@ use std::str::FromStr;
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ForcedWithdrawMessageInfo, ForcedWithdrawMessagesBuffer},
+        state::{ForcedWithdrawMessageInfo,MessagesBuffer},
     },
     ID as twine_chain_program_id,
 };
@@ -104,12 +104,12 @@ pub fn forced_spl_token_withdrawal(
     )
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
-    let forced_withdrawal_messages_buffer = ForcedWithdrawMessagesBuffer::deserialize(
+    let forced_withdrawal_messages_buffer = MessagesBuffer::deserialize(
         &mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..],
     )
     .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let u64_nonce = forced_withdrawal_messages_buffer.withdraw_nonce + 1;
+    let u64_nonce = forced_withdrawal_messages_buffer.message_nonce + 1;
 
     let clock = Clock::get()?;
 
@@ -255,7 +255,7 @@ mod tests {
     use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
     use spl_token::ID as TOKEN_PROGRAM_ID;
     use std::str::FromStr;
-    use twine_chain::core::state::ForcedWithdrawMessagesBuffer;
+    use twine_chain::core::state::MessagesBuffer;
 
     fn create_test_account<'a>(
         key: &'a Pubkey,
@@ -303,10 +303,11 @@ mod tests {
         };
         let mut token_mappings_serialized = token_mappings.try_to_vec().unwrap();
 
-        let forced_withdrawal_buffer = ForcedWithdrawMessagesBuffer {
+        let forced_withdrawal_buffer = MessagesBuffer {
             is_initialized: true,
-            withdraw_nonce: 5,
-            withdraw_messages: Vec::new(),
+            message_nonce: 5,
+            messages: Vec::new(),
+            chain_id: todo!(),
         };
         let mut forced_withdrawal_buffer_serialized =
             forced_withdrawal_buffer.try_to_vec().unwrap();

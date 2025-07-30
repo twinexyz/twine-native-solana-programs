@@ -20,10 +20,10 @@ use tokens_gateway::{
 use twine_chain::{
     core::{
         instruction as twine_chain_instruction,
-        state::{DepositMessagesBuffer, RoleType},
+        state::{MessagesBuffer, RoleType},
     },
     id as twine_chain_id,
-    utils::address_derivation::derive_deposit_message_buffer,
+    utils::address_derivation::derive_messages_buffer,
 };
 
 #[tokio::test]
@@ -97,15 +97,15 @@ async fn native_token_deposit_succeed() {
     println!("Transaction status: {:?}", error);
     let deposit_message_buffer_account = context
         .banks_client
-        .get_account(derive_deposit_message_buffer(&twine_chain_id()).0)
+        .get_account(derive_messages_buffer(&twine_chain_id()).0)
         .await
         .unwrap()
         .expect("Deposit Message Account Not Found");
-    let deposit_message_buffer_data: DepositMessagesBuffer =
-        DepositMessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
+    let deposit_message_buffer_data: MessagesBuffer =
+        MessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
             .expect("Failed to deserialize Deposit Message Buffer Data");
     assert!(
-        deposit_message_buffer_data.deposit_nonce == 1,
+        deposit_message_buffer_data.message_nonce == 1,
         "Deposit not successfull"
     );
 }

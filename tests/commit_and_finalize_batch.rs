@@ -9,7 +9,7 @@ mod helpers;
 use twine_chain::{
     core::{
         instruction::{self},
-        state::{BatchPdaAccount, BlockInfo, CommitBatchInfo, TwineChainStorage},
+        state::{BatchPdaAccount, TwineChainStorage},
     },
     id,
     utils::address_derivation::{derive_commitment_pda, derive_twine_chain_storage},
@@ -18,7 +18,6 @@ use twine_chain::{
 use helpers::twine_chain_helper::{
     fund_account_for_rent_exemption, program_test, TwineChainAccounts,
 };
-
 
 #[tokio::test]
 async fn commit_batch_test() {
@@ -29,7 +28,7 @@ async fn commit_batch_test() {
         &mut context,
         &payer,
         &accounts.chain_admin.pubkey(),
-        BlockInfo::LEN,
+        BatchPdaAccount::LEN,
         1_000_000_000,
     )
     .await;
@@ -54,37 +53,13 @@ async fn commit_batch_test() {
     ));
 
     // 4. Commit a Batch
-    let start_block = 1;
-    let end_block = 3;
-
-    let first_block = CommitBatchInfo {
-        block_number: 1,
-        block_hash: [2u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [1u8; 32],
-    };
-
-    let second_block = CommitBatchInfo {
-        block_number: 2,
-        block_hash: [3u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [2u8; 32],
-    };
-
-    let third_block = CommitBatchInfo {
-        block_number: 3,
-        block_hash: [4u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [3u8; 32],
-    };
-
-    let batch_data = vec![first_block, second_block, third_block];
+    let batch_number = 1;
+    let batch_hash = [2u8; 32];
 
     instructions.extend(instruction::commit_batch(
         &accounts.chain_admin.pubkey(),
-        start_block,
-        end_block,
-        batch_data,
+        batch_number,
+        batch_hash,
     ));
 
     // Making the transaction:
@@ -100,7 +75,7 @@ async fn commit_batch_test() {
     // Getting accounts
     let current_batch_account = context
         .banks_client
-        .get_account(derive_commitment_pda(&id(), start_block, end_block).0)
+        .get_account(derive_commitment_pda(&id(), batch_number).0)
         .await
         .unwrap()
         .expect("Current batch account not found");
@@ -125,24 +100,9 @@ async fn commit_batch_test() {
         "Current batch should be initialized"
     );
 
-    assert!(current_batch_data.is_full, "is_full should be set to true");
-
     assert_eq!(
-        current_batch_data.infos.len(),
-        3,
-        "There should data for 3 blocks"
-    );
-
-    assert!(!current_batch_data.verified, "Batch should not be verified");
-
-    assert_eq!(
-        twine_chain_storage_data.last_committed_batch.start_block, 1,
+        twine_chain_storage_data.last_committed_batch_number, 1,
         "Last batch's start block should be 1"
-    );
-
-    assert_eq!(
-        twine_chain_storage_data.last_committed_batch.end_block, 3,
-        "Last batch's end block should be 3"
     );
 }
 
@@ -155,7 +115,7 @@ async fn finalize_batch_test() {
         &mut context,
         &payer,
         &accounts.chain_admin.pubkey(),
-        BlockInfo::LEN,
+        BatchPdaAccount::LEN,
         1_000_000_000,
     )
     .await;
@@ -174,87 +134,33 @@ async fn finalize_batch_test() {
     ));
 
     // 3. Initialize Genesis Batch
+    let genesis_block_hash = [0u8; 32];
     instructions.extend(instruction::initialize_genesis_batch(
         &accounts.chain_admin.pubkey(),
-        [0u8; 32],
+        genesis_block_hash,
     ));
 
-    // 4. Commit a Batch
-    let start_block = 1;
-    let end_block = 3;
-
-    let first_block = CommitBatchInfo {
-        block_number: 1,
-        block_hash: [1u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [1u8; 32],
-    };
-
-    let second_block = CommitBatchInfo {
-        block_number: 2,
-        block_hash: [2u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [2u8; 32],
-    };
-
-    let third_block = CommitBatchInfo {
-        block_number: 3,
-        block_hash: [3u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [3u8; 32],
-    };
-
-    let batch_data = vec![first_block, second_block, third_block];
+     // 4. Commit a Batch
+    let batch_number = 1;
+    let batch_hash = [5u8; 32];
 
     instructions.extend(instruction::commit_batch(
         &accounts.chain_admin.pubkey(),
-        start_block,
-        end_block,
-        batch_data,
+        batch_number,
+        batch_hash,
     ));
 
     // 5. Finalize a batch
-    let block1_info = BlockInfo {
-        previous_hash: [0u8; 32],
-        block_hash: [1u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [1u8; 32],
-    };
-    let block2_info = BlockInfo {
-        previous_hash: [1u8; 32],
-        block_hash: [2u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [2u8; 32],
-    };
-    let block3_info = BlockInfo {
-        previous_hash: [2u8; 32],
-        block_hash: [3u8; 32],
-        transaction_root: [0u8; 32],
-        receipt_root: [3u8; 32],
-    };
-    let batch_data = vec![block1_info, block2_info, block3_info];
+    let total_msg_handled_on_twine : u64 = 2;
 
-    let mut calculated_batch_hash = [0u8; 32];
-    let mut serialized_batch_hash: Vec<u8> = Vec::with_capacity(BlockInfo::LEN * batch_data.len());
-
-    for block in batch_data {
-        serialized_batch_hash.extend_from_slice(&block.abi_encode_packed());
-    }
-    let mut hasher = Keccak256::new();
-    hasher.update(serialized_batch_hash);
-
-    let encoded_batch_hash = hasher.finalize().to_vec();
-    calculated_batch_hash[..32].copy_from_slice(&encoded_batch_hash[..32]);
-
-    let mut public_values = Vec::with_capacity(48);
-    public_values.extend_from_slice(&start_block.to_be_bytes());
-    public_values.extend_from_slice(&end_block.to_be_bytes());
-    public_values.extend_from_slice(&calculated_batch_hash);
+    let mut public_values = Vec::with_capacity(72);
+    public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+    public_values.extend_from_slice(&genesis_block_hash);
+    public_values.extend_from_slice(&batch_hash);
 
     instructions.extend(instruction::finalize_batch(
         &accounts.chain_admin.pubkey(),
-        start_block,
-        end_block,
+        batch_number,
         public_values.clone(),
         public_values,
     ));
@@ -272,7 +178,7 @@ async fn finalize_batch_test() {
     // Getting accounts
     let current_batch_account = context
         .banks_client
-        .get_account(derive_commitment_pda(&id(), start_block, end_block).0)
+        .get_account(derive_commitment_pda(&id(), batch_number).0)
         .await
         .unwrap()
         .expect("Current batch account not found");
@@ -291,16 +197,9 @@ async fn finalize_batch_test() {
         TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
             .expect("Failed to deserialize RoleManager");
 
-    // Checking for correct commitment
-    assert!(current_batch_data.verified, "Batch should be verified");
-
     assert_eq!(
-        twine_chain_storage_data.last_finalized_batch.start_block, 1,
+        twine_chain_storage_data.last_finalized_batch_number, 1,
         "Last batch's start block should be 1"
     );
 
-    assert_eq!(
-        twine_chain_storage_data.last_finalized_batch.end_block, 3,
-        "Last batch's end block should be 3"
-    );
 }

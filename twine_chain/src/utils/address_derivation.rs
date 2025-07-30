@@ -5,14 +5,9 @@ use solana_program::{
 
 use crate::{core::error::ProgramCustomError, utils::constants::*};
 
-pub fn derive_deposit_message_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[DEPOSIT_BUFFER_PREFIX.as_bytes()], program_id)
+pub fn derive_messages_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[MESSAGES_BUFFER_PREFIX.as_bytes()], program_id)
 }
-
-pub fn derive_forced_withdraw_message_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[FORCED_WITHDRAWAL_BUFFER_PREFIX.as_bytes()], program_id)
-}
-
 pub fn derive_execution_message_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[EXECUTION_MESSAGE_BUFFER_PREFIX.as_bytes()], program_id)
 }
@@ -29,14 +24,14 @@ pub fn derive_twine_chain_storage(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[TWINE_CHAIN_STORAGE_PREFIX.as_bytes()], program_id)
 }
 
-pub fn derive_deposit_messages_replicator(
+pub fn derive_messages_replicator(
     program_id: &Pubkey,
     start_nonce: u64,
     end_nonce: u64,
 ) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
-            DEPOSIT_MEESSAGES_REPLICATOR_PREFIX.as_bytes(),
+            MEESSAGES_REPLICATOR_PREFIX.as_bytes(),
             &start_nonce.to_be_bytes(),
             &end_nonce.to_be_bytes(),
         ],
@@ -44,31 +39,15 @@ pub fn derive_deposit_messages_replicator(
     )
 }
 
-pub fn derive_forced_withdraw_messages_replicator(
-    program_id: &Pubkey,
-    start_nonce: u64,
-    end_nonce: u64,
-) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[
-            FORCED_WITHDRAWAL_MEESSAGES_REPLICATOR_PREFIX.as_bytes(),
-            &start_nonce.to_be_bytes(),
-            &end_nonce.to_be_bytes(),
-        ],
-        program_id,
-    )
-}
 
 pub fn derive_commitment_pda(
     program_id: &Pubkey,
-    start_block: u64,
-    end_block: u64,
+    batch_number: u64,
 ) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             COMMITMENT_PDA_PREFIX.as_bytes(),
-            &start_block.to_be_bytes(),
-            &end_block.to_be_bytes(),
+            &batch_number.to_be_bytes(),
         ],
         program_id,
     )

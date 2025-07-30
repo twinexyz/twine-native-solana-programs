@@ -241,6 +241,7 @@ async fn end_to_end_test() {
 
     /**********************
      * Finalize the batch *
+     * 
      *********************/
     let block1_info = BlockInfo {
         previous_hash: [0u8; 32],

@@ -16,19 +16,16 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            DepositMessagesBuffer, ExecutionMessageBuffer, ForcedWithdrawMessagesBuffer,
-            LayerZeroMessagesBuffer, TwineChainRoleManager,
+            ExecutionMessageBuffer, LayerZeroMessagesBuffer, MessagesBuffer, TwineChainRoleManager
         },
     },
     utils::{
         address_derivation::{
-            derive_deposit_message_buffer, derive_execution_message_buffer,
-            derive_forced_withdraw_message_buffer, derive_layer_zero_message_buffer,
-            derive_role_manager, verify_derived_address, verify_owner, verify_system_program,
+            derive_execution_message_buffer,derive_layer_zero_message_buffer, derive_messages_buffer, derive_role_manager, verify_derived_address, verify_owner, verify_system_program
         },
         constants::{
-            CHAIN_ID,DEPOSIT_BUFFER_PREFIX, EXECUTION_MESSAGE_BUFFER_PREFIX,
-            FORCED_WITHDRAWAL_BUFFER_PREFIX, LAYER_ZERO_BUFFER_PREFIX,
+            CHAIN_ID,EXECUTION_MESSAGE_BUFFER_PREFIX,
+             LAYER_ZERO_BUFFER_PREFIX, MESSAGES_BUFFER_PREFIX,
         },
     },
 };
@@ -40,12 +37,9 @@ use crate::{
 /// - `program_id`: The public key of the current program, used for PDA checks.
 /// - `accounts`: A list of accounts expected in the following order:
 ///
-///     0. `[writable]` Deposit messages buffer account (PDA-owned)
-///         - Used to store messages related to deposit events.
-///
-///     1. `[writable]` Forced withdrawal messages buffer account (PDA-owned)
-///         - Used to track forced withdrawal requests.
-///
+///     0. `[writable]` messages buffer account (PDA-owned)
+///         - Used to store messages 
+/// 
 ///     2. `[writable]` LayerZero messages buffer account (PDA-owned)
 ///         - Stores incoming messages from LayerZero protocol integration.
 ///
@@ -63,21 +57,19 @@ use crate::{
 ///
 
 pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-    let account_iter = &mut accounts.iter();
-    let deposit_messages_buffer_acc = next_account_info(account_iter)?;
-    let forced_withdrawal_messages_buffer_acc = next_account_info(account_iter)?;
-    let layer_zero_messages_buffer_acc = next_account_info(account_iter)?;
-    let execution_messages_buffer_acc = next_account_info(account_iter)?;
-    let role_manager_acc = next_account_info(account_iter)?;
-    let chain_admin_acc = next_account_info(account_iter)?;
-    let system_program = next_account_info(account_iter)?;
+    let account_info_iter = &mut accounts.iter();
+    let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let layer_zero_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let execution_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let role_manager_acc = next_account_info(account_info_iter)?;
+    let chain_admin_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
 
     // Validate Provided accounts
-    let (deposit_bump, forced_withdraw_bump, layer_zero_bump, execution_message_bump) =
+    let (messages_bump, layer_zero_bump, execution_message_bump) =
         validate_accounts(
             program_id,
-            deposit_messages_buffer_acc,
-            forced_withdrawal_messages_buffer_acc,
+            messages_buffer_acc,
             layer_zero_messages_buffer_acc,
             execution_messages_buffer_acc,
             role_manager_acc,
@@ -87,85 +79,44 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     let rent = Rent::default();
 
     /**************************
-     * Deposit Message Buffer *
+     *  Message Buffer *
      *************************/
-    if deposit_messages_buffer_acc.data_is_empty() {
-        let deposit_buffer_space = 10240;
-        let required_lamports = rent.minimum_balance(deposit_buffer_space);
+    if messages_buffer_acc.data_is_empty() {
+        let messages_buffer_space = 10240;
+        let required_lamports = rent.minimum_balance(messages_buffer_space);
         let create_ix = system_instruction::create_account(
             chain_admin_acc.key,
-            deposit_messages_buffer_acc.key,
+            messages_buffer_acc.key,
             required_lamports,
-            deposit_buffer_space as u64,
+            messages_buffer_space as u64,
             program_id,
         );
         invoke_signed(
             &create_ix,
             &[
                 chain_admin_acc.clone(),
-                deposit_messages_buffer_acc.clone(),
+                messages_buffer_acc.clone(),
                 system_program.clone(),
             ],
-            &[&[DEPOSIT_BUFFER_PREFIX.as_bytes(), &[deposit_bump]]],
+            &[&[MESSAGES_BUFFER_PREFIX.as_bytes(), &[messages_bump]]],
         )?;
     }
 
     // Update account data
-    let deposit_buffer_data = DepositMessagesBuffer {
+    let messages_buffer_data = MessagesBuffer{
         is_initialized: true,
-        deposit_nonce: 0,
+        message_nonce:0,
         chain_id: CHAIN_ID,
-        deposit_messages: Vec::new(),
+       messages: Vec::new(),
     };
 
     // Serialize account data
-    deposit_buffer_data
-        .serialize(&mut &mut deposit_messages_buffer_acc.data.borrow_mut()[..])
+    messages_buffer_data
+        .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!("Deposit Message Buffer Initialized");
+    msg!("Message Buffer Initialized");
 
-    /**********************************
-     * Forced Withdraw Message Buffer *
-     **********************************/
-    let forced_buffer_space = 10240;
-
-    if forced_withdrawal_messages_buffer_acc.data_is_empty() {
-        let required_lamports = rent.minimum_balance(forced_buffer_space);
-        let create_ix = system_instruction::create_account(
-            chain_admin_acc.key,
-            forced_withdrawal_messages_buffer_acc.key,
-            required_lamports,
-            forced_buffer_space as u64,
-            program_id,
-        );
-        invoke_signed(
-            &create_ix,
-            &[
-                chain_admin_acc.clone(),
-                forced_withdrawal_messages_buffer_acc.clone(),
-                system_program.clone(),
-            ],
-            &[&[
-                FORCED_WITHDRAWAL_BUFFER_PREFIX.as_bytes(),
-                &[forced_withdraw_bump],
-            ]],
-        )?;
-    }
-
-    // Update account data
-    let forced_withdraw_buffer_data = ForcedWithdrawMessagesBuffer {
-        is_initialized: true,
-        withdraw_nonce: 0,
-        withdraw_messages: Vec::new(),
-    };
-
-    // Serialize account data
-    forced_withdraw_buffer_data
-        .serialize(&mut &mut forced_withdrawal_messages_buffer_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
-    msg!("Forced Withdraw Message Buffer Initialized");
 
     /*****************************
      * Layer Zero Message Buffer *
@@ -252,14 +203,13 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
 // TODO: Check if chain_admin_acc has required role(Chain Admin)
 fn validate_accounts(
     program_id: &Pubkey,
-    deposit_messages_buffer_acc: &AccountInfo,
-    forced_withdrawal_messages_buffer_acc: &AccountInfo,
+    messages_buffer_acc: &AccountInfo,
     layer_zero_messages_buffer_acc: &AccountInfo,
     execution_messages_buffer_acc: &AccountInfo,
     role_manager_acc: &AccountInfo,
     chain_admin_acc: &AccountInfo,
     system_program: &AccountInfo,
-) -> Result<(u8, u8, u8, u8), ProgramError> {
+) -> Result<(u8, u8, u8), ProgramError> {
     // Validate signer
     if !chain_admin_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -270,15 +220,8 @@ fn validate_accounts(
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
     verify_owner(role_manager_acc, program_id)?;
 
-    let (expected_deposit_pda, deposit_bump) = derive_deposit_message_buffer(program_id);
-    verify_derived_address(expected_deposit_pda, deposit_messages_buffer_acc)?;
-
-    let (expected_forced_withdrawal_pda, forced_withdraw_bump) =
-        derive_forced_withdraw_message_buffer(program_id);
-    verify_derived_address(
-        expected_forced_withdrawal_pda,
-        forced_withdrawal_messages_buffer_acc,
-    )?;
+    let (expected_messages_pda, messages_bump) = derive_messages_buffer(program_id);
+    verify_derived_address(expected_messages_pda, messages_buffer_acc)?;
 
     let (expected_layer_zero_pda, layer_zero_bump) = derive_layer_zero_message_buffer(program_id);
     verify_derived_address(expected_layer_zero_pda, layer_zero_messages_buffer_acc)?;
@@ -290,23 +233,11 @@ fn validate_accounts(
     verify_system_program(system_program)?;
 
     // re-initialization guard for deposit buffer
-    if !deposit_messages_buffer_acc.data_is_empty() {
+    if !messages_buffer_acc.data_is_empty() {
         let deposit_buffer_data =
-            DepositMessagesBuffer::deserialize(&mut &deposit_messages_buffer_acc.data.borrow()[..])
+            MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
                 .map_err(|_| ProgramError::InvalidAccountData)?;
         if deposit_buffer_data.is_initialized() {
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
-    }
-
-    // re-initialization guard for forced withdraw buffer
-    if !forced_withdrawal_messages_buffer_acc.data_is_empty() {
-        let forced_withdraw_buffer_data = ForcedWithdrawMessagesBuffer::deserialize(
-            &mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..],
-        )
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        if forced_withdraw_buffer_data.is_initialized() {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
     }
@@ -345,8 +276,7 @@ fn validate_accounts(
     }
 
     Ok((
-        deposit_bump,
-        forced_withdraw_bump,
+        messages_bump,
         layer_zero_bump,
         execution_message_bump,
     ))
@@ -409,9 +339,9 @@ mod test {
         let program_id = Pubkey::new_unique();
 
         // Get the required accounts
-        let (deposit_message_buffer_key, _) = derive_deposit_message_buffer(&program_id);
-        let (forced_withdraw_message_buffer_key, _) =
-            derive_forced_withdraw_message_buffer(&program_id);
+        let (messages_buffer_key, _) = derive_messages_buffer(&program_id);
+        let (messages_buffer_key, _) =
+            derive_messages_buffer(&program_id);
         let (layer_zero_message_buffer_key, _) = derive_layer_zero_message_buffer(&program_id);
         let (execution_message_buffer_key, _) = derive_execution_message_buffer(&program_id);
         let (role_manager_key, _) = derive_role_manager(&program_id);
@@ -419,8 +349,8 @@ mod test {
         let system_program_id = system_program::id();
 
         // Required space for each account
-        let deposit_message_buffer_space = 10240;
-        let forced_withdraw_message_buffer_space = 10240;
+        let messages_buffer_space = 10240;
+      
         let layer_zero_message_buffer_space = 10240;
         let execution_message_buffer_space = 10240;
         let role_manager_space: usize = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
@@ -428,10 +358,8 @@ mod test {
         // Setup Account Lamports
         let rent = Rent::default();
 
-        let mut deposit_message_buffer_lamports =
-            rent.minimum_balance(deposit_message_buffer_space);
-        let mut forced_withdraw_message_buffer_lamports =
-            rent.minimum_balance(forced_withdraw_message_buffer_space);
+        let mut messages_buffer_lamports =
+            rent.minimum_balance(messages_buffer_space);
         let mut layer_zero_message_buffer_lamports =
             rent.minimum_balance(layer_zero_message_buffer_space);
         let mut execution_message_buffer_lamports =
@@ -441,8 +369,7 @@ mod test {
         let mut system_program_lamports = 0;
 
         // Setup account data with proper sizes
-        let mut deposit_message_buffer_data = vec![];
-        let mut forced_withdraw_message_buffer_data = vec![];
+        let mut messages_buffer_data = vec![];
         let mut layer_zero_message_buffer_data = vec![];
         let mut execution_message_buffer_data = vec![];
         let mut chain_admin_data = vec![];
@@ -460,8 +387,7 @@ mod test {
         role_manager_dummy_data.serialize(&mut role_manager_data)?;
 
         // Setup owners
-        let mut deposit_message_buffer_owner = program_id;
-        let mut forced_withdraw_message_buffer_owner = program_id;
+        let mut messages_buffer_owner = program_id;
         let mut layer_zero_message_buffer_owner = program_id;
         let mut execution_message_buffer_owner = program_id;
         let mut role_manager_owner = program_id;
@@ -469,22 +395,13 @@ mod test {
         let mut system_program_owner = system_program_id;
 
         // Create required account infos
-        let deposit_message_buffer_account = create_test_account_info(
-            &deposit_message_buffer_key,
+        let messages_buffer_account = create_test_account_info(
+            &messages_buffer_key,
             false,
             true,
-            &mut deposit_message_buffer_lamports,
-            &mut deposit_message_buffer_data,
-            &mut deposit_message_buffer_owner,
-        );
-
-        let forced_withdraw_message_buffer_account = create_test_account_info(
-            &forced_withdraw_message_buffer_key,
-            false,
-            true,
-            &mut forced_withdraw_message_buffer_lamports,
-            &mut forced_withdraw_message_buffer_data,
-            &mut forced_withdraw_message_buffer_owner,
+            &mut messages_buffer_lamports,
+            &mut messages_buffer_data,
+            &mut messages_buffer_owner,
         );
 
         let layer_zero_message_buffer_account = create_test_account_info(
@@ -534,8 +451,7 @@ mod test {
 
         // Create accounts array in the correct order matching the function
         let accounts = vec![
-            deposit_message_buffer_account.clone(),
-            forced_withdraw_message_buffer_account.clone(),
+            messages_buffer_account.clone(),
             layer_zero_message_buffer_account.clone(),
             execution_message_buffer_account.clone(),
             role_manager_account.clone(),
@@ -547,46 +463,25 @@ mod test {
         let result = initialize_message_buffer(&program_id, &accounts);
         assert!(result.is_ok(), "Initialization failed: {:?}", result.err());
 
-        // verify deposit message buffer initialization
-        let deposit_buffer_data = DepositMessagesBuffer::deserialize(
-            &mut &deposit_message_buffer_account.data.borrow()[..],
+        // verify message buffer initialization
+        let messages_buffer_data = MessagesBuffer::deserialize(
+            &mut &messages_buffer_account.data.borrow()[..],
         )?;
 
         assert!(
-            deposit_buffer_data.is_initialized,
+            messages_buffer_data.is_initialized,
             "Deposit buffer should be initialized"
         );
 
         assert_eq!(
-            deposit_buffer_data.deposit_nonce, 0,
+            messages_buffer_data.message_nonce, 0,
             "Deposit nonce should be 0"
         );
 
         assert_eq!(
-            deposit_buffer_data.deposit_messages.len(),
+            messages_buffer_data.messages.len(),
             0,
             "The should be no deposits"
-        );
-
-        // verify forced withdraw message buffer initialization
-        let forced_withdraw_buffer_data = ForcedWithdrawMessagesBuffer::deserialize(
-            &mut &forced_withdraw_message_buffer_account.data.borrow()[..],
-        )?;
-
-        assert!(
-            forced_withdraw_buffer_data.is_initialized,
-            "Forced Withdraw buffer should be initialized"
-        );
-
-        assert_eq!(
-            forced_withdraw_buffer_data.withdraw_nonce, 0,
-            "Deposit nonce should be 0"
-        );
-
-        assert_eq!(
-            forced_withdraw_buffer_data.withdraw_messages.len(),
-            0,
-            "The should be no withdraws"
         );
 
         // Verify layer zero message buffer initialization

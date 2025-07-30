@@ -15,7 +15,7 @@ use solana_program::{
 use crate::{
     core::{
         error::ProgramCustomError,
-        state::{BatchInfo, TwineChainRoleManager, TwineChainStorage},
+        state::{TwineChainRoleManager, TwineChainStorage},
     },
     utils::{
         address_derivation::{
@@ -69,25 +69,20 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         )?;
     }
 
-    // Update the data
-    let last_batch = BatchInfo {
-        start_block: 0,
-        end_block: 0,
-    };
-
     let twine_chain_storage_data = TwineChainStorage {
         is_initialized: true,
         last_copied_deposit_nonce: 0,
         last_copied_forced_withdrawal_nonce: 0,
+        last_committed_batch_number: 0,
+        last_finalized_batch_number: 0,
+        total_msg_handled_on_twine: 0,
         groth16_vk: Vec::new(),
         execution_vkey: String::from(""),
         inclusion_vkey: String::from(""),
         withdrawal_vkey: String::from(""),
         skip_verification: true,
-        last_finalized_batch: last_batch.clone(),
-        last_committed_batch: last_batch.clone(),
-        last_transaction_finalized_batch: last_batch.clone(),
-        last_finalized_receipt_root: [0u8; 32],
+        last_committed_batch_hash: [0u8; 32],
+        last_finalized_batch_hash: [0u8; 32],
     };
 
     twine_chain_storage_data
@@ -294,12 +289,12 @@ mod test {
         );
 
         assert_eq!(
-            twine_chain_storage_data.last_finalized_receipt_root, [0u8; 32],
+            twine_chain_storage_data.last_finalized_batch_hash, [0u8; 32],
             "There receipt root should be 0 bytes32"
         );
 
         assert_eq!(
-            twine_chain_storage_data.last_committed_batch.start_block, 0,
+            twine_chain_storage_data.last_committed_batch_number, 0,
             "last committed batch's start block should be 0"
         );
 

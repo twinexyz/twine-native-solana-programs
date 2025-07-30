@@ -15,29 +15,29 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            DepositMessagesBuffer, DepositMessagesReplicator, RoleType, TwineChainRoleManager,
+            MessagesBuffer, MessagesReplicator, RoleType, TwineChainRoleManager,
             TwineChainStorage,
         },
     },
     utils::{
         address_derivation::{
-            derive_deposit_message_buffer, derive_deposit_messages_replicator, derive_role_manager,
+            derive_messages_buffer, derive_messages_replicator, derive_role_manager,
             derive_twine_chain_storage, verify_derived_address, verify_system_program,
         },
-        constants::{DEPOSIT_MEESSAGES_REPLICATOR_PREFIX, MAX_MESSAGE_NONCE, MESSAGE_NONCE_GAP},
+        constants::{MEESSAGES_REPLICATOR_PREFIX, MAX_MESSAGE_NONCE, MESSAGE_NONCE_GAP},
     },
 };
 
-pub fn copy_deposit_pda(
+pub fn copy_messages_buffer(
     program_id: &Pubkey,
     start_nonce: u64,
     end_nonce: u64,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
-    let deposit_message_buffer_acc = next_account_info(account_info_iter)?;
+    let messages_buffer_acc = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
-    let deposit_messages_replicator_acc = next_account_info(account_info_iter)?;
+    let messages_replicator_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
     let initializer_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
@@ -46,9 +46,9 @@ pub fn copy_deposit_pda(
         program_id,
         start_nonce,
         end_nonce,
-        deposit_message_buffer_acc,
+        messages_buffer_acc,
         twine_chain_storage_acc,
-        deposit_messages_replicator_acc,
+        messages_replicator_acc,
         role_manager_acc,
         initializer_acc,
         system_program,
@@ -56,7 +56,7 @@ pub fn copy_deposit_pda(
 
     // Deserialize account data
     let mut deposits =
-        DepositMessagesBuffer::deserialize(&mut &deposit_message_buffer_acc.data.borrow()[..])
+        MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Check if deposit message buffer is initialized
@@ -76,15 +76,15 @@ pub fn copy_deposit_pda(
         return Err(ProgramCustomError::InvalidNonceGap.into());
     }
 
-    if deposit_messages_replicator_acc.data_is_empty() {
+    if messages_replicator_acc.data_is_empty() {
         let rent = Rent::default();
         let (_, deposit_messages_replicator_bump) =
-            derive_deposit_messages_replicator(&program_id, start_nonce, end_nonce);
+            derive_messages_replicator(&program_id, start_nonce, end_nonce);
         let replicator_space = 1 + 8 + 8 + 8 + 4 + (MAX_MESSAGE_NONCE * 32);
         let required_lamports = rent.minimum_balance(replicator_space);
         let create_ix = system_instruction::create_account(
             initializer_acc.key,
-            deposit_messages_replicator_acc.key,
+            messages_replicator_acc.key,
             required_lamports,
             replicator_space as u64,
             program_id,
@@ -93,11 +93,11 @@ pub fn copy_deposit_pda(
             &create_ix,
             &[
                 initializer_acc.clone(),
-                deposit_messages_replicator_acc.clone(),
+                messages_replicator_acc.clone(),
                 system_program.clone(),
             ],
             &[&[
-                DEPOSIT_MEESSAGES_REPLICATOR_PREFIX.as_bytes(),
+                MEESSAGES_REPLICATOR_PREFIX.as_bytes(),
                 &start_nonce.to_be_bytes(),
                 &end_nonce.to_be_bytes(),
                 &[deposit_messages_replicator_bump],
@@ -105,8 +105,8 @@ pub fn copy_deposit_pda(
         )?;
     }
 
-    let mut deposit_messages_replicator_data = DepositMessagesReplicator::deserialize(
-        &mut &deposit_messages_replicator_acc.data.borrow()[..],
+    let mut deposit_messages_replicator_data = MessagesReplicator::deserialize(
+        &mut &messages_replicator_acc.data.borrow()[..],
     )
     .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -114,18 +114,18 @@ pub fn copy_deposit_pda(
     deposit_messages_replicator_data.end_nonce = end_nonce;
 
     deposit_messages_replicator_data
-        .deposit_messages
-        .extend(deposits.deposit_messages.clone());
+        .messages
+        .extend(deposits.messages.clone());
 
     deposit_messages_replicator_data
-        .serialize(&mut &mut deposit_messages_replicator_acc.data.borrow_mut()[..])
+        .serialize(&mut &mut messages_replicator_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     // Update Deposits
-    deposits.deposit_messages.clear();
+    deposits.messages.clear();
 
     deposits
-        .serialize(&mut &mut deposit_message_buffer_acc.data.borrow_mut()[..])
+        .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     Ok(())
@@ -135,9 +135,9 @@ fn validate_accounts(
     program_id: &Pubkey,
     start_nonce: u64,
     end_nonce: u64,
-    deposit_message_buffer_acc: &AccountInfo,
+    messages_buffer_acc: &AccountInfo,
     twine_chain_storage_acc: &AccountInfo,
-    deposit_messages_replicator_acc: &AccountInfo,
+    messages_replicator_acc: &AccountInfo,
     role_manager_acc: &AccountInfo,
     initializer_acc: &AccountInfo,
     system_program: &AccountInfo,
@@ -147,18 +147,18 @@ fn validate_accounts(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (expected_deposit_pda, _) = derive_deposit_message_buffer(program_id);
-    verify_derived_address(expected_deposit_pda, deposit_message_buffer_acc)?;
+    let (expected_meesage_pda, _) = derive_messages_buffer(program_id);
+    verify_derived_address(expected_meesage_pda, messages_buffer_acc)?;
 
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
 
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
-    let (expected_deposit_messages_replicator_pda, _) =
-        derive_deposit_messages_replicator(program_id, start_nonce, end_nonce);
+    let (expected_messages_replicator_pda, _) =
+        derive_messages_replicator(program_id, start_nonce, end_nonce);
     verify_derived_address(
-        expected_deposit_messages_replicator_pda,
-        deposit_messages_replicator_acc,
+        expected_messages_replicator_pda,
+        messages_replicator_acc,
     )?;
 
     let (expected_twine_chain_storage_pda, _) = derive_twine_chain_storage(program_id);

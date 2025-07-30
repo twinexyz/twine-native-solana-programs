@@ -8,8 +8,8 @@ use solana_program::{
 };
 use twine_chain::{
     utils::address_derivation::{
-        derive_deposit_message_buffer, derive_execution_message_buffer,
-        derive_forced_withdraw_message_buffer, derive_role_manager, derive_twine_chain_storage,
+        derive_messages_buffer, derive_execution_message_buffer,
+        derive_role_manager, derive_twine_chain_storage,
     },
     ID as twine_chain_ID,
 };
@@ -248,7 +248,7 @@ pub fn native_token_deposit(
         AccountMeta::new(*user, false),
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_deposit_message_buffer(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
         AccountMeta::new(system_program::id(), false),
@@ -287,7 +287,7 @@ pub fn forced_native_token_withdrawal(
         AccountMeta::new(*user, true),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(
-            derive_forced_withdraw_message_buffer(&twine_chain_ID).0,
+            derive_messages_buffer(&twine_chain_ID).0,
             false,
         ),
         AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
@@ -330,7 +330,7 @@ pub fn spl_token_deposit(
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(spl_token::id(), false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_deposit_message_buffer(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_ID).0, false),
         AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
         AccountMeta::new(twine_chain_ID, false),
     ];
@@ -371,7 +371,7 @@ pub fn forced_spl_token_withdrawal(
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(
-            derive_forced_withdraw_message_buffer(&twine_chain_ID).0,
+            derive_messages_buffer(&twine_chain_ID).0,
             false,
         ),
         AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
@@ -397,7 +397,6 @@ pub fn finalize_native_token_withdrawal(
     amount: String,
     inclusion_proof: Vec<u8>,
 ) -> Vec<Instruction> {
-    println!("Amount inside instruction {}", amount);
     let payload = GatewayInstruction::FinalzeNativeWithdrawal {
         withdrawal_inputs: FinalizeInputWithdrawal {
             public_input: ReceiptCommitment {

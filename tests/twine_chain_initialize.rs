@@ -14,16 +14,16 @@ use twine_chain::{
     core::{
         instruction::{self},
         state::{
-            BatchPdaAccount, BlockInfo, DepositMessagesBuffer,
-            ExecutionMessageBuffer, ForcedWithdrawMessagesBuffer, LayerZeroMessagesBuffer,
+            BatchPdaAccount,MessagesBuffer,
+            ExecutionMessageBuffer,LayerZeroMessagesBuffer,
             TwineChainRoleManager, TwineChainStorage,
         },
     },
     id,
     utils::{
         address_derivation::{
-            derive_commitment_pda, derive_deposit_message_buffer,
-            derive_execution_message_buffer, derive_forced_withdraw_message_buffer,
+            derive_commitment_pda, derive_messages_buffer,
+            derive_execution_message_buffer,
             derive_layer_zero_message_buffer, derive_twine_chain_storage,
         },
         constants::MAX_ROLES,
@@ -165,16 +165,11 @@ async fn message_buffers_init() {
     let error = context.banks_client.process_transaction(transaction).await;
     println!("Transaction Status: {:?}", error);
 
-    let deposit_buffer_account = context
-        .banks_client
-        .get_account(derive_deposit_message_buffer(&id()).0)
-        .await
-        .unwrap()
-        .expect("Twine chain storage account not found");
+    println!("In here message");
 
-    let forced_withdraw_buffer_account = context
+    let messages_buffer_account = context
         .banks_client
-        .get_account(derive_forced_withdraw_message_buffer(&id()).0)
+        .get_account(derive_messages_buffer(&id()).0)
         .await
         .unwrap()
         .expect("Twine chain storage account not found");
@@ -193,13 +188,9 @@ async fn message_buffers_init() {
         .unwrap()
         .expect("Twine chain storage account not found");
 
-    let deposit_buffer_data =
-        DepositMessagesBuffer::deserialize(&mut &deposit_buffer_account.data[..])
+    let messages_buffer_data =
+        MessagesBuffer::deserialize(&mut &messages_buffer_account.data[..])
             .expect("Failed to deserialize Deposit Buffer");
-
-    let forced_withdraw_buffer_data =
-        ForcedWithdrawMessagesBuffer::deserialize(&mut &forced_withdraw_buffer_account.data[..])
-            .expect("Failed to deserialize Withdraw Buffer");
 
     let layer_zero_buffer_data =
         LayerZeroMessagesBuffer::deserialize(&mut &layer_zero_buffer_account.data[..])
@@ -210,13 +201,8 @@ async fn message_buffers_init() {
             .expect("Failed to deserialize Execution Buffer");
 
     assert!(
-        deposit_buffer_data.is_initialized,
+        messages_buffer_data.is_initialized,
         "Deposit Buffer should be initialized"
-    );
-
-    assert!(
-        forced_withdraw_buffer_data.is_initialized,
-        "Withdraw Buffer should be initialized"
     );
 
     assert!(
@@ -232,7 +218,7 @@ async fn message_buffers_init() {
 
 #[tokio::test]
 
-async fn genesis_batch_inti() {
+async fn genesis_batch_init() {
     let mut context = program_test().start_with_context().await;
     let accounts = TwineChainAccounts::default();
     let payer = Keypair::from_bytes(&context.payer.to_bytes()).unwrap();
@@ -241,7 +227,7 @@ async fn genesis_batch_inti() {
         &mut context,
         &payer,
         &accounts.chain_admin.pubkey(),
-        BlockInfo::LEN,
+        BatchPdaAccount::LEN,
         1_000_000_000,
     )
     .await;
@@ -263,11 +249,11 @@ async fn genesis_batch_inti() {
     );
 
     let error = context.banks_client.process_transaction(transaction).await;
-    println!("Transaction1 Status: {:?}", error);
+    println!("Transaction Status: {:?}", error);
 
     let genesis_batch_account = context
         .banks_client
-        .get_account(derive_commitment_pda(&id(), 0, 0).0)
+        .get_account(derive_commitment_pda(&id(),0u64).0)
         .await
         .unwrap()
         .expect("Genesis Batch storage account not found");
@@ -281,7 +267,7 @@ async fn genesis_batch_inti() {
     );
 
     assert_eq!(
-        genesis_batch_data.infos[0].block_hash, [1u8; 32],
+        genesis_batch_data.batch_hash, [1u8; 32],
         "Batch hash should be set"
     )
 }

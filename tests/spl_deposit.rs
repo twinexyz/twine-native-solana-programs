@@ -1,5 +1,5 @@
 mod helpers;
-
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -13,12 +13,19 @@ use helpers::tokens_gateway_helper::{
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction,
     utils::{
-        address_derivation::derive_spl_vault_authority,
+        address_derivation::{derive_spl_vault_authority,derive_spl_tokens_vault_data},
         constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
-    ID as tokens_gateway_ID,
+    id as tokens_gateway_id,
 };
-use twine_chain::core::instruction as twine_chain_instruction;
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{MessagesBuffer, RoleType},
+    },
+    id as twine_chain_id,
+    utils::address_derivation::derive_messages_buffer,
+};
 
 
 #[tokio::test]
@@ -45,17 +52,23 @@ async fn spl_token_deposit_succeed() {
     let spl_token_vault = get_or_create_ata(
         &mut context,
         &accounts.chain_admin,
-        &derive_spl_vault_authority(&tokens_gateway_ID).0,
+        &derive_spl_vault_authority(&tokens_gateway_id()).0,
         &spl_token_pubkey,
     )
     .await;
     let l1_token = spl_token_pubkey.to_string();
     let data = "".to_string();
+    let spl_token_valut_data_account = derive_spl_tokens_vault_data(&tokens_gateway_id()).0;
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &chain_admin,
+    ));
+      instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
+        &chain_admin,
+        &spl_token_valut_data_account,
+        RoleType::MessageAppender,
     ));
     instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &chain_admin,
@@ -94,4 +107,17 @@ async fn spl_token_deposit_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+    let deposit_message_buffer_account = context
+        .banks_client
+        .get_account(derive_messages_buffer(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Deposit Message Account Not Found");
+    let deposit_message_buffer_data: MessagesBuffer =
+        MessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
+            .expect("Failed to deserialize Deposit Message Buffer Data");
+    assert!(
+        deposit_message_buffer_data.message_nonce == 1,
+        "Deposit not successfull"
+    );
 }
