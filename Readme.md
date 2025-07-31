@@ -45,8 +45,14 @@ Twine Chain is a multi-chain settlement network designed to aggregate chains and
         - make clean 
         - make build 
         - make build-sbf
-        - make deploy 
-            > deploys programs
+            > Program IDs may change after you run `make build-sbf`.  
+            > 1. get the new program IDs:  
+                >    `make keygen-tokens-gateway-program-id`  
+                >    `make keygen-twine-chain-program-id`  
+             > 2. Update each `solana_program::declare_id!("...")` with the new IDs.  
+            > 3. Run `make build-sbf` again.
+        - make deploy
+
 - **Initial Setup:** 
     - make initialize
     > initialises and does initial setup
