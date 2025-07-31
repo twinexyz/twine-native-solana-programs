@@ -18,23 +18,27 @@ SOL_PUBKEY = 11111111111111111111111111111111
 help:
 	@echo ""
 	@echo "Available targets:"
-	@echo "  build                           Build the project"
-	@echo "  build-sbf                       Build the project for SBF"
-	@echo "  clean                           Clean build artifacts"
-	@echo "  test                            Run tests"
-	@echo "  deploy                          Deploy programs"
-	@echo "  update-tokens-gateway           Update the tokens gateway"
-	@echo "  keygen-tokens-gateway-program-id    Generate pubkey for tokens gateway"
-	@echo "  keygen-twine-chain-program-id       Generate pubkey for twine chain"
-	@echo "  start-validator                 Start a new solana-test-validator"
-	@echo "  initialize                      Initialize programs"
-	@echo "  create-spl-token                Create a new SPL token"
-	@echo "  update-token-mapping            Update token mapping"
-	@echo "  deposit-native-token            Deposit native tokens"
-	@echo "  deposit-spl-token               Deposit SPL tokens"
-	@echo "  forced-native-token-withdrawal  Forced native token withdrawal"
-	@echo "  forced-spl-token-withdrawal     Forced SPL token withdrawal"
+	@echo "  build                             Build the project"
+	@echo "  build-sbf                         Build the project for SBF"
+	@echo "  clean                             Clean build artifacts"
+	@echo "  test                              Run tests"
+	@echo "  deploy                            Deploy programs"
+	@echo "  update-tokens-gateway             Update the tokens gateway"
+	@echo "  keygen-tokens-gateway-program-id  Generate pubkey for tokens gateway"
+	@echo "  keygen-twine-chain-program-id     Generate pubkey for twine chain"
+	@echo "  start-validator                   Start a new solana-test-validator"
+	@echo "  initialize                        Initialize programs"
+	@echo "  create-spl-token                  Create a new SPL token"
+	@echo "  update-token-mapping              Update token mapping"
+	@echo "  deposit-native-token              Deposit native tokens"
+	@echo "  deposit-spl-token                 Deposit SPL tokens"
+	@echo "  forced-native-token-withdrawal    Forced native token withdrawal"
+	@echo "  forced-spl-token-withdrawal       Forced SPL token withdrawal"
+	@echo "  get-all-pdas                      Get all pdas"
+	@echo "  get-batch-pda                     Get batch pda id"
+	@echo "  get-messages-buffer-data          Get messages buffer data"
 	@echo ""
+
 # Build the project
 build:
 	$(CARGO) build --workspace
@@ -97,4 +101,15 @@ forced-spl-token-withdrawal:
 	@echo "Forced Spl Token Withdrawal..."
 	cargo run --bin interaction -- forced-spl-withdrawal  "$(l1Token)" "$(l2Token)" "$(twineAccount)" "$(privateKey)" "$(receiver)" "$(amount)"
 
+get-all-pdas:
+	@echo "Get all pdas"
+	cargo run --bin interaction -- get-all-pdas
 
+get-messages-buffer-data:
+	@echo "Get all pdas"
+	cargo run --bin interaction -- get-messages-buffer-data
+
+# make get-batch-pda batchNumber=the_batch_number
+get-batch-pda:
+	@echo "Get the pda id of the batch"
+	cargo run --bin interaction -- get-batch-pda "$(batchNumber)"

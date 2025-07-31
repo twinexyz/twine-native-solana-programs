@@ -1,8 +1,10 @@
 use crate::action_commands::Commands;
+// use crate::operations::get_pdas_data::get_messages_buffer_data;
 use crate::operations::{
-    deposit_native_token::native_token_deposit, forced_native_withdrawal::forced_native_withdrawal,
+    create_spl_token::create_spl_token, deposit_native_token::native_token_deposit,
+    deposit_spl_token::spl_token_deposit, forced_native_withdrawal::forced_native_withdrawal,
+    forced_spl_withdrawal::forced_spl_withdrawal, get_all_pdas::{get_all_pdas,get_batch_pda},
     initialize_programs::initialize_twine_solana_programs, token_mapping::update_token_mapping,
-    forced_spl_withdrawal::forced_spl_withdrawal,create_spl_token::create_spl_token,deposit_spl_token::spl_token_deposit,
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -15,6 +17,20 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = create_spl_token();
             println!("Result: {:?}", result);
         }
+        Commands::GetAllPdas {} => {
+            let result = get_all_pdas();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetBatchPda { batch_number } =>
+        {
+            let result = get_batch_pda(batch_number);
+            println!("Result: {:?}", result);
+        }
+        
+        //  Commands::GetMessagesBufferData {} => {
+        //     let result = get_messages_buffer_data();
+        //     println!("Result: {:?}", result);
+        // }
         Commands::TokenMapping {
             l1_token,
             l2_token,
@@ -32,7 +48,8 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             amount,
             data,
         } => {
-            let result = native_token_deposit(l1_token, l2_token, receiver_twine_address, amount,data);
+            let result =
+                native_token_deposit(l1_token, l2_token, receiver_twine_address, amount, data);
             println!("Result: {:?}", result);
         }
         Commands::DepositSplToken {
@@ -43,7 +60,14 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             amount,
             data,
         } => {
-            let result = spl_token_deposit(l1_token, l2_token, receiver_twine_address, user_token_account,amount,data);
+            let result = spl_token_deposit(
+                l1_token,
+                l2_token,
+                receiver_twine_address,
+                user_token_account,
+                amount,
+                data,
+            );
             println!("Result: {:?}", result);
         }
         Commands::ForcedNativeWithdrawal {
@@ -65,8 +89,14 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             user_token_account,
             amount,
         } => {
-            let result =
-                forced_spl_withdrawal(l1_token, l2_token, from_twine_address, privkey,user_token_account, amount);
+            let result = forced_spl_withdrawal(
+                l1_token,
+                l2_token,
+                from_twine_address,
+                privkey,
+                user_token_account,
+                amount,
+            );
             println!("Result: {:?}", result);
         }
     }

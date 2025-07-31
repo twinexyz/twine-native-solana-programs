@@ -48,6 +48,8 @@ pub enum Commands {
         user_token_account: Pubkey,
         amount: u64,
     },
+    GetBatchPda{batch_number:u64},
     CreateSplToken {},
+    GetAllPdas{},
+    // GetMessagesBufferData{}
 }
-
