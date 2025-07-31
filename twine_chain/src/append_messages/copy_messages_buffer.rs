@@ -68,7 +68,7 @@ pub fn copy_messages_buffer(
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if start_nonce != twine_chain_storage_data.last_copied_deposit_nonce + 1 {
+    if start_nonce != twine_chain_storage_data.last_copied_message_start_nonce + 1 {
         return Err(ProgramCustomError::InvalidStartNonce.into());
     }
 

@@ -71,8 +71,8 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
 
     let twine_chain_storage_data = TwineChainStorage {
         is_initialized: true,
-        last_copied_deposit_nonce: 0,
-        last_copied_forced_withdrawal_nonce: 0,
+        last_copied_message_start_nonce: 0,
+        last_copied_message_end_nonce: 0,
         last_committed_batch_number: 0,
         last_finalized_batch_number: 0,
         total_msg_handled_on_twine: 0,

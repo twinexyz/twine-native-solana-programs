@@ -68,8 +68,8 @@ pub struct ExecutionMessageBuffer {
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TwineChainStorage {
     pub is_initialized: bool,
-    pub last_copied_deposit_nonce: u64,
-    pub last_copied_forced_withdrawal_nonce: u64,
+    pub last_copied_message_start_nonce: u64,
+    pub last_copied_message_end_nonce: u64,
     pub total_msg_handled_on_twine: u64,
     pub last_committed_batch_number: u64,
     pub last_finalized_batch_number: u64,
