@@ -15,12 +15,19 @@ pub struct TwineChainRoleManager {
 }
 
 /// Role types for authorization.
-#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Debug)]
+#[repr(u8)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Copy, PartialEq, Debug)]
 pub enum RoleType {
     MessageAppender,
     TwineOperationHandler,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Clone, Copy, PartialEq, Debug)]
+pub enum TransactionType {
+    Deposit,
+    Withdraw,
+    Message,
+}
 /*******************
  * Message Buffers *
  *******************/
@@ -87,6 +94,7 @@ pub struct BatchPdaAccount {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct DepositMessageInfo {
+    pub txn_type: TransactionType,
     pub nonce: u64,
     pub chain_id: u64,
     pub slot_number: u64,
@@ -96,11 +104,11 @@ pub struct DepositMessageInfo {
     pub l2_token: String,
     pub amount: String,
     pub data: String,
-    pub txn_type:String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct ForcedWithdrawMessageInfo {
+    pub txn_type: TransactionType,
     pub nonce: u64,
     pub chain_id: u64,
     pub slot_number: u64,
@@ -109,7 +117,7 @@ pub struct ForcedWithdrawMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
-    pub txn_type:String,
+    pub data: String,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -142,10 +150,18 @@ pub struct CommitBatchInfo {
 /********************************
  * Implementations for encoding *
  ********************************/
+impl TransactionType {
+    /// Return the variant as a single-byte array so we can
+    /// `extend()` it into our Vec<u8>.
+    pub fn as_bytes(self) -> [u8; 1] {
+        [self as u8]
+    }
+}
 
 impl DepositMessageInfo {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::with_capacity(DepositMessageInfo::LEN);
+        encoded.extend(self.txn_type.as_bytes());
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
@@ -155,18 +171,14 @@ impl DepositMessageInfo {
         encoded.extend(self.l2_token.as_bytes());
         encoded.extend(self.amount.as_bytes());
         encoded.extend(self.data.as_bytes());
-        encoded.extend(self.txn_type.as_bytes());
 
         encoded
     }
 
-    pub fn calculate_rolling_hash(&self) -> [u8; 32] {
-        let mut serialized = Vec::new();
-        serialized.extend_from_slice(&self.abi_encode_packed());
-
-        let hash = Keccak256::digest(&serialized);
+    pub fn calculate_deposit_hash(&self) -> [u8; 32] {
+        let hash = Keccak256::digest(&self.abi_encode_packed());
         let mut result = [0u8; 32];
-        result.copy_from_slice(&hash[..32]);
+        result.copy_from_slice(&hash);
         result
     }
 }
@@ -175,6 +187,7 @@ impl ForcedWithdrawMessageInfo {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::with_capacity(ForcedWithdrawMessageInfo::LEN);
 
+        encoded.extend(self.txn_type.as_bytes());
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
@@ -183,17 +196,14 @@ impl ForcedWithdrawMessageInfo {
         encoded.extend(self.l1_token.as_bytes());
         encoded.extend(self.l2_token.as_bytes());
         encoded.extend(self.amount.as_bytes());
-        encoded.extend(self.txn_type.as_bytes());
+        encoded.extend(self.data.as_bytes());
 
         encoded
     }
-    pub fn calculate_rolling_hash(&self) -> [u8; 32] {
-        let mut serialized = Vec::new();
-        serialized.extend_from_slice(&self.abi_encode_packed());
-
-        let hash = Keccak256::digest(&serialized);
+    pub fn calculate_withdraw_hash(&self) -> [u8; 32] {
+        let hash = Keccak256::digest(&self.abi_encode_packed());
         let mut result = [0u8; 32];
-        result.copy_from_slice(&hash[..32]);
+        result.copy_from_slice(&hash);
         result
     }
 }
@@ -223,7 +233,8 @@ impl TwineChainStorage {
 }
 
 impl DepositMessageInfo {
-    pub const LEN: usize = 8           // nonce (u64)
+    pub const LEN: usize = 1
+        + 8           // nonce (u64)
         + 8         // chain_id (u64)
         + 8         // slot_number(u64)
         + 4 + 44    // from_L1_publkey (String)
@@ -234,7 +245,8 @@ impl DepositMessageInfo {
 }
 
 impl ForcedWithdrawMessageInfo {
-    pub const LEN: usize = 8       // nonce (u64)
+    pub const LEN: usize = 1
+        + 8       // nonce (u64)
         + 8         // chain_id (u64)
         + 8         // slot_number(u64)
         + 4 + 42    // from_twine_address (String)

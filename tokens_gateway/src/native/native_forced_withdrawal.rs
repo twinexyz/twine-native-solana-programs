@@ -14,7 +14,7 @@ use solana_program::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ForcedWithdrawMessageInfo,MessagesBuffer},
+        state::{ForcedWithdrawMessageInfo,MessagesBuffer,TransactionType},
     },
     ID as twine_chain_program_id,
 };
@@ -116,6 +116,7 @@ pub fn forced_native_token_withdrawal(
     let clock = Clock::get()?;
 
     let withdraw_info = ForcedWithdrawMessageInfo {
+        txn_type:TransactionType::Withdraw,
         nonce: u64_nonce,
         chain_id: CHAIN_ID,
         slot_number: clock.slot,
@@ -124,7 +125,7 @@ pub fn forced_native_token_withdrawal(
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount.to_string(),
-        txn_type:FORCED_WITHDRAW_TRANSACTION.to_string()
+        data: String::new(), 
     };
 
     let sign_info = SignMessageInfo {

@@ -45,8 +45,8 @@ pub fn initialize_genesis_batch(
     // Validate Provided accounts
     let (genesis_batch_bump, mut twine_chain_storage_data) = validate_accounts(
         program_id,
-        twine_chain_storage_acc,
         first_batch_acc,
+        twine_chain_storage_acc,
         role_manager_acc,
         initializer_acc,
         system_program,
@@ -94,15 +94,13 @@ pub fn initialize_genesis_batch(
         .serialize(&mut &mut first_batch_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!("Genesis Batch Initialized");
-
     Ok(())
 }
 
 fn validate_accounts(
     program_id: &Pubkey,
-    twine_chain_storage_acc: &AccountInfo,
     first_batch_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
     role_manager_acc: &AccountInfo,
     initializer_acc: &AccountInfo,
     system_program: &AccountInfo,
@@ -111,21 +109,16 @@ fn validate_accounts(
     if !initializer_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-
     let (expected_twine_chain_storage_pda, _) = derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
-
     let (expected_commitment_pda, genesis_batch_bump) = derive_commitment_pda(&program_id, 0);
     verify_derived_address(expected_commitment_pda, first_batch_acc)?;
-
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
-
     // Deserialize Twine chain storage's data
     let twine_chain_storage_data =
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
     verify_system_program(system_program)?;
 
     // re-initialization guard

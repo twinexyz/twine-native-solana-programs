@@ -8,5 +8,5 @@ pub mod setters;
 pub mod spl;
 pub mod utils;
 pub use solana_program;
-solana_program::declare_id!("5f1BYnmgs6RGz8hrnBUwQ6zGBT6q2P5qKPiVCQqCLBc");
+solana_program::declare_id!("C49GbSeRLKTqnF7y5XaxGH47WkX7hCNecYPcG3oMeMFx");
 

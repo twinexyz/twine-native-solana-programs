@@ -64,11 +64,11 @@ pub fn process_instruction(
             )
         }
 
-        TwineChainInstruction::InitializeGenesisBatch { genesis_block_hash } => {
+        TwineChainInstruction::InitializeGenesisBatch { genesis_batch_hash } => {
             initialize_genesis_batch::initialize_genesis_batch(
                 program_id,
                 accounts,
-                genesis_block_hash,
+                genesis_batch_hash,
             )
         }
 

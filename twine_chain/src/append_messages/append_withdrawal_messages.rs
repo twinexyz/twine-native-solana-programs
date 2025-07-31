@@ -62,7 +62,7 @@ pub fn append_forced_withdrawal_message(
     // Update Withdrawals
     withdrawals
         .messages
-        .push(withdraw_info.calculate_rolling_hash());
+        .push(withdraw_info.calculate_withdraw_hash());
     
     withdrawals.message_nonce += 1;
 

@@ -15,7 +15,7 @@ use solana_program::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{DepositMessageInfo, MessagesBuffer},
+        state::{DepositMessageInfo, MessagesBuffer,TransactionType},
     },
     utils::constants::{MESSAGES_BUFFER_PREFIX,DEPOSIT_MESSAGE_TYPE},
     ID as twine_chain_program_id,
@@ -129,6 +129,7 @@ pub fn native_token_deposit(
     let clock = Clock::get()?;
 
     let deposit_info = DepositMessageInfo {
+        txn_type: TransactionType::Deposit,
         nonce: u64_nonce,
         chain_id: 900,
         slot_number: clock.slot,
@@ -138,7 +139,6 @@ pub fn native_token_deposit(
         l2_token,
         amount: l2_amount,
         data,
-        txn_type: DEPOSIT_TRANSACTION.to_string(),
     };
 
     let payload = TwineChainInstruction::AppendDepositMessage {

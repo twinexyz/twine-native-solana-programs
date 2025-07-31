@@ -38,7 +38,7 @@ pub enum TwineChainInstruction {
         withdraw_info: ForcedWithdrawMessageInfo,
     },
     InitializeGenesisBatch {
-        genesis_block_hash: [u8; 32],
+        genesis_batch_hash: [u8; 32],
     },
     CommitBatch {
         batch_number: u64,
@@ -196,10 +196,10 @@ pub fn append_forced_withdrawal_message(
 
 pub fn initialize_genesis_batch(
     twine_operation_handler: &Pubkey,
-    genesis_block_hash: [u8; 32],
+    genesis_batch_hash: [u8; 32],
 ) -> Vec<Instruction> {
     let payload: TwineChainInstruction =
-        TwineChainInstruction::InitializeGenesisBatch { genesis_block_hash };
+        TwineChainInstruction::InitializeGenesisBatch { genesis_batch_hash };
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts: Vec<AccountMeta> = vec![
@@ -337,7 +337,7 @@ impl TwineChainInstruction {
                 let payload = InitializeGenesisBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::InitializeGenesisBatch {
-                    genesis_block_hash: payload.genesis_block_hash,
+                    genesis_batch_hash: payload.genesis_block_hash,
                 })
             }
             8 => {
