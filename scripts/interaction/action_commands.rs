@@ -51,5 +51,6 @@ pub enum Commands {
     GetBatchPda{batch_number:u64},
     CreateSplToken {},
     GetAllPdas{},
-    // GetMessagesBufferData{}
+    GetMessagesBufferData{},
+    GetTwineChainStorageData{}
 }

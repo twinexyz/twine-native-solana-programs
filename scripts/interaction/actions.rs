@@ -1,10 +1,14 @@
 use crate::action_commands::Commands;
-// use crate::operations::get_pdas_data::get_messages_buffer_data;
 use crate::operations::{
-    create_spl_token::create_spl_token, deposit_native_token::native_token_deposit,
-    deposit_spl_token::spl_token_deposit, forced_native_withdrawal::forced_native_withdrawal,
-    forced_spl_withdrawal::forced_spl_withdrawal, get_all_pdas::{get_all_pdas,get_batch_pda},
-    initialize_programs::initialize_twine_solana_programs, token_mapping::update_token_mapping,
+    create_spl_token::create_spl_token,
+    deposit_native_token::native_token_deposit,
+    deposit_spl_token::spl_token_deposit,
+    forced_native_withdrawal::forced_native_withdrawal,
+    forced_spl_withdrawal::forced_spl_withdrawal,
+    get_all_pdas::{get_all_pdas, get_batch_pda},
+    initialize_programs::initialize_twine_solana_programs,
+    token_mapping::update_token_mapping,
+    get_pdas_data::{get_messages_buffer_data,get_twine_chain_storage_data},
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -21,16 +25,19 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = get_all_pdas();
             println!("Result: {:?}", result);
         }
-        Commands::GetBatchPda { batch_number } =>
-        {
+        Commands::GetBatchPda { batch_number } => {
             let result = get_batch_pda(batch_number);
             println!("Result: {:?}", result);
         }
-        
-        //  Commands::GetMessagesBufferData {} => {
-        //     let result = get_messages_buffer_data();
-        //     println!("Result: {:?}", result);
-        // }
+
+        Commands::GetMessagesBufferData {} => {
+            let result = get_messages_buffer_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetTwineChainStorageData {} => {
+            let result = get_twine_chain_storage_data();
+            println!("Result: {:?}", result);
+        }
         Commands::TokenMapping {
             l1_token,
             l2_token,

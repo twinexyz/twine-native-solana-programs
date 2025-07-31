@@ -5,5 +5,5 @@ pub mod forced_spl_withdrawal;
 pub mod initialize_programs;
 pub mod token_mapping;
 pub mod create_spl_token;
-// pub mod get_pdas_data;
+pub mod get_pdas_data;
 pub mod get_all_pdas;
