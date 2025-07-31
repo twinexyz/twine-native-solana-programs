@@ -37,6 +37,7 @@ help:
 	@echo "  get-all-pdas                      Get all pdas"
 	@echo "  get-batch-pda                     Get batch pda id"
 	@echo "  get-messages-buffer-data          Get messages buffer data"
+	@echo "  get-twine-chain-storage-data      Get twine chain storage data"
 	@echo ""
 
 # Build the project
@@ -108,6 +109,10 @@ get-all-pdas:
 get-messages-buffer-data:
 	@echo "Get all pdas"
 	cargo run --bin interaction -- get-messages-buffer-data
+
+get-twine-chain-storage-data:
+	@echo "Get all pdas"
+	cargo run --bin interaction -- get-twine-chain-storage-data
 
 # make get-batch-pda batchNumber=the_batch_number
 get-batch-pda:
