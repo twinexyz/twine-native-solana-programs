@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use sha3::{Digest, Keccak256};
 #[cfg(not(test))]
 use solana_program::program::invoke_signed;
 use solana_program::{
@@ -25,6 +26,12 @@ use crate::{
         constants::TWINE_CHAIN_STORAGE_PREFIX,
     },
 };
+
+pub fn empty_keccak256() -> [u8; 32] {
+    let mut hasher = Keccak256::new();
+    hasher.update("");
+    hasher.finalize().into()
+}
 
 pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_iter = &mut accounts.iter();
@@ -81,8 +88,8 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         inclusion_vkey: String::from(""),
         withdrawal_vkey: String::from(""),
         skip_verification: true,
-        last_committed_batch_hash: [0u8; 32],
-        last_finalized_batch_hash: [0u8; 32],
+        last_committed_batch_hash: empty_keccak256(),
+        last_finalized_batch_hash: empty_keccak256(),
     };
 
     twine_chain_storage_data
