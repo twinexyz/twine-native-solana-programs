@@ -39,6 +39,8 @@ pub enum ProgramCustomError {
     InvalidL2TokenAddressFormat,
     #[error("Batch needs to be finalized first")]
     BatchNotFinalized,
+    #[error("Failed to decode public value")]
+    PublicValueDecodeFailed,
     #[error("Deposit Rolling Hash is mismatched")]
     DepositRollingHashMismatch,
     #[error("Withdraw Rolling Hash is mismatched")]
