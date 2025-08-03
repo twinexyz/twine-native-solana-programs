@@ -65,6 +65,12 @@ pub enum ProgramCustomError {
     InvalidSigner,
     #[error("Calculated and Provided Batch Hash did not match")]
     BatchHashMismatch,
+    #[error("Last commited batch hash did not match")]
+    LastCommitedBatchHashMismatch,
+    #[error("Last finalized batch hash did not match")]
+    LastFinalizedBatchHashMismatch,
+    #[error("Cannot execute less message than before")]
+    MessageExecutedCountError,
     #[error("Unauthorized: Caller does not have the required role")]
     Unauthorized,
     #[error("All batch data needs to be filled before finalization")]

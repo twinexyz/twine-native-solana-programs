@@ -68,7 +68,7 @@ pub fn finalize_batch(
     };
 
     if executed_message_count < twine_chain_storage_data.total_msg_handled_on_twine {
-        return Err(ProgramCustomError::BatchHashMismatch.into());
+        return Err(ProgramCustomError::MessageExecutedCountError.into());
     }
 
     // Calling SP1 Verifier to verify the execution proof
@@ -107,7 +107,9 @@ pub fn finalize_batch(
 
 pub fn decode_batch_info(bytes: &[u8]) -> Result<(u64, [u8; 32], [u8; 32]), ProgramError> {
     const LEN: usize = 32 + 32 + 8 + 8; 
+
     if bytes.len() != LEN {
+        println!("length: {}", bytes.len());
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
 
@@ -156,9 +158,6 @@ fn validate_pdas(
         return Err(ProgramCustomError::InvalidBatchFinalizationSequence.into());
     }
     msg!("finalization 4");
-    if current_batch_hash != twine_chain_storage_data.last_committed_batch_hash {
-        return Err(ProgramCustomError::BatchHashMismatch.into());
-    }
     msg!("finalization 5");
     msg!("Previous batch hash {:?}", previous_batch_hash);
     msg!(
@@ -166,7 +165,7 @@ fn validate_pdas(
         twine_chain_storage_data.last_finalized_batch_hash
     );
     if previous_batch_hash != twine_chain_storage_data.last_finalized_batch_hash {
-        return Err(ProgramCustomError::BatchHashMismatch.into());
+        return Err(ProgramCustomError::LastFinalizedBatchHashMismatch.into());
     }
     msg!("finalization 6");
     // Check if initiator has TwineOperationHandler Role
