@@ -64,6 +64,17 @@ pub struct TokenDecimalMappingData {
 /***************
  * Withdrawals *
  ***************/
+
+ #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct L2WithdrawValues {
+    pub batch_number: u64,
+    pub nonce: u64,
+    pub batch_hash: [u8; 32],
+    pub l1_receiver_address: String,
+    pub l1_token_address: String,
+    pub l2_token_address: String,
+    pub amount: String,
+}
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct ExecutedWithdrawalsBuffer {
     pub is_initialized: bool,

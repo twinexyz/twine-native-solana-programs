@@ -154,9 +154,10 @@ async fn finalize_batch_test() {
     let total_msg_handled_on_twine : u64 = 2;
 
     let mut public_values = Vec::with_capacity(72);
-    public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
     public_values.extend_from_slice(&genesis_block_hash);
     public_values.extend_from_slice(&batch_hash);
+    public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+    public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
 
     instructions.extend(instruction::finalize_batch(
         &accounts.chain_admin.pubkey(),
