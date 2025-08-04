@@ -39,6 +39,8 @@ pub enum ProgramCustomError {
     InvalidL2TokenAddressFormat,
     #[error("Batch needs to be finalized first")]
     BatchNotFinalized,
+    #[error("Failed to decode public value")]
+    PublicValueDecodeFailed,
     #[error("Deposit Rolling Hash is mismatched")]
     DepositRollingHashMismatch,
     #[error("Withdraw Rolling Hash is mismatched")]
@@ -63,6 +65,12 @@ pub enum ProgramCustomError {
     InvalidSigner,
     #[error("Calculated and Provided Batch Hash did not match")]
     BatchHashMismatch,
+    #[error("Last commited batch hash did not match")]
+    LastCommitedBatchHashMismatch,
+    #[error("Last finalized batch hash did not match")]
+    LastFinalizedBatchHashMismatch,
+    #[error("Cannot execute less message than before")]
+    MessageExecutedCountError,
     #[error("Unauthorized: Caller does not have the required role")]
     Unauthorized,
     #[error("All batch data needs to be filled before finalization")]
