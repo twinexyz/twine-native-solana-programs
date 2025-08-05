@@ -2,7 +2,7 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, 
 
 use crate::{
     core::{error::ProgramCustomError, instruction::GatewayInstruction},
-    execute_l2_withdrawal::execute_native_l2_withdrawal,
+    execute_l2_withdrawal::{execute_native_l2_withdrawal,execute_spl_l2_withdrawal},
     finalize_withdrawal::{finalize_native_withdrawal, finalize_spl_withdrawal},
     initialize::{initialize_tokens_gateway, initialze_role_manager},
     native::{native_deposit, native_forced_withdrawal},
@@ -131,11 +131,22 @@ pub fn process_instruction(
         GatewayInstruction::ExecuteL2NativeWithdrawal {
             public_values,
             execution_proof,
-        } => execute_native_l2_withdrawal::execute_l2_native_withdrawal(
+        } => {execute_native_l2_withdrawal::execute_native_l2_withdrawal(
             program_id,
             accounts,
             public_values,
             execution_proof,
-        ),
+        )
+    } GatewayInstruction::ExecuteL2SplWithdrawal {
+            public_values,
+            execution_proof,
+        } => {
+            execute_spl_l2_withdrawal::execute_spl_l2_withdrawal(
+            program_id,
+            accounts,
+            public_values,
+            execution_proof,
+        )
     }
+}
 }

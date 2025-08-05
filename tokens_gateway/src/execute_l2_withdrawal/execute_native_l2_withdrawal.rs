@@ -30,7 +30,7 @@ use crate::{
     },
 };
 
-pub fn execute_l2_native_withdrawal(
+pub fn execute_native_l2_withdrawal(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     public_values: Vec<u8>,

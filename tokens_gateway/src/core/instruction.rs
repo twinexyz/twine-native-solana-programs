@@ -86,6 +86,10 @@ pub enum GatewayInstruction {
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
     },
+    ExecuteL2SplWithdrawal {
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
+    }
 }
 #[derive(BorshSerialize, BorshDeserialize)]
 struct UpdateTokenMappingPayload {
@@ -155,7 +159,13 @@ struct FinalizeNativeWithdrawalPayload {
 #[derive(BorshSerialize, BorshDeserialize)]
 struct ExecuteL2NativeWithdrawalPayload {
     public_values: Vec<u8>,
-    execution_proof: Vec<u8>
+    execution_proof: Vec<u8>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize)]
+struct ExecuteL2SplWithdrawalPayload {
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -477,6 +487,47 @@ pub fn execute_l2_native_withdrawal(
     }]
 }
 
+pub fn execute_l2_spl_withdrawal(
+    user: &Pubkey,
+    token_mint_pubkey: &Pubkey,
+    spl_tokens_vault: &Pubkey,
+    l1_receiver_address: Pubkey,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::ExecuteL2SplWithdrawal {
+        public_values: public_values,
+        execution_proof: execution_proof,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(*user, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(*spl_tokens_vault, false),
+        AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
+        AccountMeta::new(spl_token::id(), false),
+        AccountMeta::new(*token_mint_pubkey, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_ID).0, false),
+        AccountMeta::new(
+            derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
+            false,
+        ),
+        AccountMeta::new(l1_receiver_address, false),
+        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(twine_chain_ID, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
 pub fn finalize_spl_token_withdrawal(
     chain_id: u64,
     block_number: u64,
@@ -713,7 +764,18 @@ impl GatewayInstruction {
             12 => {
                 let payload = ExecuteL2NativeWithdrawalPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::ExecuteL2NativeWithdrawal { public_values: payload.public_values, execution_proof: payload.execution_proof})
+                Ok(Self::ExecuteL2NativeWithdrawal {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
+                })
+            }
+            13 => {
+                let payload = ExecuteL2SplWithdrawalPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::ExecuteL2SplWithdrawal {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
+                })
             }
             _ => Err(ProgramError::InvalidInstructionData),
         }
