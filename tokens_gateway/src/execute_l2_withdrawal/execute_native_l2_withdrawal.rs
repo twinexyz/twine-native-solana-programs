@@ -36,6 +36,7 @@ pub fn execute_native_l2_withdrawal(
     public_values: Vec<u8>,
     execution_proof: Vec<u8>,
 ) -> ProgramResult {
+    msg!("In execute");
     let account_info_iter = &mut accounts.iter();
 
     let native_token_vault_acc = next_account_info(account_info_iter)?;
@@ -47,18 +48,19 @@ pub fn execute_native_l2_withdrawal(
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
-
     let withdrawal_values = decode_l2_withdraw_values(&public_values)?;
 
     if withdrawal_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
-    }
+    }  
+
     let amount = TokenDecimalMappings::parse_amount_to_u64(&withdrawal_values.amount)?;
     if amount <= 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
 
     if native_token_vault_acc.lamports() <= amount {
+        msg!("Insufficient fund in native token vault");
         return Err(ProgramCustomError::InsufficientFunds.into());
     }
 
@@ -95,7 +97,7 @@ pub fn execute_native_l2_withdrawal(
             GROTH16_VK_4_0_0_RC3_BYTES,
         )
         .map_err(|_| ProgramError::InvalidInstructionData)?;
-    }
+    } 
     let token_decimal_mappings =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;

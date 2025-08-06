@@ -109,7 +109,6 @@ pub fn decode_batch_info(bytes: &[u8]) -> Result<(u64, [u8; 32], [u8; 32]), Prog
     const LEN: usize = 32 + 32 + 8 + 8; 
 
     if bytes.len() != LEN {
-        println!("length: {}", bytes.len());
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
 
@@ -136,7 +135,6 @@ fn validate_pdas(
     if !twine_operation_handler_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-    msg!("finalization 1");
     // Dervie and validate PDAs
     let (expected_twine_chain_storage_pda, _storage_bump) = derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
@@ -146,28 +144,21 @@ fn validate_pdas(
 
     let (expected_current_pda, _current_pda_bump) = derive_commitment_pda(program_id, batch_number);
     verify_derived_address(expected_current_pda, current_batch_acc)?;
-    msg!("finalization 2");
     // Deserialize Twine chain storage's data
     let twine_chain_storage_data =
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
-    msg!("finalization 3");
+
     if batch_number != twine_chain_storage_data.last_committed_batch_number
         && batch_number != twine_chain_storage_data.last_finalized_batch_number + 1
     {
         return Err(ProgramCustomError::InvalidBatchFinalizationSequence.into());
     }
-    msg!("finalization 4");
-    msg!("finalization 5");
-    msg!("Previous batch hash {:?}", previous_batch_hash);
-    msg!(
-        "last batch hash {:?}",
-        twine_chain_storage_data.last_finalized_batch_hash
-    );
+
     if previous_batch_hash != twine_chain_storage_data.last_finalized_batch_hash {
         return Err(ProgramCustomError::LastFinalizedBatchHashMismatch.into());
     }
-    msg!("finalization 6");
+   
     // Check if initiator has TwineOperationHandler Role
     let role_manager_data =
         TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
@@ -179,7 +170,6 @@ fn validate_pdas(
     ) {
         return Err(ProgramCustomError::Unauthorized.into());
     }
-    msg!("finalization 5");
     Ok(twine_chain_storage_data)
 }
 

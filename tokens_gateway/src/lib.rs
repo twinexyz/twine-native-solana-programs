@@ -9,5 +9,5 @@ pub mod utils;
 pub use solana_program;
 pub mod finalize_withdrawal;
 pub mod execute_l2_withdrawal;
-solana_program::declare_id!("C49GbSeRLKTqnF7y5XaxGH47WkX7hCNecYPcG3oMeMFx");
+solana_program::declare_id!("H9gWKA7f7P5yaghiGpyvWXoBEu9FPBijoaACiT7SrDCi");
 

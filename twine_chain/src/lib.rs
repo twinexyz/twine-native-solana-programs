@@ -6,4 +6,4 @@ pub mod initialize;
 pub mod append_messages;
 pub mod commit_finalize;
 
-solana_program::declare_id!("EYmtTkGPMvahDhK5i9MWyu9yf7zhGUR2tH7EEwdh72PZ");
+solana_program::declare_id!("HG35QjfGQDxH8fp8SXMH4ebepcKEW7peiJacMtwfkDq2");
