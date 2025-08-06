@@ -3,12 +3,13 @@ use crate::operations::{
     create_spl_token::create_spl_token,
     deposit_native_token::native_token_deposit,
     deposit_spl_token::spl_token_deposit,
+    execute_native_l2_withdrawal::execute_native_l2_withdrawal,
     forced_native_withdrawal::forced_native_withdrawal,
     forced_spl_withdrawal::forced_spl_withdrawal,
     get_all_pdas::{get_all_pdas, get_batch_pda},
+    get_pdas_data::{get_messages_buffer_data, get_twine_chain_storage_data},
     initialize_programs::initialize_twine_solana_programs,
     token_mapping::update_token_mapping,
-    get_pdas_data::{get_messages_buffer_data,get_twine_chain_storage_data},
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -104,6 +105,10 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
                 user_token_account,
                 amount,
             );
+            println!("Result: {:?}", result);
+        }
+        Commands::ExecuteNativeL2Withdrawal {} => {
+            let result = execute_native_l2_withdrawal();
             println!("Result: {:?}", result);
         }
     }

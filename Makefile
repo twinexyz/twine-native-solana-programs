@@ -102,6 +102,10 @@ forced-spl-token-withdrawal:
 	@echo "Forced Spl Token Withdrawal..."
 	cargo run --bin interaction -- forced-spl-withdrawal  "$(l1Token)" "$(l2Token)" "$(twineAccount)" "$(privateKey)" "$(receiver)" "$(amount)"
 
+execute_native_l2_withdrawal:
+	@echo "Execute L2 initiated native Token Withdrawal..."
+	cargo run --bin interaction -- execute-native-l2-withdrawal  
+
 get-all-pdas:
 	@echo "Get all pdas"
 	cargo run --bin interaction -- get-all-pdas
