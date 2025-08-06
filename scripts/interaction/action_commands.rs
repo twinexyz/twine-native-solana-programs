@@ -48,7 +48,11 @@ pub enum Commands {
         user_token_account: Pubkey,
         amount: u64,
     },
-    ExecuteNativeL2Withdrawal {},
+    ExecuteNativeL2Withdrawal {
+        receiver: Pubkey,
+        public_values: String,
+        proof: String,
+    },
     GetBatchPda {
         batch_number: u64,
     },

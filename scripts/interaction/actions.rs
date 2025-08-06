@@ -107,9 +107,20 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             );
             println!("Result: {:?}", result);
         }
-        Commands::ExecuteNativeL2Withdrawal {} => {
-            let result = execute_native_l2_withdrawal();
-            println!("Result: {:?}", result);
+        Commands::ExecuteNativeL2Withdrawal {
+            receiver,
+            public_values,
+            proof,
+        } => {
+            match execute_native_l2_withdrawal(receiver, public_values, proof) {
+                Ok(_) => {
+                    println!("L2 originated withdrawal successful");
+
+                },
+                Err(e) => {
+                    eprintln!("Error: {:?}", e);
+                }
+            }
         }
     }
     Ok(())
