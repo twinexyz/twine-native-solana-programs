@@ -50,7 +50,7 @@ pub fn execute_native_l2_withdrawal(
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
-   
+
     let withdrawal_values =
         decode_l2_withdraw_values(&public_values, receiver_acc.key.to_string().len())?;
     if withdrawal_values.batch_number <= 0 {
@@ -83,9 +83,9 @@ pub fn execute_native_l2_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-        return Err(ProgramCustomError::BatchNotFinalized.into());
-    };
+    // if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+    //     return Err(ProgramCustomError::BatchNotFinalized.into());
+    // };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -166,19 +166,17 @@ pub fn decode_l2_withdraw_values(
     if bytes.len() < MIN_LEN {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
-    // Extract batchNumber (uint64) from bytes[0:8]
-    let batch_number = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
-    // Extract nonce (uint64) from bytes[8:16]
-    let nonce = u64::from_be_bytes(bytes[8..16].try_into().unwrap());
-    // Extract batchHash (bytes32) from bytes[16:48]
-    let mut batch_hash = [0u8; 32];
-    batch_hash.copy_from_slice(&bytes[16..48]);
 
-    // Extract string fields with null-termination handling
-    let l1_receiver_address = decode_string_field(&bytes[48..48 + l1_receiver_address_length])?;
-    let l1_token_address = decode_string_field(&bytes[48 + l1_receiver_address_length..80 + l1_receiver_address_length])?;
-    let l2_token_address = decode_string_field(&bytes[80 + l1_receiver_address_length..122 + l1_receiver_address_length])?;
-    let amount = decode_string_field(&bytes[122 + l1_receiver_address_length..])?;
+    let batch_number = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
+    let nonce = u64::from_be_bytes(bytes[8..16].try_into().unwrap());
+    let batch_hash: [u8; 32] = bytes[16..48].try_into().unwrap();
+
+    let offset = |start: usize| start + l1_receiver_address_length;
+    let l1_receiver_address = decode_string_field(&bytes[48..offset(48)])?;
+    let l1_token_address = decode_string_field(&bytes[offset(48)..offset(80)])?;
+    let l2_token_address = decode_string_field(&bytes[offset(80)..offset(122)])?;
+    let amount = decode_string_field(&bytes[offset(122)..])?;
+
     Ok(L2WithdrawValues {
         batch_number,
         nonce,

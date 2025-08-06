@@ -56,7 +56,7 @@ async fn l2_native_withdrawal_finalized_succeed() {
     public_values.extend_from_slice(&amount.to_string().as_bytes());
 
     println!("The public values{:?}",public_values);
-    msg!("The hex values {:?}",hex::encode(&data));
+    msg!("The hex values {:?}",hex::encode(&public_values));
 
 
     let mut instructions = vec![];
