@@ -83,9 +83,9 @@ pub fn execute_native_l2_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    // if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {

@@ -2,7 +2,7 @@
 mod helpers;
 use solana_program_test::*;
 use solana_sdk::{
-    signature::{Keypair, Signer}, transaction::Transaction
+    msg, signature::{Keypair, Signer}, transaction::Transaction
 };
 
 use helpers::tokens_gateway_helper::{
@@ -56,6 +56,7 @@ async fn l2_native_withdrawal_finalized_succeed() {
     public_values.extend_from_slice(&amount.to_string().as_bytes());
 
     println!("The public values{:?}",public_values);
+    msg!("The hex values {:?}",hex::encode(&data));
 
 
     let mut instructions = vec![];
