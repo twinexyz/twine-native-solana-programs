@@ -104,7 +104,7 @@ forced-spl-token-withdrawal:
 
 execute_native_l2_withdrawal:
 	@echo "Execute L2 initiated native Token Withdrawal..."
-	cargo run --bin interaction -- execute-native-l2-withdrawal  
+	cargo run --bin interaction -- execute-native-l2-withdrawal "${receiver}" "${publicValue}" "${executionProof}" 
 
 get-all-pdas:
 	@echo "Get all pdas"

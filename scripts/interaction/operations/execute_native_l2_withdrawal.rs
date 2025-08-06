@@ -8,8 +8,8 @@ pub fn execute_native_l2_withdrawal(
     public_value: String,
     proof: String,
 ) -> Result<()> {
-    let public_values = hex::decode(public_value)?;
-    let execution_proof = hex::decode(proof)?;
+    let public_values = hex::decode(public_value.trim_start_matches("0x"))?;
+    let execution_proof = hex::decode(proof.trim_start_matches("0x"))?;
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
     let blockhash = rpc_client.get_latest_blockhash()?;
