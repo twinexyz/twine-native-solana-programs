@@ -42,7 +42,6 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     let batch_number = 1u64;
     let nonce = 12u64;
     let batch_hash = [1u8; 32];
-    // let l1_receiver_address = accounts.chain_admin.pubkey();
     let l2_token = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let execution_proof = vec![];
     let mut public_values = vec![];

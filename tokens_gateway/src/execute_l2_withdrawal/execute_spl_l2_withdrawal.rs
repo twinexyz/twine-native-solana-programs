@@ -55,7 +55,11 @@ pub fn execute_spl_l2_withdrawal(
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
-    let withdrawal_values = decode_l2_withdraw_values(&public_values)?;
+    let withdrawal_values = decode_l2_withdraw_values(
+        &public_values,
+        receiver_acc.key.to_string().len(),
+        mint.key.to_string().len(),
+    )?;
     if withdrawal_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
@@ -82,11 +86,12 @@ pub fn execute_spl_l2_withdrawal(
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
-    // if withdrawal_values.batch_number
-    //     > twine_chain_storage.last_finalized_batch_number
-    // {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    
+    if withdrawal_values.batch_number
+        > twine_chain_storage.last_finalized_batch_number
+    {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -161,8 +166,14 @@ pub fn execute_spl_l2_withdrawal(
     Ok(())
 }
 
-pub fn decode_l2_withdraw_values(bytes: &[u8]) -> Result<L2WithdrawValues, ProgramError> {
+pub fn decode_l2_withdraw_values(
+    bytes: &[u8],
+    l1_receiver_address_length: usize,
+    l1_token_address_length: usize,
+) -> Result<L2WithdrawValues, ProgramError> {
     const MIN_LEN: usize = 168;
+    const PREFIX_LEN: usize = 48;
+    const L2_TOKEN_ADDRESS_LEN: usize = 42;
 
     if bytes.len() < MIN_LEN {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
@@ -175,11 +186,22 @@ pub fn decode_l2_withdraw_values(bytes: &[u8]) -> Result<L2WithdrawValues, Progr
     let mut batch_hash = [0u8; 32];
     batch_hash.copy_from_slice(&bytes[16..48]);
 
-    // Extract string fields with null-termination handling
-    let l1_receiver_address = decode_string_field(&bytes[48..92])?;
-    let l1_token_address = decode_string_field(&bytes[92..136])?;
-    let l2_token_address = decode_string_field(&bytes[136..178])?;
-    let amount = decode_string_field(&bytes[178..])?;
+    let mut offset = PREFIX_LEN;
+
+    let l1_receiver_end = offset + l1_receiver_address_length;
+    let l1_receiver_address = decode_string_field(&bytes[offset..l1_receiver_end])?;
+
+    offset = l1_receiver_end;
+    let l1_token_end = offset + l1_token_address_length;
+    let l1_token_address = decode_string_field(&bytes[offset..l1_token_end])?;
+
+    offset = l1_token_end;
+    let l2_token_end = offset + L2_TOKEN_ADDRESS_LEN;
+    let l2_token_address = decode_string_field(&bytes[offset..l2_token_end])?;
+
+    offset = l2_token_end;
+    let amount = decode_string_field(&bytes[offset..])?;
+
     Ok(L2WithdrawValues {
         batch_number,
         nonce,
