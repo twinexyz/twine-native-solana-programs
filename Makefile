@@ -24,6 +24,7 @@ help:
 	@echo "  test                              Run tests"
 	@echo "  deploy                            Deploy programs"
 	@echo "  update-tokens-gateway             Update the tokens gateway"
+	@echo "  update-twine-chain                Update the twine chain"
 	@echo "  keygen-tokens-gateway-program-id  Generate pubkey for tokens gateway"
 	@echo "  keygen-twine-chain-program-id     Generate pubkey for twine chain"
 	@echo "  start-validator                   Start a new solana-test-validator"
@@ -60,6 +61,9 @@ deploy:
 
 update-tokens-gateway:
 	$(CARGO) run --bin update_tokens_gateway
+
+update-twine-chain:
+	$(CARGO) run --bin update_twine_chain
 
 keygen-tokens-gateway-program-id:
 	solana-keygen pubkey $(TOKENS_GATEWAY_KEYPAIR)
@@ -102,9 +106,10 @@ forced-spl-token-withdrawal:
 	@echo "Forced Spl Token Withdrawal..."
 	cargo run --bin interaction -- forced-spl-withdrawal  "$(l1Token)" "$(l2Token)" "$(twineAccount)" "$(privateKey)" "$(receiver)" "$(amount)"
 
-execute_native_l2_withdrawal:
-	@echo "Execute L2 initiated native Token Withdrawal..."
-	cargo run --bin interaction -- execute-native-l2-withdrawal "${receiver}" "${publicValue}" "${executionProof}" 
+# make execute_native_l2_withdrawal receiver=your_receiver_here publicValue=your_public_value_here executionProof=your_execution_proof_here
+execute-native-l2-withdrawal:
+	@echo "Execute L2 initiated native Token Withdrawal..." 
+	cargo run --bin interaction -- execute-native-l2-withdrawal "${receiver}" "${publicValue}" "${executionProof}"
 
 get-all-pdas:
 	@echo "Get all pdas"
