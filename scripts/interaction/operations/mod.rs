@@ -7,4 +7,5 @@ pub mod initialize_programs;
 pub mod deposit_native_token;
 pub mod forced_spl_withdrawal;
 pub mod forced_native_withdrawal;
+pub mod execute_spl_l2_withdrawal;
 pub mod execute_native_l2_withdrawal;

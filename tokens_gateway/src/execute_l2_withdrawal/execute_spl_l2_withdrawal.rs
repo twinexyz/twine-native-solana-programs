@@ -42,7 +42,6 @@ pub fn execute_spl_l2_withdrawal(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
 
-    let _user = next_account_info(account_info_iter)?;
     let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
     let spl_tokens_vault_acc = next_account_info(account_info_iter)?;
     let vault_authority_acc = next_account_info(account_info_iter)?;

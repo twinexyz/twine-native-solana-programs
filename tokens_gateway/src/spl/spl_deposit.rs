@@ -41,7 +41,6 @@ pub fn spl_token_deposit(
     amount: u64,
     data: String,
 ) -> ProgramResult {
-     msg!("Hello inside spl");
     if amount == 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }

@@ -53,6 +53,12 @@ pub enum Commands {
         public_values: String,
         proof: String,
     },
+    ExecuteSplL2Withdrawal {
+        spl_token_pubkey: Pubkey,
+        l1_receiver_address: Pubkey,
+        public_values: String,
+        execution_proof: String,
+    },
     GetBatchPda {
         batch_number: u64,
     },

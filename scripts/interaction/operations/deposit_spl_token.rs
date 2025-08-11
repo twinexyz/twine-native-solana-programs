@@ -46,7 +46,7 @@ pub fn spl_token_deposit(
      rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Forced Native Token Withdrawal");
+    print!("Spl Token Deposit successfull");
 
     Ok(())
 }

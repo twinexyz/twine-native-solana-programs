@@ -12,11 +12,11 @@ use helpers::tokens_gateway_helper::{
 };
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction,
+    id as tokens_gateway_id,
     utils::{
-        address_derivation::{derive_spl_vault_authority,derive_spl_tokens_vault_data},
+        address_derivation::{derive_spl_tokens_vault_data, derive_spl_vault_authority},
         constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
-    id as tokens_gateway_id,
 };
 use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
 
@@ -64,8 +64,8 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     public_values.extend_from_slice(&l1_token.as_bytes());
     public_values.extend_from_slice(&l2_token.as_bytes());
     public_values.extend_from_slice(&amount.to_string().as_bytes());
-print!("L1_Token {:?}",l1_token);
     println!("The public values{:?}", public_values);
+    println!("The hex values {:?}", hex::encode(&public_values));
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
@@ -104,7 +104,6 @@ print!("L1_Token {:?}",l1_token);
         data,
     ));
     instructions.extend(tokens_gateway_instruction::execute_l2_spl_withdrawal(
-        &chain_admin,
         &spl_token_pubkey,
         &spl_token_vault,
         user_token_account,

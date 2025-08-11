@@ -488,7 +488,6 @@ pub fn execute_l2_native_withdrawal(
 }
 
 pub fn execute_l2_spl_withdrawal(
-    user: &Pubkey,
     token_mint_pubkey: &Pubkey,
     spl_tokens_vault: &Pubkey,
     l1_receiver_address: Pubkey,
@@ -504,7 +503,6 @@ pub fn execute_l2_spl_withdrawal(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(*user, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
         AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),

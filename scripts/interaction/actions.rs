@@ -4,6 +4,7 @@ use crate::operations::{
     deposit_native_token::native_token_deposit,
     deposit_spl_token::spl_token_deposit,
     execute_native_l2_withdrawal::execute_native_l2_withdrawal,
+    execute_spl_l2_withdrawal::execute_spl_l2_withdrawal,
     forced_native_withdrawal::forced_native_withdrawal,
     forced_spl_withdrawal::forced_spl_withdrawal,
     get_all_pdas::{get_all_pdas, get_batch_pda},
@@ -111,17 +112,27 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             receiver,
             public_values,
             proof,
-        } => {
-            match execute_native_l2_withdrawal(receiver, public_values, proof) {
-                Ok(_) => {
-                    println!("L2 originated withdrawal successful");
-
-                },
-                Err(e) => {
-                    eprintln!("Error: {:?}", e);
-                }
+        } => match execute_native_l2_withdrawal(receiver, public_values, proof) {
+            Ok(_) => {
+                println!("L2 originated withdrawal successful");
             }
-        }
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+            }
+        },
+        Commands::ExecuteSplL2Withdrawal {
+            spl_token_pubkey,
+            l1_receiver_address,
+            public_values,
+            execution_proof,
+        } => match execute_spl_l2_withdrawal(spl_token_pubkey, l1_receiver_address,public_values,execution_proof) {
+            Ok(_) => {
+                println!("L2 originated withdrawal successful");
+            }
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+            }
+        },
     }
     Ok(())
 }
