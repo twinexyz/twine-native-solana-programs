@@ -91,10 +91,10 @@ deposit-native-token:
 	@echo "Depositing native tokens..."
 	cargo run --bin interaction -- deposit-native-token "$(SOL_PUBKEY)" "$(l2_token)" "$(receiver_address)" "$(amount)" "$(data)"
 
-# make deposit-spl-token l1_token=l1_token_here l2_token=l2_token_here receiver_address=receiver_address_here user_token_account= user_token_account_here amount=amount_here data=data_here
+# make deposit-spl-token l1_token=l1_token_here l2_token=l2_token_here receiver_twine_address=receiver_address_here user_token_account= user_token_account_here amount=amount_here data=data_here
 deposit-spl-token:
 	@echo "Depositing native tokens..."
-	cargo run --bin interaction -- deposit-spl-token "$(l1_token)" "$(l2_token)" "$(receiver_address)" "$(user_token_account)" "$(amount)" "$(data)"
+	cargo run --bin interaction -- deposit-spl-token "$(l1_token)" "$(l2_token)" "$(receiver_twine_address)" "$(user_token_account)" "$(amount)" "$(data)"
 
 # make forced-native-token-withdrawal  l2Token=your_l2_token_address_here twineAccount=your_twine_account_here privateKey=your_private_key_here amount=100
 forced-native-token-withdrawal:
@@ -106,10 +106,15 @@ forced-spl-token-withdrawal:
 	@echo "Forced Spl Token Withdrawal..."
 	cargo run --bin interaction -- forced-spl-withdrawal  "$(l1Token)" "$(l2Token)" "$(twineAccount)" "$(privateKey)" "$(receiver)" "$(amount)"
 
-# make execute_native_l2_withdrawal receiver=your_receiver_here publicValue=your_public_value_here executionProof=your_execution_proof_here
+# make execute-native-l2-withdrawal receiver=your_receiver_here publicValue=your_public_value_here executionProof=your_execution_proof_here
 execute-native-l2-withdrawal:
 	@echo "Execute L2 initiated native Token Withdrawal..." 
 	cargo run --bin interaction -- execute-native-l2-withdrawal "${receiver}" "${publicValue}" "${executionProof}"
+
+# make execute-spl-l2-withdrawal splToken=spl_token_address receiver=receiving_address publicValue=public_values executionProof=your_execution_proof_here
+execute-spl-l2-withdrawal:
+	@echo "Execute L2 initiated spl Token Withdrawal..." 
+	cargo run --bin interaction -- execute-spl-l2-withdrawal "${splToken}" "${receiver}" "${publicValue}" "${executionProof}"
 
 get-all-pdas:
 	@echo "Get all pdas"
@@ -127,3 +132,4 @@ get-twine-chain-storage-data:
 get-batch-pda:
 	@echo "Get the pda id of the batch"
 	cargo run --bin interaction -- get-batch-pda "$(batchNumber)"
+
