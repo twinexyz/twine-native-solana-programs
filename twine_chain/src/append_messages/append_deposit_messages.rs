@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde_json::json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -17,7 +18,6 @@ use crate::{
         address_derivation::{derive_messages_buffer, derive_role_manager, verify_derived_address},
         constants::DEPOSIT_MESSAGE_TYPE,
     },
-    // commit_finalize::commit_and_finalize_txn::calculate_deposit_rolling_hash,
 };
 
 pub fn append_deposit_message(
@@ -47,28 +47,36 @@ pub fn append_deposit_message(
     }
 
     // Update Deposits
-    deposits.messages.push(deposit_info.calculate_deposit_hash());
+    deposits
+        .messages
+        .push(deposit_info.calculate_deposit_hash());
     deposits.message_nonce += 1;
 
     deposits
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!(
-        "event=DepositSuccessful nonce={} from_l1_pubkey={} to_twine_address={} l1_token={} l2_token={} chain_id={} amount={} data={} message_type= {} slot_number={}",
-        deposit_info.nonce,
-        deposit_info.from_l1_pubkey,
-        deposit_info.to_twine_address,
-        deposit_info.l1_token,
-        deposit_info.l2_token,
-        deposit_info.chain_id,
-        deposit_info.amount,
-        deposit_info.data,
-        DEPOSIT_MESSAGE_TYPE,
-        deposit_info.slot_number,
-    );
+    let event = json!(
+        {
+            "event": "MessageTransaction",
+            "nonce": deposit_info.nonce,
+            "from_l1_pubkey": deposit_info.from_l1_pubkey,
+            "to_twine_address": deposit_info.to_twine_address,
+            "l1_token": deposit_info.l1_token,
+            "l2_token": deposit_info.l2_token,
+            "chain_id": deposit_info.chain_id,
+            "amount": deposit_info.amount,
+            "data": deposit_info.data,
+            "message_type": DEPOSIT_MESSAGE_TYPE,
+            "slot_number": deposit_info.slot_number
+
+        }
+    )
+    .to_string();
+    msg!(&event);
     Ok(())
 }
+
 
 fn validate_accounts(
     program_id: &Pubkey,

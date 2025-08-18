@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde_json::json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -17,7 +18,6 @@ use crate::{
         address_derivation::{derive_messages_buffer, derive_role_manager, verify_derived_address},
         constants::FORCED_WITHDRAW_MESSAGE_TYPE,
     },
-    // commit_finalize::commit_and_finalize_txn::calculate_withdraw_rolling_hash
 };
 
 pub fn append_forced_withdrawal_message(
@@ -63,28 +63,43 @@ pub fn append_forced_withdrawal_message(
     withdrawals
         .messages
         .push(withdraw_info.calculate_withdraw_hash());
-    
+
     withdrawals.message_nonce += 1;
 
     withdrawals
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!(
-        "event=ForcedWithdrawSuccessful nonce={} from_twine_address={} to_l1_pubkey={} l1_token={} l2_token={} chain_id={} amount={} message_type={} slot_number={}",
-        withdraw_info.nonce,
-        withdraw_info.from_twine_address,
-        withdraw_info.to_l1_pubkey,
-        withdraw_info.l1_token,
-        withdraw_info.l2_token,
-        withdraw_info.chain_id,
-        withdraw_info.amount,
-        FORCED_WITHDRAW_MESSAGE_TYPE,
-        withdraw_info.slot_number,
-    );
+    let event = json!(
+        {
+            "event": "MessageTransaction",
+            "nonce": withdraw_info.nonce,
+            "from_l1_pubkey": withdraw_info.from_twine_address,
+            "to_twine_address": withdraw_info.to_l1_pubkey,
+            "l1_token": withdraw_info.l1_token,
+            "l2_token": withdraw_info.l2_token,
+            "chain_id": withdraw_info.chain_id,
+            "amount": withdraw_info.amount,
+            "data": "",
+            "message_type": FORCED_WITHDRAW_MESSAGE_TYPE,
+            "slot_number": withdraw_info.slot_number
+
+        }
+    )
+    .to_string();
+    msg!(&event);
     Ok(())
 }
-
+// TransactionType.Withdraw,
+//             messageIndex,
+//             chainId,
+//             uint64(block.number),
+//             l1Token,
+//             l2Token,
+//             from,
+//             to,
+//             amount,
+//             message
 fn validate_accounts(
     program_id: &Pubkey,
     messages_buffer_acc: &AccountInfo,
