@@ -14,7 +14,7 @@ use solana_program::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ForcedWithdrawMessageInfo,MessagesBuffer,TransactionType},
+        state::{ForcedWithdrawMessageInfo, MessagesBuffer, TransactionType},
     },
     ID as twine_chain_program_id,
 };
@@ -28,7 +28,7 @@ use crate::{
     },
     utils::{
         address_derivation::derive_native_token_vault_data,
-        constants::{CHAIN_ID, NATIVE_TOKEN_VAULT_DATA_PREFIX,FORCED_WITHDRAW_TRANSACTION},
+        constants::{CHAIN_ID, FORCED_WITHDRAW_TRANSACTION, NATIVE_TOKEN_VAULT_DATA_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
     },
 };
@@ -99,6 +99,11 @@ pub fn forced_native_token_withdrawal(
     let decimal_mapping = token_decimal_mapping
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
+
+    if (l2_token != decimal_mapping.l2_token.to_string()) {
+        return Err(ProgramCustomError::TokenMappingNotFound.into());
+    }
+    
     let l2_amount = TokenDecimalMappings::convert_l1_to_l2(
         amount,
         decimal_mapping.l1_decimals,
@@ -106,17 +111,16 @@ pub fn forced_native_token_withdrawal(
     )
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
-    let forced_withdrawal_messages_buffer = MessagesBuffer::deserialize(
-        &mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..],
-    )
-    .map_err(|_| ProgramError::InvalidAccountData)?;
+    let forced_withdrawal_messages_buffer =
+        MessagesBuffer::deserialize(&mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = forced_withdrawal_messages_buffer.message_nonce + 1;
 
     let clock = Clock::get()?;
 
     let withdraw_info = ForcedWithdrawMessageInfo {
-        txn_type:TransactionType::Withdraw,
+        txn_type: TransactionType::Withdraw,
         nonce: u64_nonce,
         chain_id: CHAIN_ID,
         slot_number: clock.slot,
@@ -125,7 +129,7 @@ pub fn forced_native_token_withdrawal(
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount.to_string(),
-        data: String::new(), 
+        data: String::new(),
     };
 
     let sign_info = SignMessageInfo {
@@ -210,7 +214,6 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    
     if token_decimal_mappings_acc.owner != program_id {
         msg!("Invalid token decimal mappings account owner");
         return Err(ProgramError::IncorrectProgramId);
@@ -296,10 +299,10 @@ mod tests {
         };
         let mut native_vault_data_serialized = native_vault_data.try_to_vec().unwrap();
 
-        let forced_withdrawal_buffer = MessagesBuffer{
+        let forced_withdrawal_buffer = MessagesBuffer {
             is_initialized: true,
             message_nonce: 5,
-            chain_id:CHAIN_ID,
+            chain_id: CHAIN_ID,
             messages: Vec::new(),
         };
         let mut forced_withdrawal_buffer_serialized =

@@ -18,9 +18,9 @@ use spl_token::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{DepositMessageInfo, MessagesBuffer,TransactionType},
+        state::{DepositMessageInfo, MessagesBuffer, TransactionType},
     },
-    utils::constants::{MESSAGES_BUFFER_PREFIX,FORCED_WITHDRAW_MESSAGE_TYPE},
+    utils::constants::{FORCED_WITHDRAW_MESSAGE_TYPE, MESSAGES_BUFFER_PREFIX},
     ID as twine_chain_program_id,
 };
 
@@ -29,7 +29,10 @@ use crate::{
         error::ProgramCustomError,
         state::{SplTokensVaultData, TokenDecimalMappings},
     },
-    utils::{constants::{SPL_TOKENS_VAULT_DATA_PREFIX,DEPOSIT_TRANSACTION}, ethereum_checks::is_valid_ethereum_address},
+    utils::{
+        constants::{DEPOSIT_TRANSACTION, SPL_TOKENS_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
 };
 
 pub fn spl_token_deposit(
@@ -51,9 +54,11 @@ pub fn spl_token_deposit(
     if !is_valid_ethereum_address(&l2_token)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
+
     if !is_valid_ethereum_address(&receiver_twine_address)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+    
     let account_info_iter = &mut accounts.iter();
     let user = next_account_info(account_info_iter)?;
     let user_token_account = next_account_info(account_info_iter)?;
@@ -68,7 +73,7 @@ pub fn spl_token_deposit(
     if l1_token != mint.key.to_string() {
         return Err(ProgramCustomError::InvalidToken.into());
     }
-     validate_accounts(
+    validate_accounts(
         user,
         user_token_account,
         spl_tokens_vault_data_acc,
@@ -80,7 +85,7 @@ pub fn spl_token_deposit(
         role_manager_acc,
         twine_chain_program,
         program_id,
-     );
+    );
     let spl_data_seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes()];
     let (spl_data_key, spl_data_bump) = Pubkey::find_program_address(spl_data_seeds, program_id);
     if spl_data_key != *spl_tokens_vault_data_acc.key {
@@ -95,9 +100,15 @@ pub fn spl_token_deposit(
     }
     let token_decimal_mappings =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])?;
+
     let decimal_mapping = token_decimal_mappings
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
+
+    if (l2_token != decimal_mapping.l2_token.to_string()) {
+        return Err(ProgramCustomError::TokenMappingNotFound.into());
+    }
+
     let l2_amount = TokenDecimalMappings::convert_l1_to_l2(
         amount,
         decimal_mapping.l1_decimals,
@@ -150,7 +161,7 @@ pub fn spl_token_deposit(
     let clock = Clock::get()?;
 
     let deposit_info = DepositMessageInfo {
-        txn_type:TransactionType::Deposit,
+        txn_type: TransactionType::Deposit,
         nonce: u64_nonce,
         chain_id: 900,
         slot_number: clock.slot,
@@ -195,7 +206,6 @@ pub fn spl_token_deposit(
 
     Ok(())
 }
-
 
 fn validate_accounts(
     user: &AccountInfo,

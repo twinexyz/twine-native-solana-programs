@@ -50,11 +50,11 @@ pub fn forced_spl_token_withdrawal(
     }
 
     if l1_token == "11111111111111111111111111111111" {
-        return Err(ProgramCustomError::InvalidArgument.into());
+        return Err(ProgramCustomError::InvalidL1Token.into());
     }
 
     if !is_valid_ethereum_address(&l2_token)? {
-        return Err(ProgramCustomError::InvalidArgument.into());
+        return Err(ProgramCustomError::InvalidL2Token.into());
     }
 
     if !is_valid_ethereum_address(&from_twine_address)? {
@@ -96,6 +96,10 @@ pub fn forced_spl_token_withdrawal(
     let decimal_mapping = token_decimal_mapping
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
+
+     if (l2_token != decimal_mapping.l2_token.to_string()) {
+        return Err(ProgramCustomError::TokenMappingNotFound.into());
+    }
 
     let l2_amount = TokenDecimalMappings::convert_l1_to_l2(
         amount,

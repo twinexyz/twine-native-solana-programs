@@ -15,9 +15,9 @@ use solana_program::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{DepositMessageInfo, MessagesBuffer,TransactionType},
+        state::{DepositMessageInfo, MessagesBuffer, TransactionType},
     },
-    utils::constants::{MESSAGES_BUFFER_PREFIX,DEPOSIT_MESSAGE_TYPE},
+    utils::constants::{DEPOSIT_MESSAGE_TYPE, MESSAGES_BUFFER_PREFIX},
     ID as twine_chain_program_id,
 };
 
@@ -28,7 +28,8 @@ use crate::{
     },
     utils::{
         address_derivation::derive_native_token_vault_data,
-        constants::{DEPOSIT_TRANSACTION,NATIVE_TOKEN_VAULT_DATA_PREFIX}, ethereum_checks::is_valid_ethereum_address,
+        constants::{DEPOSIT_TRANSACTION, NATIVE_TOKEN_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
     },
 };
 
@@ -48,6 +49,9 @@ pub fn native_token_deposit(
     if l1_token != "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
     }
+    if !is_valid_ethereum_address(&l2_token)? {
+        return Err(ProgramCustomError::InvalidL2Token.into());
+    }
     if !is_valid_ethereum_address(&receiver_twine_address)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
@@ -58,7 +62,7 @@ pub fn native_token_deposit(
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let messages_buffer_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let twine_chain_role_manager_acc = next_account_info(account_info_iter)?; 
+    let twine_chain_role_manager_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
@@ -93,7 +97,6 @@ pub fn native_token_deposit(
         .total_deposits
         .checked_add(amount)
         .ok_or(ProgramError::InvalidArgument)?;
-   
 
     vault_data
         .serialize(&mut &mut native_token_vault_data_acc.data.borrow_mut()[..])
@@ -106,6 +109,10 @@ pub fn native_token_deposit(
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
 
+    if (l2_token != decimal_mapping.l2_token.to_string()) {
+        return Err(ProgramCustomError::TokenMappingNotFound.into());
+    }
+
     let l2_amount = TokenDecimalMappings::convert_l1_to_l2(
         amount,
         decimal_mapping.l1_decimals,
@@ -113,8 +120,10 @@ pub fn native_token_deposit(
     )
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
-    let (expected_deposit_pda, _) =
-        Pubkey::find_program_address(&[MESSAGES_BUFFER_PREFIX.as_bytes()], &twine_chain_program_id);
+    let (expected_deposit_pda, _) = Pubkey::find_program_address(
+        &[MESSAGES_BUFFER_PREFIX.as_bytes()],
+        &twine_chain_program_id,
+    );
 
     if expected_deposit_pda != *messages_buffer_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
@@ -244,7 +253,10 @@ mod mock_clock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{core::state::{NativeTokenVaultData, TokenDecimalMappingData, TokenDecimalMappings}, utils::constants::CHAIN_ID};
+    use crate::{
+        core::state::{NativeTokenVaultData, TokenDecimalMappingData, TokenDecimalMappings},
+        utils::constants::CHAIN_ID,
+    };
     use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
 
     fn create_test_account<'a>(
