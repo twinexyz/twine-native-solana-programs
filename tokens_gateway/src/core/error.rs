@@ -3,67 +3,70 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Copy, Clone)]
 pub enum ProgramCustomError {
-    #[error("Invalid Token")]                        // error 0
+    #[error("Invalid Token")]
     InvalidToken,
-    #[error("Invalid Amount")]                       // error 1
+    #[error("Invalid Amount")]
     InvalidAmount,
-    #[error("Invalid Amount")]                       // error 2
-    InvalidBatchNumber,                             
-    #[error("Invalid Length")]                       // error 3
+    #[error("Invalid Length")]
     InvalidIndex,
-    #[error("Invalid Account")]                      // error 4
+    #[error("Invalid Account")]
     InvalidAccount,
-    #[error("Invalid Receiver")]                     // error 5
+    #[error("Invalid Receiver")]
     InvalidReceiver,
-    #[error("Invalid L1 Token")]                     // error 6
+    #[error("Invalid L1 Token")]
     InvalidL1Token,
-    #[error("Invalid PDA derived")]                  // error 7
+    #[error("Invalid BatchNumber")]
+    InvalidBatchNumber,
+    #[error("Invalid PDA derived")]
     InvalidPDA,
-    #[error("Invalid Instruction")]                  // error 8
+    #[error("Invalid Instruction")]
     InvalidInstructionData,
-    #[error("Invalid Token Account")]                // error 9
+    #[error("Invalid Transaction ")]
+    InvalidTransaction,
+    #[error("Invalid Token Account")]
     InvalidTokenAccount,
-    #[error("Invalid address provided")]             // error 10
+    #[error("Invalid address provided")]
     InvalidAddress,
-    #[error("Receiver account not found")]           // error 11
+    #[error("Receiver account not found")]
     ReceiverAccountNotFound,
-    #[error("Invalid Token address format")]         // error 12
-    InvalidTokenAddress,
-    #[error("Nonce not found in withdrawals")]       // error 13
-    NonceNotFound,
-    #[error("Failed to decode public value")]        // error 14
-    PublicValueDecodeFailed,
-    #[error("Failed to serialize the state")]        // error 15
-    SerializeFailed,
-    #[error("Withdraw is already executed")]         // error 16
+    #[error("Withdraw is already executed")]
     WithdrawalAlreadyExecuted,
-    #[error("Invalid L2 token address format")]      // error 17
+    #[error("Invalid Token address format")]
+    InvalidTokenAddress,
+    #[error("Failed to serialize the state")]
+    SerializeFailed,
+    #[error("Nonce not found in withdrawals")]
+    NonceNotFound,
+    #[error("Failed to decode public value")]
+    PublicValueDecodeFailed,
+    #[error("Invalid L2 token address format")]
     InvalidL2Token,
-    #[error("Token mint not found in the vault.")]   // error 18
+    #[error("Token mint not found in the vault.")]
     TokenNotFound,
-    #[error("Failed to remove the particular role")] // error 19
+    #[error("Failed to remove the particular role")]
     RemoveFailed,
-    #[error("Batch needs to be committed before finalization")] // error 20
+    #[error("Batch needs to be committed before finalization")]
     BatchNotCommitted,
-    #[error("Overflow occurred while updating total deposits.")] // error 21
+    #[error("Overflow occurred while updating total deposits.")]
     Overflow,
-    #[error("The deposit queue has reached its maximum capacity.")] // error 22
+    #[error("The deposit queue has reached its maximum capacity.")]
     QueueOverflow,
-    #[error("Invalid Argument provided for signature verification.")] // error 23
+    #[error("Invalid Argument provided for signature verification.")]
     InvalidArgument,
-    #[error("Unauthorized: Caller does not have the required role.")] // error 24
+    #[error("Unauthorized: Caller does not have the required role.")]
     Unauthorized,
-    #[error("Token decimal mapping not found for the specified token")] // error 25
+    #[error("Token decimal mapping not found for the specified token")]
     TokenMappingNotFound,
-    #[error("Insufficient funds in user's token account for transfer.")] // error 26
+    #[error("Insufficient funds in user's token account for transfer.")]
     InsufficientFundsForTransfer,
-    #[error("Batch needs to be finalized before finalizing withdrawal")] // error 27
+    #[error("Batch needs to be finalized before finalizing withdrawal")]
     BatchNotFinalized,
-    #[error("Insufficient funds in the vault for the requested withdrawal.")] // error 28
+    #[error("Insufficient funds in the vault for the requested withdrawal.")]
     InsufficientFunds,
-    #[error("The provided public key does not match the expected public key.")] // error 29
+    #[error("The provided public key does not match the expected public key.")]
     PublicKeyMismatch,
 }
+
 
 impl From<ProgramCustomError> for ProgramError {
     fn from(e: ProgramCustomError) -> Self {

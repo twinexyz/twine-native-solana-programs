@@ -1,6 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
-use solana_program::{program_pack::IsInitialized, pubkey::Pubkey};
+use solana_program::{program_pack::IsInitialized,program_error::ProgramError, pubkey::Pubkey};
+use crate::core::error::ProgramCustomError;
 /****************
  * Role Manager *
  ****************/
@@ -155,6 +156,12 @@ impl TransactionType {
     /// `extend()` it into our Vec<u8>.
     pub fn as_bytes(self) -> [u8; 1] {
         [self as u8]
+    }
+    pub fn try_from(value: u8) -> Result<Self, ProgramError> {
+        match value {
+            v @ 0..=3 => Ok(unsafe { std::mem::transmute(v) }),
+            _ => Err(ProgramCustomError::InvalidTransactionType.into()),
+        }
     }
 }
 

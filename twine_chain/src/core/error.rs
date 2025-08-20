@@ -7,12 +7,6 @@ pub enum ProgramCustomError {
     InvalidIndex,
     #[error("Nonce not found")]
     NonceNotFound,
-    #[error("Account not initialized yet")]
-    UninitializedAccount,
-    #[error("PDA derived does not equal PDA passed in")]
-    InvalidPDA,
-    #[error("Input data exceeds max length")]
-    InvalidDataLength,
     #[error("State root mismatch")]
     InvalidStateRootSequence,
     #[error("Invalid Instruction")]
@@ -21,16 +15,24 @@ pub enum ProgramCustomError {
     TwineVerificationError,
     #[error("Receipt root mismatch")]
     InvalidReceiptRoot,
+    #[error("Invalid Transaction Type")]
+    InvalidTransactionType,
+    #[error("Account not initialized yet")]
+    UninitializedAccount,
     #[error("Previous Batch Data is empty")]
     EmptyPreviousBatch,
+    #[error("Failed to serialize the state")]
+    SerializeFailed,
+    #[error("Failed to decode public value")]
+    PublicValueDecodeFailed,
+    #[error("Input data exceeds max length")]
+    InvalidDataLength,
     #[error("Invalid Token Address Format")]
     InvalidTokenAddressFormat,
     #[error("Finalize in Serial batch order")]
     InvalidBatchSequence,
     #[error("Insufficient Funds for Transfer")]
     InsufficientFundsForTransfer,
-    #[error("Failed to serialize the state")]
-    SerializeFailed,
     #[error("Invalid Receiver Address Format")]
     InvalidReceiverAddressFormat,
     #[error("Token Decimal Mapping Not Found")]
@@ -39,38 +41,38 @@ pub enum ProgramCustomError {
     InvalidL2TokenAddressFormat,
     #[error("Batch needs to be finalized first")]
     BatchNotFinalized,
-    #[error("Failed to decode public value")]
-    PublicValueDecodeFailed,
     #[error("Deposit Rolling Hash is mismatched")]
     DepositRollingHashMismatch,
+    #[error("Copied Nonce must have required gap")]
+    InvalidNonceGap,
     #[error("Withdraw Rolling Hash is mismatched")]
     WithdrawRollingHashMismatch,
     #[error("Previous Batch needs to be finalized")]
     PreviousBatchNotFinalized,
-    #[error("LayerZero Rolling Hash is mismatched")]
-    LayerZeroRollingHashMismatch,
     #[error("Failed to remove the particular role")]
     RemoveFailed,
+    #[error("LayerZero Rolling Hash is mismatched")]
+    LayerZeroRollingHashMismatch,
     #[error("Commitment of Empty Batch not allowed")]
     EmptyBatchCommitment,
     #[error("Finalization should be done in sequence")]
     InvalidBatchFinalizationSequence,
+    #[error("Last commited batch hash did not match")]
+    LastCommitedBatchHashMismatch,
+    #[error("Cannot execute less message than before")]
+    MessageExecutedCountError,
+    #[error("PDA derived does not equal PDA passed in")]
+    InvalidPDA,
+    #[error("Last finalized batch hash did not match")]
+    LastFinalizedBatchHashMismatch,
     #[error("Blocks must be comitted in sequential order")]
     InvalidStartNonce,
     #[error("Messages must be copied in sequential order")]
-    InvalidNonceGap,
-    #[error("Copied Nonce must have required gap")]
     InvalidBlockCommitmentSequence,
-    #[error("The provided account did not sign the transaction.")]
-    InvalidSigner,
     #[error("Calculated and Provided Batch Hash did not match")]
     BatchHashMismatch,
-    #[error("Last commited batch hash did not match")]
-    LastCommitedBatchHashMismatch,
-    #[error("Last finalized batch hash did not match")]
-    LastFinalizedBatchHashMismatch,
-    #[error("Cannot execute less message than before")]
-    MessageExecutedCountError,
+    #[error("The provided account did not sign the transaction.")]
+    InvalidSigner,
     #[error("Unauthorized: Caller does not have the required role")]
     Unauthorized,
     #[error("All batch data needs to be filled before finalization")]
@@ -84,6 +86,7 @@ pub enum ProgramCustomError {
     #[error("The transaction count is greater than transactions present in the queue")]
     GreaterCount,
 }
+
 
 impl From<ProgramCustomError> for ProgramError {
     fn from(e: ProgramCustomError) -> Self {
