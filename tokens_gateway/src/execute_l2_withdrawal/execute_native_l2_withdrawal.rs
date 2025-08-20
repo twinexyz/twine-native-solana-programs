@@ -83,9 +83,9 @@ pub fn execute_native_l2_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    // if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -163,19 +163,37 @@ pub fn decode_l2_withdraw_values(
     l1_receiver_address_length: usize,
 ) -> Result<L2WithdrawValues, ProgramError> {
     const MIN_LEN: usize = 168;
+    const PREFIX_LEN: usize = 48;
+    const L1_TOKEN_ADDRESS_LEN: usize = 32; 
+    const L2_TOKEN_ADDRESS_LEN: usize = 42;
+
     if bytes.len() < MIN_LEN {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
 
+    // Extract batchNumber (uint64) from bytes[0:8]
     let batch_number = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
+    // Extract nonce (uint64) from bytes[8:16]
     let nonce = u64::from_be_bytes(bytes[8..16].try_into().unwrap());
-    let batch_hash: [u8; 32] = bytes[16..48].try_into().unwrap();
+    // Extract batchHash (bytes32) from bytes[16:48]
+    let mut batch_hash = [0u8; 32];
+    batch_hash.copy_from_slice(&bytes[16..48]);
 
-    let offset = |start: usize| start + l1_receiver_address_length;
-    let l1_receiver_address = decode_string_field(&bytes[48..offset(48)])?;
-    let l1_token_address = decode_string_field(&bytes[offset(48)..offset(80)])?;
-    let l2_token_address = decode_string_field(&bytes[offset(80)..offset(122)])?;
-    let amount = decode_string_field(&bytes[offset(122)..])?;
+    let mut offset = PREFIX_LEN;
+
+    let l1_receiver_end = offset + l1_receiver_address_length;
+    let l1_receiver_address = decode_string_field(&bytes[offset..l1_receiver_end])?;
+
+    offset = l1_receiver_end;
+    let l1_token_end = offset + L1_TOKEN_ADDRESS_LEN;
+    let l1_token_address = decode_string_field(&bytes[offset..l1_token_end])?;
+
+    offset = l1_token_end;
+    let l2_token_end = offset + L2_TOKEN_ADDRESS_LEN;
+    let l2_token_address = decode_string_field(&bytes[offset..l2_token_end])?;
+
+    offset = l2_token_end;
+    let amount = decode_string_field(&bytes[offset..])?;
 
     Ok(L2WithdrawValues {
         batch_number,

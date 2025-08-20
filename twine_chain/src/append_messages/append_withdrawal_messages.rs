@@ -90,16 +90,6 @@ pub fn append_forced_withdrawal_message(
     msg!(&event);
     Ok(())
 }
-// TransactionType.Withdraw,
-//             messageIndex,
-//             chainId,
-//             uint64(block.number),
-//             l1Token,
-//             l2Token,
-//             from,
-//             to,
-//             amount,
-//             message
 fn validate_accounts(
     program_id: &Pubkey,
     messages_buffer_acc: &AccountInfo,
