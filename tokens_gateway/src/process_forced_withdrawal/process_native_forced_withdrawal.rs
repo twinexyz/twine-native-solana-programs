@@ -16,10 +16,7 @@ use twine_chain::{
         instruction::TwineChainInstruction,
         state::{ExecutionMessageBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
     },
-    utils::{
-        address_derivation::derive_messages_replicator, batch_range_provider::batch_range_provider,
-        constants::CHAIN_ID,
-    },
+    utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
     ID as twine_chain_program_id,
 };
 
@@ -28,17 +25,18 @@ use crate::{
         error::ProgramCustomError,
         state::{
             ExecutedRefundsBuffer, ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal,
-            NativeTokenVaultData, TokenDecimalMappings, TransactionValues,
+            NativeTokenVaultData, TokenDecimalMappings, L1OriginTxPublicValues,
         },
     },
     utils::{
         address_derivation::derive_native_token_vault_data,
+        batch_range_provider::batch_range_provider,
         constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
     },
 };
 
-pub fn process_native_payout(
+pub fn process_native_forced_withdrawal(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     public_values: Vec<u8>,
@@ -56,17 +54,17 @@ pub fn process_native_payout(
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
-    let transaction_values = decode_transaction_values(&public_values, receiver_acc.key.to_string().len())?;
+    let withdraw_values = decode_withdraw_values(&public_values, receiver_acc.key.to_string().len())?;
 
-    if transaction_values.batch_number <= 0 {
+    if withdraw_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
 
-    if transaction_values.slot_number <= 0 {
+    if withdraw_values.slot_number <= 0 {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
 
-    let amount = TokenDecimalMappings::parse_amount_to_u64(&transaction_values.amount)?;
+    let amount = TokenDecimalMappings::parse_amount_to_u64(&withdraw_values.amount)?;
 
     if amount <= 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
@@ -76,19 +74,19 @@ pub fn process_native_payout(
         return Err(ProgramCustomError::InsufficientFunds.into());
     }
 
-    if transaction_values.l1_token_address != "11111111111111111111111111111111" {
+    if withdraw_values.l1_token_address != "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
     }
 
-    if !is_valid_ethereum_address(&transaction_values.l2_token_address)? {
+    if !is_valid_ethereum_address(&withdraw_values.l2_token_address)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
 
-    if transaction_values.l1_address != receiver_acc.key.to_string() {
+    if withdraw_values.l1_address != receiver_acc.key.to_string() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
 
-    let (start_nonce, end_nonce) = batch_range_provider(transaction_values.nonce).unwrap();
+    let (start_nonce, end_nonce) = batch_range_provider(withdraw_values.nonce).unwrap();
     let (expected_message_replicator, _bump_seed) =
         derive_messages_replicator(&twine_chain_program_id, start_nonce, end_nonce);
 
@@ -103,7 +101,7 @@ pub fn process_native_payout(
 
     if !messages_replicator
         .messages
-        .contains(&transaction_values.calculate_deposit_hash())
+        .contains(&withdraw_values.calculate_deposit_hash())
     {
         msg!("Error: Provided transaction not present in PDA.");
         return Err(ProgramCustomError::InvalidTransaction.into());
@@ -115,9 +113,9 @@ pub fn process_native_payout(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    //  if transaction_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    if withdraw_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -135,11 +133,11 @@ pub fn process_native_payout(
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let decimal_mapping = token_decimal_mappings
-        .get_mapping(&transaction_values.l1_token_address)
+        .get_mapping(&withdraw_values.l1_token_address)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
 
     let converted_amount = TokenDecimalMappings::convert_l2_to_l1(
-        &transaction_values.amount,
+        &withdraw_values.amount,
         decimal_mapping.l2_decimals,
         decimal_mapping.l1_decimals,
     )?;
@@ -151,13 +149,13 @@ pub fn process_native_payout(
         ExecutedRefundsBuffer::deserialize(&mut &refund_withdrawals_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
     // For refunds
-    if transaction_values.nonce < executed_refunds_buffer.refund_nonce_lower_bound {
+    if withdraw_values.nonce < executed_refunds_buffer.refund_nonce_lower_bound {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
     };
 
     if executed_refunds_buffer
         .executed_refund_nonces
-        .contains(&transaction_values.nonce)
+        .contains(&withdraw_values.nonce)
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
     };
@@ -173,27 +171,27 @@ pub fn process_native_payout(
     )?;
     executed_refunds_buffer
         .executed_refund_nonces
-        .push(transaction_values.nonce);
+        .push(withdraw_values.nonce);
 
     executed_refunds_buffer.post_withdrawal_processing();
     let clock = Clock::get()?;
 
     msg!(
     "EVENT:REFUND_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, chain_id={}, amount={}, slot={}",
-    transaction_values.nonce,
-    transaction_values.l1_address,
-    transaction_values.l1_token_address,
-    transaction_values.chain_id,
+    withdraw_values.nonce,
+    withdraw_values.l1_address,
+    withdraw_values.l1_token_address,
+    withdraw_values.chain_id,
     actual_amount,
     clock.slot
 );
     Ok(())
 }
 
-pub fn decode_transaction_values(
+pub fn decode_withdraw_values(
     bytes: &[u8],
     l1_address_length: usize,
-) -> Result<TransactionValues, ProgramError> {
+) -> Result<L1OriginTxPublicValues, ProgramError> {
     const MIN_LEN: usize = 168;
     if bytes.len() < MIN_LEN {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
@@ -213,7 +211,7 @@ pub fn decode_transaction_values(
     let amount = decode_string_field(&bytes[offset(144)..152])?;
     let message: Vec<u8> = bytes[offset(152)..].try_into().unwrap();
 
-    Ok(TransactionValues {
+    Ok(L1OriginTxPublicValues {
         batch_hash,
         batch_number,
         txn_type,

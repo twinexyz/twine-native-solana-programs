@@ -70,7 +70,7 @@ pub struct TokenDecimalMappingData {
  * Refund *
  ***************/
 #[derive(BorshSerialize, BorshDeserialize,Clone,Debug)]
-pub struct TransactionValues {
+pub struct L1OriginTxPublicValues {
     pub batch_hash: [u8; 32],
     pub batch_number: u64,
     pub txn_type: TransactionType,
@@ -204,7 +204,7 @@ impl ExecutedRefundsBuffer {
     }
 }
 
-impl TransactionValues {
+impl L1OriginTxPublicValues {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::new();
         encoded.extend(self.txn_type.as_bytes());
