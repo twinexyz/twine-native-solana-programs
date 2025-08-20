@@ -7,6 +7,8 @@ use solana_program::{
     program_pack::IsInitialized,
     pubkey::Pubkey,
     rent::Rent,
+    clock::Clock,
+    sysvar::Sysvar,
     system_instruction,
 };
 // #[cfg(not(test))]
@@ -94,6 +96,12 @@ pub fn initialize_genesis_batch(
         .serialize(&mut &mut first_batch_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
+     let clock = Clock::get()?;
+    msg!(
+        "event=GenesisBatchInitialized genesis_batch_hash={:?}  slot_number={}",
+        genesis_batch_hash,
+        clock.slot
+    );
     Ok(())
 }
 

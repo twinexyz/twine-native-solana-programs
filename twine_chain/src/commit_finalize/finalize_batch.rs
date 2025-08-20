@@ -1,5 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use sha3::{Digest, Keccak256};
 #[cfg(not(test))]
 use solana_program::clock::Clock;
 use solana_program::{
@@ -54,19 +53,6 @@ pub fn finalize_batch(
         twine_operation_handler_acc,
     )?;
 
-    // Checking if batch is filled
-    let current_batch_data =
-        BatchPdaAccount::deserialize(&mut &current_batch_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    if !current_batch_data.is_initialized() {
-        return Err(ProgramCustomError::UninitializedAccount.into());
-    };
-
-    if current_batch_data.batch_hash != current_batch_hash {
-        return Err(ProgramCustomError::BatchHashMismatch.into());
-    };
-
     if executed_message_count < twine_chain_storage_data.total_msg_handled_on_twine {
         return Err(ProgramCustomError::MessageExecutedCountError.into());
     }
@@ -86,10 +72,6 @@ pub fn finalize_batch(
     twine_chain_storage_data.last_finalized_batch_number = batch_number;
     twine_chain_storage_data.last_finalized_batch_hash = current_batch_hash;
 
-    current_batch_data
-        .serialize(&mut &mut current_batch_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
     twine_chain_storage_data
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
@@ -106,7 +88,7 @@ pub fn finalize_batch(
 }
 
 pub fn decode_batch_info(bytes: &[u8]) -> Result<(u64, [u8; 32], [u8; 32]), ProgramError> {
-    const LEN: usize = 32 + 32 + 8 + 8; 
+    const LEN: usize = 32 + 32 + 8 + 8;
 
     if bytes.len() != LEN {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
@@ -144,21 +126,31 @@ fn validate_pdas(
 
     let (expected_current_pda, _current_pda_bump) = derive_commitment_pda(program_id, batch_number);
     verify_derived_address(expected_current_pda, current_batch_acc)?;
+    // Checking if batch is filled
+    let current_batch_data =
+        BatchPdaAccount::deserialize(&mut &current_batch_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if !current_batch_data.is_initialized() {
+        return Err(ProgramCustomError::UninitializedAccount.into());
+    };
+
+    if current_batch_data.batch_hash != current_batch_hash {
+        return Err(ProgramCustomError::BatchHashMismatch.into());
+    };
     // Deserialize Twine chain storage's data
     let twine_chain_storage_data =
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if batch_number != twine_chain_storage_data.last_committed_batch_number
-        && batch_number != twine_chain_storage_data.last_finalized_batch_number + 1
-    {
+    if batch_number != twine_chain_storage_data.last_finalized_batch_number + 1 {
         return Err(ProgramCustomError::InvalidBatchFinalizationSequence.into());
     }
 
     if previous_batch_hash != twine_chain_storage_data.last_finalized_batch_hash {
         return Err(ProgramCustomError::LastFinalizedBatchHashMismatch.into());
     }
-   
+
     // Check if initiator has TwineOperationHandler Role
     let role_manager_data =
         TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
