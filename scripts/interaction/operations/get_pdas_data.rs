@@ -2,6 +2,9 @@
 use anyhow::{Context, Result};
 use borsh::BorshDeserialize;
 use twine_chain::core::state::{MessagesBuffer, TwineChainStorage};
+use tokens_gateway::{
+    core::state::ExecutedPayoutsBuffer, utils::address_derivation::derive_executed_payouts_buffer, id as tokens_gateway_program_id
+};
 use twine_chain::{
     id as twine_chain_program_id, utils::address_derivation::{derive_twine_chain_storage,derive_messages_buffer},
 };
@@ -16,9 +19,25 @@ pub fn get_messages_buffer_data() -> Result<()> {
 
     let messages_buffer_data =
         MessagesBuffer::deserialize(&mut &messages_buffer_account.data[..])
-            .context("Failed to deserialize Deposit Buffer")?;
+            .context("Failed to deserialize Message Buffer")?;
 
     println!("Message Buffer Data: {:?}", messages_buffer_data);
+
+    Ok(())
+}
+
+pub fn get_payouts_buffer_data() -> Result<()> {
+    let rpc_client = get_rpc_client();
+
+    let executed_payouts_buffer_account = rpc_client
+        .get_account(&derive_executed_payouts_buffer(&tokens_gateway_program_id()).0)
+        .context("Failed to fetch PDA account")?;
+
+    let executed_payouts_buffer_data =
+        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_account.data[..])
+            .context("Failed to deserialize Executed Buffer")?;
+
+    println!("Message Buffer Data: {:?}", executed_payouts_buffer_data);
 
     Ok(())
 }

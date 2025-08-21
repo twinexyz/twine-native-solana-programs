@@ -37,6 +37,7 @@ pub enum Commands {
         l1_token: String,
         l2_token: String,
         from_twine_address: String,
+        l1_receiver:String,
         privkey: String,
         amount: u64,
     },
@@ -65,6 +66,12 @@ pub enum Commands {
         public_values: String,
         proof: String,
     },
+    ProcessNativeForcedWithdrawal {
+        message_nonce:u64,
+        receiver: Pubkey,
+        public_values: String,
+        proof: String,
+    },
 
     GetBatchPda {
         batch_number: u64,
@@ -73,5 +80,6 @@ pub enum Commands {
     CreateSplToken {},
     GetAllPdas {},
     GetMessagesBufferData {},
+    GetExecutedPayoutsBufferData {},
     GetTwineChainStorageData {},
 }
