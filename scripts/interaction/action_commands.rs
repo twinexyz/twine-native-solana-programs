@@ -59,9 +59,17 @@ pub enum Commands {
         public_values: String,
         execution_proof: String,
     },
+    ProcessNativeRefund {
+        message_nonce:u64,
+        receiver: Pubkey,
+        public_values: String,
+        proof: String,
+    },
+
     GetBatchPda {
         batch_number: u64,
     },
+    GetAssociatedTokenAccount{wallet_address: Pubkey, spl_token_pubkey: Pubkey},
     CreateSplToken {},
     GetAllPdas {},
     GetMessagesBufferData {},

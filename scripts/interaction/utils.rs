@@ -126,6 +126,14 @@ pub fn abi_encode_sign_message(info: &SignMessageInfo) -> Vec<u8> {
     abi_encode(&tokens)
 }
 
+pub fn get_asscoiated_token_account(
+    wallet_address: &Pubkey,
+    token_address: &Pubkey,
+) -> Pubkey {
+    let wallet_ata = get_associated_token_address(wallet_address, token_address);
+    wallet_ata
+}
+
 pub fn keccak256(input: &[u8]) -> [u8; 32] {
     let mut hasher = Keccak256::new();
     hasher.update(input);

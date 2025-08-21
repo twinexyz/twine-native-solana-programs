@@ -30,9 +30,10 @@ pub fn native_token_deposit(
         blockhash,
     );
 
-    rpc_client
+    let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Native token (SOL) deposited");
+        
+    println!("Native token (SOL) deposited. Transaction signature: {}", signature);
     Ok(())
 }

@@ -1,13 +1,17 @@
+use tokens_gateway::process_refund::process_native_refund::process_native_refund;
+
 use crate::action_commands::Commands;
 use crate::operations::{
     create_spl_token::create_spl_token,
     deposit_native_token::native_token_deposit,
     deposit_spl_token::spl_token_deposit,
     execute_native_l2_withdrawal::execute_native_l2_withdrawal,
+    process_native_l1_refund::process_native_l1_refund,
     execute_spl_l2_withdrawal::execute_spl_l2_withdrawal,
     forced_native_withdrawal::forced_native_withdrawal,
     forced_spl_withdrawal::forced_spl_withdrawal,
     get_all_pdas::{get_all_pdas, get_batch_pda},
+    get_associated_token_account::get_associated_token_account,
     get_pdas_data::{get_messages_buffer_data, get_twine_chain_storage_data},
     initialize_programs::initialize_twine_solana_programs,
     token_mapping::update_token_mapping,
@@ -21,6 +25,13 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::CreateSplToken {} => {
             let result = create_spl_token();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetAssociatedTokenAccount {
+            wallet_address,
+            spl_token_pubkey,
+        } => {
+            let result = get_associated_token_account(wallet_address, spl_token_pubkey);
             println!("Result: {:?}", result);
         }
         Commands::GetAllPdas {} => {
@@ -125,9 +136,27 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             l1_receiver_address,
             public_values,
             execution_proof,
-        } => match execute_spl_l2_withdrawal(spl_token_pubkey, l1_receiver_address,public_values,execution_proof) {
+        } => match execute_spl_l2_withdrawal(
+            spl_token_pubkey,
+            l1_receiver_address,
+            public_values,
+            execution_proof,
+        ) {
             Ok(_) => {
                 println!("L2 originated withdrawal successful");
+            }
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+            }
+        },
+        Commands::ProcessNativeRefund {
+            message_nonce,
+            receiver,
+            public_values,
+            proof,
+        } => match process_native_l1_refund(message_nonce,receiver,public_values,proof) {
+            Ok(_) => {
+                println!("refund successfull");
             }
             Err(e) => {
                 eprintln!("Error: {:?}", e);
