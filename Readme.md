@@ -69,3 +69,24 @@ Twine Chain is a multi-chain settlement network designed to aggregate chains and
 
 - **Deposit Spl Token:**
      - make deposit-spl-token l1_token=l1_token_here l2_token=l2_token_here receiver_address=receiver_address_here user_token_account= user_token_account_here amount=amount_here data=data_here
+
+### 5. For Devnet Testing
+
+- **Solana Configuration:**  
+    - The below command will set the config environment to devnet
+
+   > solana config set --url https://api.devnet.solana.com && export SOLANA_RPC_URL="https://api.devnet.solana.com"
+
+
+- **Deposit Native Token:**
+    - make deposit-native-token amount=amount_here receiver_address=receiver_address_here l2_token=l2_token_here data=data_here
+        - without data
+            > make deposit-native-token amount=1 receiver_address=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 l2_token=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 
+        - with data
+            > make deposit-native-token amount=1 receiver_address=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 l2_token=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 data=0x28b52ffd04382506001c07000000000000200240010dcd1bf9a1b36ce34237eeafef220932846bcd82006044095ea7b394b75aa39bec4cb15e7b9593c315af203b7b847f05f5e1000000010438ed1739a014dc79964da2c08b23698b3d3cc7ca32193d9955685cfd01cd8a1c3ba11cf5ecfa6267617243239504a98d901aa8104dd3d4df01101c4214730f101261861813afc454206fad03ce352790330f871cceb01c797e01bca112e7a01eff4f8b7d4c657323384e2439187fecc28a118171cae36298394a7e5e0b4e00800df160c594
+
+- **Get Deposit Buffer Data:**
+    - make get-deposit-buffer-data
+
+- **Clear Pdas:**
+    - make clear-all-pdas
