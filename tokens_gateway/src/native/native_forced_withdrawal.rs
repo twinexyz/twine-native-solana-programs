@@ -58,7 +58,6 @@ pub fn forced_native_token_withdrawal(
     if !is_valid_ethereum_address(&l2_token)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
-
     if is_valid_ethereum_address(&to_l1_pubkey)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
@@ -103,7 +102,7 @@ pub fn forced_native_token_withdrawal(
     if (l2_token != decimal_mapping.l2_token.to_string()) {
         return Err(ProgramCustomError::TokenMappingNotFound.into());
     }
-    
+
     let l2_amount = TokenDecimalMappings::convert_l1_to_l2(
         amount,
         decimal_mapping.l1_decimals,

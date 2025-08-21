@@ -663,7 +663,6 @@ pub fn process_native_refund(
 pub fn process_native_forced_withdrawal(
     l1_receiver_address: Pubkey,
     message_nonce:u64,
-    amount: String,
     public_values: Vec<u8>,
     execution_proof: Vec<u8>,
 ) -> Vec<Instruction> {

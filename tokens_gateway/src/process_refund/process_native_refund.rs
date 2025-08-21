@@ -61,6 +61,7 @@ pub fn process_native_refund(
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     let refund_values = decode_refund_values(&public_values, receiver_acc.key.to_string().len())?;
+
     if refund_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
@@ -85,6 +86,21 @@ pub fn process_native_refund(
     if refund_values.l1_address != receiver_acc.key.to_string() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+    let mut executed_payouts_buffer =
+        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // For refunds
+    if refund_values.nonce < executed_payouts_buffer.payout_nonce_lower_bound {
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    };
+
+    if executed_payouts_buffer
+        .executed_payout_nonces
+        .contains(&refund_values.nonce)
+    {
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    };
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
@@ -159,22 +175,6 @@ pub fn process_native_refund(
     if native_token_vault_acc.lamports() <= actual_amount {
         return Err(ProgramCustomError::InsufficientFunds.into());
     }
-
-    let mut executed_payouts_buffer =
-        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // For refunds
-    if refund_values.nonce < executed_payouts_buffer.payout_nonce_lower_bound {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
-    if executed_payouts_buffer
-        .executed_payout_nonces
-        .contains(&refund_values.nonce)
-    {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
 
     // Native token (SOL) withdrawal
     process_native_token_withdrawal(

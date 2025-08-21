@@ -37,6 +37,7 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     let l1_decimals = 9u8;
     let l2_decimals = 18u8;
     let amount = 8000000000000000u64;
+    let l1_amount = "8000000000000000";
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let batch_number = 1u64;
@@ -45,8 +46,10 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     let l2_token = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let execution_proof = vec![];
     let mut public_values = vec![];
+
     let (spl_token_pubkey, user_token_account) =
         create_spl_and_mint(&mut context, &accounts.chain_admin, 9, 9000000000).await;
+        
     let spl_token_vault = get_or_create_ata(
         &mut context,
         &accounts.chain_admin,
@@ -63,7 +66,7 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     public_values.extend_from_slice(&user_token_account.to_string().as_bytes());
     public_values.extend_from_slice(&l1_token.as_bytes());
     public_values.extend_from_slice(&l2_token.as_bytes());
-    public_values.extend_from_slice(&amount.to_string().as_bytes());
+    public_values.extend_from_slice(&l1_amount.to_string().as_bytes());
     println!("The public values{:?}", public_values);
     println!("The hex values {:?}", hex::encode(&public_values));
 

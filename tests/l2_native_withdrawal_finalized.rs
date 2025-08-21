@@ -35,6 +35,7 @@ async fn l2_native_withdrawal_finalized_succeed() {
     let l1_decimals = 9u8;
     let l2_decimals = 18u8;
     let amount = 50000000000u64;
+    let l1_amount = "50000000000000000000";
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let batch_number = 1u64;
@@ -53,7 +54,7 @@ async fn l2_native_withdrawal_finalized_succeed() {
     public_values.extend_from_slice(&l1_receiver_address.to_string().as_bytes());
     public_values.extend_from_slice(&l1_token.as_bytes());
     public_values.extend_from_slice(&l2_token.as_bytes());
-    public_values.extend_from_slice(&amount.to_string().as_bytes());
+    public_values.extend_from_slice(&l1_amount.to_string().as_bytes());
 
     println!("The public values{:?}",public_values);
     msg!("The hex values {:?}",hex::encode(&public_values));

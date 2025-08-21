@@ -159,7 +159,6 @@ async fn process_native_forced_withdrawal() {
     instructions.extend(tokens_gateway_instruction::process_native_forced_withdrawal(
         l1_address,
         nonce,
-        l2_amount.to_string(),
         public_values,
         execution_proof,
     ));
