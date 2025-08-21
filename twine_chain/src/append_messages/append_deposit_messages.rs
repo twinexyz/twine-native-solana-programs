@@ -60,8 +60,8 @@ pub fn append_deposit_message(
         {
             "event": "MessageTransaction",
             "nonce": deposit_info.nonce,
-            "from_l1_pubkey": deposit_info.from_l1_pubkey,
-            "to_twine_address": deposit_info.to_twine_address,
+            "l1_pubkey": deposit_info.from_l1_pubkey,
+            "twine_address": deposit_info.to_twine_address,
             "l1_token": deposit_info.l1_token,
             "l2_token": deposit_info.l2_token,
             "chain_id": deposit_info.chain_id,

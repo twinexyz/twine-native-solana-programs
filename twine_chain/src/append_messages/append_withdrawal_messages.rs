@@ -37,20 +37,6 @@ pub fn append_forced_withdrawal_message(
         initializer_acc,
     )?;
 
-    // Validate data length
-    // let total_len = 8
-    //     + 8
-    //     + 8
-    //     + (4 + withdraw_info.from_twine_address.len())
-    //     + (4 + withdraw_info.to_l1_pubkey.len())
-    //     + (4 + withdraw_info.l1_token.len())
-    //     + (4 + withdraw_info.l2_token.len())
-    //     + (4 + withdraw_info.amount.len());
-
-    // if total_len > ForcedWithdrawMessageInfo::LEN {
-    //     return Err(ProgramCustomError::InvalidDataLength.into());
-    // }
-
     // Deserialize account data
     let mut withdrawals = MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
         .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -74,8 +60,8 @@ pub fn append_forced_withdrawal_message(
         {
             "event": "MessageTransaction",
             "nonce": withdraw_info.nonce,
-            "from_l1_pubkey": withdraw_info.from_twine_address,
-            "to_twine_address": withdraw_info.to_l1_pubkey,
+            "l1_pubkey": withdraw_info.to_l1_pubkey,
+            "twine_address": withdraw_info.from_twine_address,
             "l1_token": withdraw_info.l1_token,
             "l2_token": withdraw_info.l2_token,
             "chain_id": withdraw_info.chain_id,
