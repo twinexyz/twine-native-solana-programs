@@ -1,3 +1,4 @@
+#![allow(warnings)]     
 use std::process::{Command, ExitStatus};
 use std::io::{self, Write};
 

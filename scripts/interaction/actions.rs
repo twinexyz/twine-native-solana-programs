@@ -1,5 +1,3 @@
-use tokens_gateway::process_refund::process_native_refund::process_native_refund;
-
 use crate::action_commands::Commands;
 use crate::operations::process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal;
 use crate::operations::{

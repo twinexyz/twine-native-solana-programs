@@ -1,6 +1,6 @@
 use crate::utils::{get_default_keypair, get_or_create_ata, get_rpc_client};
 use anyhow::{Context,Result};
-use solana_sdk::{msg, pubkey::Pubkey, signature::Signer, transaction::Transaction};
+use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction,
     utils::address_derivation::derive_spl_vault_authority, ID as tokens_gateway_ID,
@@ -45,7 +45,7 @@ pub fn spl_token_deposit(
      rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Spl Token Deposit successfull");
+    println!("Spl Token Deposit successfull");
 
     Ok(())
 }

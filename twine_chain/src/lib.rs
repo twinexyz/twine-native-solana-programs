@@ -1,3 +1,4 @@
+#![allow(warnings)]
 pub mod core;
 pub mod role;
 pub mod utils;

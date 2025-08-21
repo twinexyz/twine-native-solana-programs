@@ -1,3 +1,4 @@
+#![allow(warnings)]     
 use action_commands::Cli;
 use clap::*;
 pub mod utils;
