@@ -35,9 +35,12 @@ help:
 	@echo "  deposit-spl-token                 Deposit SPL tokens"
 	@echo "  forced-native-token-withdrawal    Forced native token withdrawal"
 	@echo "  forced-spl-token-withdrawal       Forced SPL token withdrawal"
+	@echo "  execute-native-l2-withdrawal      Execute l2 initiated native token withdrawal"
+	@echo "  execute-spl-l2-withdrawal         Execute l2 initiated spl token withdrawal"
 	@echo "  get-all-pdas                      Get all pdas"
 	@echo "  get-batch-pda                     Get batch pda id"
 	@echo "  get-messages-buffer-data          Get messages buffer data"
+	@echo "  get-associated-token-account      Get associated token account of a wallet"
 	@echo "  get-twine-chain-storage-data      Get twine chain storage data"
 	@echo ""
 
@@ -80,6 +83,10 @@ initialize:
 
 create-spl-token:
 	$(CARGO) run --bin interaction -- create-spl-token
+
+#make get-associated-token-account wallet_address=your_wallet_address spl_token=your_spl_token
+get-associated-token-account:
+	$(CARGO) run --bin interaction -- get-associated-token-account "$(wallet_address)" "$(spl_token)"
 
 # make update-token-mapping l1_token=your_l1_token_here l2_token=your_l2_token_here l1_decimals=9 l2_decimals=18
 update-token-mapping:
