@@ -1,6 +1,7 @@
 pub mod get_all_pdas;
 pub mod token_mapping;
 pub mod get_pdas_data;
+pub mod clear_all_pdas;
 pub mod create_spl_token;
 pub mod deposit_spl_token;
 pub mod initialize_programs;

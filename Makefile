@@ -59,7 +59,8 @@ help:
 	@echo "  process-native-forced-withdrawal  Process the forced withdrawal"
 	@echo "  process-native-refund             Process the refund"
 	@echo ""
-	@echo "=== DATA RETRIEVAL TARGETS ==="
+	@echo "=== DATA TARGETS ==="
+	@echo "  clear-all-pdas                    clear all pdas"
 	@echo "  get-all-pdas                      Get all pdas"
 	@echo "  get-batch-pda                     Get batch pda id"
 	@echo "  get-messages-buffer-data          Get messages buffer data"
@@ -170,8 +171,12 @@ process-native-forced-withdrawal:
 	$(CARGO) run --bin interaction -- process-native-forced-withdrawal "$(message_nonce)" "$(receiver)" "$(public_values)" "$(proof)"
 
 # ==============================
-#        Data Retrieval Targets
+#        Data Targets
 # ==============================
+clear-all-pdas:
+	@echo "Get all pdas"
+	cargo run --bin interaction -- clear-all-pdas
+
 get-all-pdas:
 	@echo "Getting all PDAs..."
 	$(CARGO) run --bin interaction -- get-all-pdas
@@ -198,7 +203,5 @@ get-twine-chain-storage-data:
 	@echo "Getting twine chain storage data..."
 	$(CARGO) run --bin interaction -- get-twine-chain-storage-data
 
-# ==============================
-#        Processing Targets
-# ==============================
+
 

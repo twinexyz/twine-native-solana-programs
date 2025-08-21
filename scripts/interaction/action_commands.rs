@@ -82,4 +82,5 @@ pub enum Commands {
     GetMessagesBufferData {},
     GetExecutedPayoutsBufferData {},
     GetTwineChainStorageData {},
+    ClearAllPdas{},
 }

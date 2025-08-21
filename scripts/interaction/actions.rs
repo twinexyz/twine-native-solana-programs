@@ -15,11 +15,15 @@ use crate::operations::{
     get_associated_token_account::get_associated_token_account,
     get_pdas_data::{get_messages_buffer_data,get_payouts_buffer_data, get_twine_chain_storage_data},
     initialize_programs::initialize_twine_solana_programs,
-    token_mapping::update_token_mapping,
+    token_mapping::update_token_mapping,clear_all_pdas::clear_all_pdas,
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
     match command {
+        Commands::ClearAllPdas {} => {
+            let result = clear_all_pdas();
+            println!("Result: {:?}", result);
+        }
         Commands::InitializePrograms {} => {
             let result = initialize_twine_solana_programs();
             println!("Result: {:?}", result);

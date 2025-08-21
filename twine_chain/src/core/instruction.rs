@@ -53,6 +53,7 @@ pub enum TwineChainInstruction {
         address: Pubkey,
         role: RoleType,
     },
+     ClearAllPdas,
 }
 
 #[derive(BorshDeserialize)]
@@ -291,6 +292,19 @@ pub fn add_role_in_twine_chain(
         data,
     }]
 }
+pub fn clear_all_pdas() -> Vec<Instruction> {
+    let payload = TwineChainInstruction::ClearAllPdas;
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_messages_buffer(&ID).0, false),
+    ];
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
 
 impl TwineChainInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
@@ -364,6 +378,9 @@ impl TwineChainInstruction {
                     address: payload.address,
                     role: payload.role,
                 })
+            }
+            11 => {
+                Ok(Self::ClearAllPdas)
             }
             _ => Err(ProgramError::InvalidInstructionData),
         }

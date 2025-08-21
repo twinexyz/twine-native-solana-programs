@@ -12,6 +12,7 @@ use crate::{
     },
     role::roles_manager::add_role,
     setters::{set_token_gateway, set_v_keys},
+     utils::clear_all_pdas::clear_all_pdas,
 };
 
 pub fn process_instruction(
@@ -86,5 +87,6 @@ pub fn process_instruction(
         TwineChainInstruction::AddRoleInTwineChain { address, role } => {
             add_role(program_id, accounts, address, role)
         }
+        TwineChainInstruction::ClearAllPdas => clear_all_pdas(program_id, accounts),
     }
 }
