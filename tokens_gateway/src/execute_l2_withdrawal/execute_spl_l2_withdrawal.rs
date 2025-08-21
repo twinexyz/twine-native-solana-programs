@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use num_bigint::BigUint;
 // #[cfg(not(test))]
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -62,8 +63,8 @@ pub fn execute_spl_l2_withdrawal(
     if withdrawal_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
-    let amount = TokenDecimalMappings::parse_amount_to_u64(&withdrawal_values.amount)?;
-    if amount <= 0 {
+     let amount = TokenDecimalMappings::parse_amount_to_biguint(&withdrawal_values.amount)?;
+    if amount <= BigUint::ZERO {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
     if withdrawal_values.l1_token_address == "11111111111111111111111111111111" {
@@ -86,11 +87,11 @@ pub fn execute_spl_l2_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
     
-    if withdrawal_values.batch_number
-        > twine_chain_storage.last_finalized_batch_number
-    {
-        return Err(ProgramCustomError::BatchNotFinalized.into());
-    };
+    // if withdrawal_values.batch_number
+    //     > twine_chain_storage.last_finalized_batch_number
+    // {
+    //     return Err(ProgramCustomError::BatchNotFinalized.into());
+    // };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {

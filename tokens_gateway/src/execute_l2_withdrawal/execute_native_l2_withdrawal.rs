@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use num_bigint::BigUint;
 // #[cfg(not(test))]
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -56,15 +57,11 @@ pub fn execute_native_l2_withdrawal(
     if withdrawal_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
-
-    let amount = TokenDecimalMappings::parse_amount_to_u64(&withdrawal_values.amount)?;
-    if amount <= 0 {
+    let amount = TokenDecimalMappings::parse_amount_to_biguint(&withdrawal_values.amount)?;
+    if amount <= BigUint::ZERO {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
-    if native_token_vault_acc.lamports() <= amount {
-        msg!("Insufficient fund in native token vault");
-        return Err(ProgramCustomError::InsufficientFunds.into());
-    }
+   
 
     if withdrawal_values.l1_token_address != "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
@@ -83,9 +80,9 @@ pub fn execute_native_l2_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-        return Err(ProgramCustomError::BatchNotFinalized.into());
-    };
+    // if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+    //     return Err(ProgramCustomError::BatchNotFinalized.into());
+    // };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -104,7 +101,7 @@ pub fn execute_native_l2_withdrawal(
     let decimal_mapping = token_decimal_mappings
         .get_mapping(&withdrawal_values.l1_token_address)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
-
+    
     let converted_amount = TokenDecimalMappings::convert_l2_to_l1(
         &withdrawal_values.amount,
         decimal_mapping.l2_decimals,
@@ -112,6 +109,11 @@ pub fn execute_native_l2_withdrawal(
     )?;
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
+    
+     if native_token_vault_acc.lamports() <= actual_amount {
+        msg!("Insufficient fund in native token vault");
+        return Err(ProgramCustomError::InsufficientFunds.into());
+    }
 
     let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::deserialize(
         &mut &executed_withdrawals_buffer_acc.data.borrow()[..],
