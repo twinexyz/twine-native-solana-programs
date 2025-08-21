@@ -172,12 +172,16 @@ impl DepositMessageInfo {
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
+        let mut hasher = Keccak256::new();
+        hasher.update(self.data.as_bytes());
+        let data_hash = hasher.finalize();
+        encoded.extend(data_hash.as_slice()); 
         encoded.extend(self.from_l1_pubkey.as_bytes());
         encoded.extend(self.to_twine_address.as_bytes());
         encoded.extend(self.l1_token.as_bytes());
         encoded.extend(self.l2_token.as_bytes());
         encoded.extend(self.amount.as_bytes());
-        encoded.extend(self.data.as_bytes());
+        
 
         encoded
     }
@@ -198,13 +202,15 @@ impl ForcedWithdrawMessageInfo {
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
-        encoded.extend(self.from_twine_address.as_bytes());
+        let mut hasher = Keccak256::new();
+        hasher.update(self.data.as_bytes());
+        let data_hash = hasher.finalize();
+        encoded.extend(data_hash.as_slice()); 
         encoded.extend(self.to_l1_pubkey.as_bytes());
+        encoded.extend(self.from_twine_address.as_bytes());
         encoded.extend(self.l1_token.as_bytes());
         encoded.extend(self.l2_token.as_bytes());
         encoded.extend(self.amount.as_bytes());
-        encoded.extend(self.data.as_bytes());
-
         encoded
     }
     pub fn calculate_withdraw_hash(&self) -> [u8; 32] {

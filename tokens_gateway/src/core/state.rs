@@ -1,8 +1,8 @@
 use crate::core::error::ProgramCustomError;
-use twine_chain::core::state::TransactionType;
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
 use solana_program::{program_error::ProgramError, program_pack::IsInitialized, pubkey::Pubkey};
+use twine_chain::core::state::TransactionType;
 
 /****************
  * Role Manager *
@@ -64,12 +64,10 @@ pub struct TokenDecimalMappingData {
     pub l2_decimals: u8,
 }
 
-
-
 /***************
  * Refund *
  ***************/
-#[derive(BorshSerialize, BorshDeserialize,Clone,Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct L1OriginTxPublicValues {
     pub batch_hash: [u8; 32],
     pub batch_number: u64,
@@ -77,12 +75,12 @@ pub struct L1OriginTxPublicValues {
     pub nonce: u64,
     pub chain_id: u64,
     pub slot_number: u64,
+    pub message: [u8; 32],
     pub l1_address: String,
     pub l2_address: String,
     pub l1_token_address: String,
     pub l2_token_address: String,
     pub amount: String,
-    pub message:Vec<u8>,
 }
 
 /***************
@@ -107,10 +105,10 @@ pub struct ExecutedWithdrawalsBuffer {
     pub executed_withdrawal_nonces: Vec<u64>,
 }
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct ExecutedRefundsBuffer {
+pub struct ExecutedPayoutsBuffer {
     pub is_initialized: bool,
-    pub refund_nonce_lower_bound: u64,
-    pub executed_refund_nonces: Vec<u64>,
+    pub payout_nonce_lower_bound: u64,
+    pub executed_payout_nonces: Vec<u64>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -182,23 +180,24 @@ impl ExecutedWithdrawalsBuffer {
         }
     }
 }
-impl ExecutedRefundsBuffer {
+impl ExecutedPayoutsBuffer {
+    pub const SPACE: usize = 10000;
     pub fn post_withdrawal_processing(&mut self) {
-        if self.executed_refund_nonces.len() > 100 {
+        if self.executed_payout_nonces.len() > 100 {
             // Sort the vector in ascending order
-            self.executed_refund_nonces.sort();
+            self.executed_payout_nonces.sort();
 
-            let mut last_removed_nonce = self.refund_nonce_lower_bound;
+            let mut last_removed_nonce = self.payout_nonce_lower_bound;
             let mut consecutive_nonce_count = 0;
 
-            for nonces in self.executed_refund_nonces.clone() {
+            for nonces in self.executed_payout_nonces.clone() {
                 if nonces == last_removed_nonce + 1 {
                     last_removed_nonce = nonces;
-                    self.refund_nonce_lower_bound = nonces;
+                    self.payout_nonce_lower_bound = nonces;
                     consecutive_nonce_count += 1;
                 }
             }
-            self.executed_refund_nonces
+            self.executed_payout_nonces
                 .drain(0..consecutive_nonce_count);
         }
     }
@@ -217,10 +216,9 @@ impl L1OriginTxPublicValues {
         encoded.extend(self.l2_token_address.as_bytes());
         encoded.extend(self.amount.as_bytes());
         encoded.extend_from_slice(&self.message);
-        
         encoded
     }
-     pub fn calculate_deposit_hash(&self) -> [u8; 32] {
+    pub fn calculate_deposit_hash(&self) -> [u8; 32] {
         let hash = Keccak256::digest(&self.abi_encode_packed());
         let mut result = [0u8; 32];
         result.copy_from_slice(&hash);

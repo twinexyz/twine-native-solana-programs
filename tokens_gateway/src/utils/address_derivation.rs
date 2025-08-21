@@ -38,6 +38,12 @@ pub fn derive_executed_withdrawals_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
         &program_id    )
 }
 
+pub fn derive_executed_payouts_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[EXECUTED_PAYOUTS_BUFFER_PREFIX.as_bytes()],
+        &program_id    )
+}
+
 pub fn verify_derived_address(
     derived_address: &Pubkey,
     provided_address: &Pubkey,

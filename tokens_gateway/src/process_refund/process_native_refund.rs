@@ -1,4 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use num_bigint::BigUint;
+use sha3::{Digest, Keccak256};
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -14,7 +16,10 @@ use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ExecutionMessageBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
+        state::{
+            ExecutionMessageBuffer, MessagesBuffer, MessagesReplicator, TransactionType,
+            TwineChainStorage,
+        },
     },
     utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
     ID as twine_chain_program_id,
@@ -24,8 +29,8 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedRefundsBuffer, ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal,
-            NativeTokenVaultData, TokenDecimalMappings, L1OriginTxPublicValues,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal,
+            L1OriginTxPublicValues, NativeTokenVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -46,16 +51,16 @@ pub fn process_native_refund(
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
-    let refund_withdrawals_buffer_acc = next_account_info(account_info_iter)?;
+    let executed_payouts_buffer_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
     let role_manager = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
+    let messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     let refund_values = decode_refund_values(&public_values, receiver_acc.key.to_string().len())?;
-
     if refund_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
@@ -64,14 +69,9 @@ pub fn process_native_refund(
         return Err(ProgramCustomError::InvalidArgument.into());
     }
 
-    let amount = TokenDecimalMappings::parse_amount_to_u64(&refund_values.amount)?;
-
-    if amount <= 0 {
+    let amount = TokenDecimalMappings::parse_amount_to_biguint(&refund_values.amount)?;
+    if amount <= BigUint::ZERO {
         return Err(ProgramCustomError::InvalidAmount.into());
-    }
-
-    if native_token_vault_acc.lamports() <= amount {
-        return Err(ProgramCustomError::InsufficientFunds.into());
     }
 
     if refund_values.l1_token_address != "11111111111111111111111111111111" {
@@ -86,32 +86,44 @@ pub fn process_native_refund(
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
 
-    let (start_nonce, end_nonce) = batch_range_provider(refund_values.nonce).unwrap();
-    let (expected_message_replicator, _bump_seed) =
-        derive_messages_replicator(&twine_chain_program_id, start_nonce, end_nonce);
-
-    if *messages_replicator_acc.key != expected_message_replicator {
-        msg!("Error: Incorrect MessagesReplicator PDA provided.");
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    let messages_replicator =
-        MessagesReplicator::deserialize(&mut &messages_replicator_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    if !messages_replicator
-        .messages
-        .contains(&refund_values.calculate_deposit_hash())
-    {
-        msg!("Error: Provided transaction not present in PDA.");
-        return Err(ProgramCustomError::InvalidTransaction.into());
-    };
-
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
+
+    if (refund_values.nonce <= twine_chain_storage.last_copied_message_end_nonce) {
+        let (start_nonce, end_nonce) = batch_range_provider(refund_values.nonce).unwrap();
+        let (expected_message_replicator, _bump_seed) =
+            derive_messages_replicator(&twine_chain_program_id, start_nonce, end_nonce);
+
+        if *messages_replicator_acc.key != expected_message_replicator {
+            msg!("Error: Incorrect MessagesReplicator PDA provided.");
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let messages_replicator =
+            MessagesReplicator::deserialize(&mut &messages_replicator_acc.data.borrow()[..])
+                .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        if !messages_replicator
+            .messages
+            .contains(&Keccak256::digest(&public_values[40..]).into())
+        {
+            msg!("Error: Provided transaction not present in PDA.");
+            return Err(ProgramCustomError::InvalidTransaction.into());
+        };
+    } else {
+        let messages_buffer_data =
+            MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])?;
+        if !messages_buffer_data
+            .messages
+            .contains(&Keccak256::digest(&public_values[40..]).into())
+        {
+            msg!("Error: Provided transaction not present in MessageBuffer.");
+            return Err(ProgramCustomError::InvalidTransaction.into());
+        };
+    }
 
     if refund_values.batch_number > twine_chain_storage.last_finalized_batch_number {
         return Err(ProgramCustomError::BatchNotFinalized.into());
@@ -143,18 +155,22 @@ pub fn process_native_refund(
     )?;
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
-    let mut flag = false;
 
-    let mut executed_refunds_buffer =
-        ExecutedRefundsBuffer::deserialize(&mut &refund_withdrawals_buffer_acc.data.borrow()[..])
+    if native_token_vault_acc.lamports() <= actual_amount {
+        return Err(ProgramCustomError::InsufficientFunds.into());
+    }
+
+    let mut executed_payouts_buffer =
+        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
     // For refunds
-    if refund_values.nonce < executed_refunds_buffer.refund_nonce_lower_bound {
+    if refund_values.nonce < executed_payouts_buffer.payout_nonce_lower_bound {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
     };
 
-    if executed_refunds_buffer
-        .executed_refund_nonces
+    if executed_payouts_buffer
+        .executed_payout_nonces
         .contains(&refund_values.nonce)
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
@@ -169,11 +185,12 @@ pub fn process_native_refund(
         &receiver_acc,
         actual_amount,
     )?;
-    executed_refunds_buffer
-        .executed_refund_nonces
+
+    executed_payouts_buffer
+        .executed_payout_nonces
         .push(refund_values.nonce);
 
-    executed_refunds_buffer.post_withdrawal_processing();
+    executed_payouts_buffer.post_withdrawal_processing();
     let clock = Clock::get()?;
 
     msg!(
@@ -185,32 +202,76 @@ pub fn process_native_refund(
     actual_amount,
     clock.slot
 );
+
     Ok(())
 }
-
 pub fn decode_refund_values(
     bytes: &[u8],
     l1_address_length: usize,
 ) -> Result<L1OriginTxPublicValues, ProgramError> {
-    const MIN_LEN: usize = 168;
-    if bytes.len() < MIN_LEN {
+    const PREFIX_LEN: usize = 97;
+    const L1_TOKEN_ADDRESS_LEN: usize = 32;
+    const L2_ADDRESS_LEN: usize = 42;
+
+    let min_len = 233;
+
+    if bytes.len() < min_len {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
-    let batch_hash: [u8; 32] = bytes[0..32].try_into().unwrap();
-    let batch_number = u64::from_be_bytes(bytes[32..40].try_into().unwrap());
-    let txn_type = TransactionType::try_from(bytes[40])?;
-    let nonce = u64::from_be_bytes(bytes[40..48].try_into().unwrap());
-    let chain_id = u64::from_be_bytes(bytes[48..56].try_into().unwrap());
-    let slot_number = u64::from_be_bytes(bytes[56..64].try_into().unwrap());
 
-    let offset = |start: usize| start + l1_address_length;
-    let l1_address = decode_string_field(&bytes[48..offset(48)])?;
-    let l2_address = decode_string_field(&bytes[offset(48)..offset(80)])?;
-    let l1_token_address = decode_string_field(&bytes[offset(80)..offset(112)])?;
-    let l2_token_address = decode_string_field(&bytes[offset(112)..offset(144)])?;
-    let amount = decode_string_field(&bytes[offset(144)..152])?;
-    let message: Vec<u8> = bytes[offset(152)..].try_into().unwrap();
+    let mut offset = 0;
+    let take = |len: usize, offset: &mut usize| -> Result<&[u8], ProgramError> {
+        let start = *offset;
+        let end = start
+            .checked_add(len)
+            .ok_or(ProgramCustomError::PublicValueDecodeFailed)?;
+        if end > bytes.len() {
+            return Err(ProgramCustomError::PublicValueDecodeFailed.into());
+        }
+        *offset = end;
+        Ok(&bytes[start..end])
+    };
+    let batch_hash = take(32, &mut offset)?
+        .try_into()
+        .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?;
+    let batch_number = u64::from_be_bytes(
+        take(8, &mut offset)?
+            .try_into()
+            .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?,
+    );
+    let txn_type = TransactionType::try_from(take(1, &mut offset)?[0])?;
+    let nonce = u64::from_be_bytes(
+        take(8, &mut offset)?
+            .try_into()
+            .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?,
+    );
+    let chain_id = u64::from_be_bytes(
+        take(8, &mut offset)?
+            .try_into()
+            .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?,
+    );
+    let slot_number = u64::from_be_bytes(
+        take(8, &mut offset)?
+            .try_into()
+            .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?,
+    );
+    let message = take(32, &mut offset)?
+        .try_into()
+        .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?;
+    if offset != PREFIX_LEN {
+        return Err(ProgramCustomError::PublicValueDecodeFailed.into());
+    }
 
+    let l1_address = decode_string_field(take(l1_address_length, &mut offset)?)?;
+    let l2_address = decode_string_field(take(L2_ADDRESS_LEN, &mut offset)?)?;
+    let l1_token_address = decode_string_field(take(L1_TOKEN_ADDRESS_LEN, &mut offset)?)?;
+    let l2_token_address = decode_string_field(take(L2_ADDRESS_LEN, &mut offset)?)?;
+
+    if offset >= bytes.len() {
+        return Err(ProgramCustomError::PublicValueDecodeFailed.into());
+    }
+    let remaining = &bytes[offset..];
+    let amount = decode_string_field(remaining)?;
     Ok(L1OriginTxPublicValues {
         batch_hash,
         batch_number,
@@ -218,12 +279,12 @@ pub fn decode_refund_values(
         nonce,
         chain_id,
         slot_number,
+        message,
         l1_address,
         l2_address,
         l1_token_address,
         l2_token_address,
         amount,
-        message,
     })
 }
 
@@ -283,6 +344,7 @@ fn process_native_token_withdrawal<'info>(
         .total_deposits
         .checked_add(amount)
         .ok_or(ProgramError::InvalidArgument)?;
+
     vault_data
         .serialize(&mut &mut native_token_vault_data.data.borrow_mut()[..])
         .map_err(|_| ProgramError::AccountDataTooSmall)?;

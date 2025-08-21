@@ -15,19 +15,20 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedWithdrawalsBuffer, NativeTokenVaultData, SplTokensVaultData,
-            TokenDecimalMappings, TokenDepositData,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, NativeTokenVaultData,
+            SplTokensVaultData, TokenDecimalMappings, TokenDepositData,
         },
     },
     utils::{
         address_derivation::{
-            derive_executed_withdrawals_buffer, derive_gateway_role_manager,
-            derive_native_token_vault, derive_native_token_vault_data,
+            derive_executed_payouts_buffer, derive_executed_withdrawals_buffer,
+            derive_gateway_role_manager, derive_native_token_vault, derive_native_token_vault_data,
             derive_spl_tokens_vault_data, derive_token_decimal_mappings,
         },
         constants::{
-            EXECUTED_WITHDRAWALS_BUFFER_PREFIX, MAX_TOKENS, NATIVE_TOKEN_VAULT_DATA_PREFIX,
-            NATIVE_TOKEN_VAULT_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX, TOKEN_DECIMAL_MAPPINGS_PREFIX,
+            EXECUTED_PAYOUTS_BUFFER_PREFIX, EXECUTED_WITHDRAWALS_BUFFER_PREFIX, MAX_TOKENS,
+            NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX,
+            SPL_TOKENS_VAULT_DATA_PREFIX, TOKEN_DECIMAL_MAPPINGS_PREFIX,
         },
     },
 };
@@ -38,14 +39,16 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     // [0] native_token_vault
     // [1] native_token_vault_data (writable, owner = program_id)
     // [2] spl_tokens_vault_data (writable, owner = program_id)
-    // [3] executed_withdrawals_buffer (writable, owner = program_id)
-    // [4] token_decimal_mappings (writable, owner = program_id)
-    // [5] role_manager (used for further validations; not used here)
-    // [6] chain_admin (signer)
-    // [7] system_program
+    // [3] executed_payout_buffer_acc (writable, owner = program_id)
+    // [4] executed_withdrawals_buffer (writable, owner = program_id)
+    // [5] token_decimal_mappings (writable, owner = program_id)
+    // [6] role_manager (used for further validations; not used here)
+    // [7] chain_admin (signer)
+    // [8] system_program
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
+    let executed_payouts_buffer_acc = next_account_info(account_info_iter)?;
     let executed_withdrawals_buffer_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
@@ -57,6 +60,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         native_token_vault_acc,
         native_token_vault_data_acc,
         spl_tokens_vault_data_acc,
+        executed_payouts_buffer_acc,
         executed_withdrawals_buffer_acc,
         token_decimal_mappings_acc,
         role_manager_acc,
@@ -139,6 +143,10 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ]],
     )?;
 
+    /*******************************
+     * Executed withdrawals Buffer *
+     *******************************/
+
     let (_, executed_withdrawals_buffer_bump) = derive_executed_withdrawals_buffer(&program_id);
 
     let space = 8 + ExecutedWithdrawalsBuffer::SPACE;
@@ -161,6 +169,34 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
             &[executed_withdrawals_buffer_bump],
         ]],
     )?;
+    /****************************
+     * Executed Payouts Buffer  *
+     ****************************/
+    let (_, executed_withdrawals_buffer_bump) = derive_executed_payouts_buffer(&program_id);
+
+    let space = 8 + ExecutedPayoutsBuffer::SPACE;
+    let lamports = rent.minimum_balance(space);
+    invoke_signed(
+        &system_instruction::create_account(
+            chain_admin_acc.key,
+            executed_payouts_buffer_acc.key,
+            lamports,
+            space as u64,
+            program_id,
+        ),
+        &[
+            chain_admin_acc.clone(),
+            executed_payouts_buffer_acc.clone(),
+            system_program.clone(),
+        ],
+        &[&[
+            EXECUTED_PAYOUTS_BUFFER_PREFIX.as_bytes(),
+            &[executed_withdrawals_buffer_bump],
+        ]],
+    )?;
+    /****************************
+     * Token Decimal Mapping *
+     ****************************/
 
     let (_, token_decimal_mappings_bump) = derive_token_decimal_mappings(&program_id);
 
@@ -213,6 +249,16 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         .serialize(&mut &mut executed_withdrawals_buffer_data[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
+    let executed_payouts_buffer = ExecutedPayoutsBuffer {
+        is_initialized: true,
+        payout_nonce_lower_bound: 0,
+        executed_payout_nonces: Vec::new(),
+    };
+    let mut executed_payouts_buffer_data = executed_payouts_buffer_acc.data.borrow_mut();
+    executed_withdrawals_buffer
+        .serialize(&mut &mut executed_payouts_buffer_data[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
     let token_decimal_mappings_data = TokenDecimalMappings {
         is_initialized: true,
         mappings: Vec::new(),
@@ -224,10 +270,11 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     msg!(
-    "EVENT:TokensGatewayInitialized: native_token_vault={}, native_token_vault_data={}, spl_tokens_vault_data={}, executed_withdrawals_buffer={}, token_decimal_mappings={}, chain_admin={}",
+    "EVENT:TokensGatewayInitialized: native_token_vault={}, native_token_vault_data={}, spl_tokens_vault_data={}, executed_payouts_buffer={}, executed_withdrawals_buffer={},token_decimal_mappings={}, chain_admin={}",
     native_token_vault_acc.key,
     native_token_vault_data_acc.key,
     spl_tokens_vault_data_acc.key,
+    executed_payouts_buffer_acc.key,
     executed_withdrawals_buffer_acc.key,
     token_decimal_mappings_acc.key,
     chain_admin_acc.key
@@ -240,6 +287,7 @@ fn validate_accounts(
     native_token_vault_acc: &AccountInfo,
     native_token_vault_data_acc: &AccountInfo,
     spl_tokens_vault_data_acc: &AccountInfo,
+    executed_payouts_buffer_acc: &AccountInfo,
     executed_withdrawals_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
     role_manager_acc: &AccountInfo,
@@ -269,6 +317,10 @@ fn validate_accounts(
     }
     let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer(&program_id);
     if executed_withdrawals_buffer_key != *executed_withdrawals_buffer_acc.key {
+        return Err(ProgramCustomError::InvalidPDA.into());
+    }
+    let (executed_payouts_buffer_key, _) = derive_executed_payouts_buffer(&program_id);
+    if executed_payouts_buffer_key != *executed_payouts_buffer_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
     let (token_decimal_mappings_key, _) = derive_token_decimal_mappings(&program_id);
@@ -306,6 +358,17 @@ fn validate_accounts(
             ExecutedWithdrawalsBuffer::deserialize(&mut data_slice)
         {
             if executed_withdrawals_buffer_data.is_initialized {
+                return Err(ProgramError::AccountAlreadyInitialized);
+            }
+        }
+    }
+    let data = executed_payouts_buffer_acc.data.borrow();
+    if !data.is_empty() {
+        let mut data_slice = &data[..];
+        if let Ok(executed_payouts_buffer_data) =
+            ExecutedPayoutsBuffer::deserialize(&mut data_slice)
+        {
+            if executed_payouts_buffer_data.is_initialized {
                 return Err(ProgramError::AccountAlreadyInitialized);
             }
         }
@@ -379,6 +442,7 @@ mod test {
         let (native_token_vault_key, _) = derive_native_token_vault(&program_id);
         let (native_token_vault_data_key, _) = derive_native_token_vault_data(&program_id);
         let (spl_tokens_vault_data_key, _) = derive_spl_tokens_vault_data(&program_id);
+        let (executed_payouts_buffer_key, _) = derive_executed_payouts_buffer(&program_id);
         let (executed_withdrawals_buffer_key, _) = derive_executed_withdrawals_buffer(&program_id);
         let (token_decimal_mappings_key, _) = derive_token_decimal_mappings(&program_id);
         let (role_manager_key, _) = derive_gateway_role_manager(&program_id);
@@ -393,6 +457,8 @@ mod test {
             rent.minimum_balance(8 + std::mem::size_of::<NativeTokenVaultData>());
         let mut spl_tokens_vault_data_lamports = rent
             .minimum_balance(8 + 32 + 4 + (MAX_TOKENS * std::mem::size_of::<TokenDepositData>()));
+         let mut executed_payouts_buffer_lamports =
+            rent.minimum_balance(8 + ExecutedPayoutsBuffer::SPACE);
         let mut executed_withdrawals_buffer_lamports =
             rent.minimum_balance(8 + ExecutedWithdrawalsBuffer::SPACE);
         let mut token_decimal_mappings_lamports = rent.minimum_balance(
@@ -408,6 +474,7 @@ mod test {
             vec![0u8; 8 + std::mem::size_of::<NativeTokenVaultData>()];
         let mut spl_tokens_vault_data_data =
             vec![0u8; 8 + 32 + 4 + (MAX_TOKENS * std::mem::size_of::<TokenDepositData>())];
+        let mut executed_payouts_buffer_data = vec![0u8; 8 + ExecutedPayoutsBuffer::SPACE];
         let mut executed_withdrawals_buffer_data = vec![0u8; 8 + ExecutedWithdrawalsBuffer::SPACE];
         let mut token_decimal_mappings_data =
             vec![0u8; 8 + 32 + 4 + (MAX_TOKENS * std::mem::size_of::<TokenDecimalMappings>())];
@@ -419,6 +486,7 @@ mod test {
         let mut native_token_vault_owner = system_program_id;
         let mut native_token_vault_data_owner = program_id;
         let mut spl_tokens_vault_data_owner = program_id;
+        let mut executed_payouts_buffer_owner = program_id;
         let mut executed_withdrawals_buffer_owner = program_id;
         let mut token_decimal_mappings_owner = program_id;
         let mut role_manager_owner = program_id;
@@ -460,6 +528,14 @@ mod test {
             &mut executed_withdrawals_buffer_lamports,
             &mut executed_withdrawals_buffer_data,
             &mut executed_withdrawals_buffer_owner,
+        );
+        let executed_payouts_buffer_account = create_test_account_info(
+            &executed_payouts_buffer_key,
+            false,
+            true,
+            &mut executed_payouts_buffer_lamports,
+            &mut executed_payouts_buffer_data,
+            &mut executed_payouts_buffer_owner,
         );
 
         let token_decimal_mappings_account = create_test_account_info(
@@ -503,6 +579,7 @@ mod test {
             native_token_vault_account.clone(),
             native_token_vault_data_account.clone(),
             spl_tokens_vault_data_account.clone(),
+             executed_payouts_buffer_account.clone(),
             executed_withdrawals_buffer_account.clone(),
             token_decimal_mappings_account.clone(),
             role_manager_account,
@@ -557,6 +634,25 @@ mod test {
         assert!(
             deserialized_executed_withdrawals
                 .executed_withdrawal_nonces
+                .is_empty(),
+            "Executed withdrawal nonces should be empty"
+        );
+        
+        let executed_payouts_data_ref = executed_payouts_buffer_account.data.borrow();
+        let mut executed_payouts_data_slice = &executed_payouts_data_ref[..];
+        let deserialized_executed_payouts =
+            ExecutedPayoutsBuffer::deserialize(&mut executed_payouts_data_slice)?;
+        assert!(
+            deserialized_executed_payouts.is_initialized,
+            "Executed withdrawals buffer should be initialized"
+        );
+        assert_eq!(
+            deserialized_executed_payouts.payout_nonce_lower_bound, 0,
+            "Withdrawal nonce lower bound should be 0"
+        );
+        assert!(
+            deserialized_executed_payouts
+                .executed_payout_nonces
                 .is_empty(),
             "Executed withdrawal nonces should be empty"
         );

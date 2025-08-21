@@ -13,7 +13,9 @@ pub const WITHDRAW_BUFFER_PREFIX: &str = "withdraw_messages_buffer";
 pub const FORCED_WITHDRAW_TRANSACTION: &str = "withdraw_transaction";
 pub const TOKEN_DECIMAL_MAPPINGS_PREFIX: &str = "token_mapping_buffer";
 pub const NATIVE_TOKEN_VAULT_DATA_PREFIX: &str = "native_token_vault_data";
+pub const EXECUTED_PAYOUTS_BUFFER_PREFIX: &str = "executed_payouts_buffer";
 pub const EXECUTED_WITHDRAWALS_BUFFER_PREFIX: &str = "executed_withdrawals_buffer";
+
 
 //Account Sizes
 pub const ROLE_MANAGER_ACCOUNT_SIZE: usize = 1 + 32 + 4 + (MAX_ROLES * 33);

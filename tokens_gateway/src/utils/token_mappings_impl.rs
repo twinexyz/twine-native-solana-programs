@@ -76,7 +76,7 @@ impl TokenDecimalMappings {
             .map_err(|_| ProgramCustomError::InvalidAmount.into())
     }
 
-    fn parse_amount_to_biguint(amount: &str) -> Result<BigUint, ProgramError> {
+    pub fn parse_amount_to_biguint(amount: &str) -> Result<BigUint, ProgramError> {
         amount
             .parse::<BigUint>()
             .map_err(|_| ProgramCustomError::InvalidAmount.into())

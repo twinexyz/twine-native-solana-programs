@@ -27,7 +27,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedRefundsBuffer, FinalizeInputWithdrawal, L2WithdrawValues, SplTokensVaultData,
+            ExecutedPayoutsBuffer, FinalizeInputWithdrawal, L2WithdrawValues, SplTokensVaultData,
             TokenDecimalMappings, L1OriginTxPublicValues,
         },
     },
@@ -52,7 +52,7 @@ pub fn process_spl_forced_withdrawal(
     let token_program = next_account_info(account_info_iter)?;
     let mint = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
-    let executed_refunds_buffer_acc = next_account_info(account_info_iter)?;
+    let executed_payouts_buffer_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
@@ -141,16 +141,16 @@ pub fn process_spl_forced_withdrawal(
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
 
-    let mut executed_refunds_buffer =
-        ExecutedRefundsBuffer::deserialize(&mut &executed_refunds_buffer_acc.data.borrow()[..])
+    let mut executed_payouts_buffer =
+        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if refund_values.nonce < executed_refunds_buffer.refund_nonce_lower_bound {
+    if refund_values.nonce < executed_payouts_buffer.payout_nonce_lower_bound {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
     };
 
-    if executed_refunds_buffer
-        .executed_refund_nonces
+    if executed_payouts_buffer
+        .executed_payout_nonces
         .contains(&refund_values.nonce)
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
@@ -167,10 +167,10 @@ pub fn process_spl_forced_withdrawal(
         &receiver_acc,
         actual_amount,
     )?;
-    executed_refunds_buffer
-        .executed_refund_nonces
+    executed_payouts_buffer
+        .executed_payout_nonces
         .push(refund_values.nonce);
-    executed_refunds_buffer.post_withdrawal_processing();
+    executed_payouts_buffer.post_withdrawal_processing();
 
     let clock = Clock::get()?;
 
@@ -197,6 +197,8 @@ pub fn decode_refund_values(
     }
     let mut batch_hash = [0u8; 32];
     batch_hash.copy_from_slice(&bytes[0..32]);
+    let mut message = [0u8; 32];
+    message.copy_from_slice(&bytes[0..32]);
     let batch_number = u64::from_be_bytes(bytes[32..40].try_into().unwrap());
     let txn_type = TransactionType::try_from(bytes[40])?;
     let nonce = u64::from_be_bytes(bytes[40..48].try_into().unwrap());
@@ -208,11 +210,11 @@ pub fn decode_refund_values(
     let l2_address = decode_string_field(&bytes[offset(48)..offset(80)])?;
     let l1_token_address = decode_string_field(&bytes[offset(80)..offset(112)])?;
     let l2_token_address = decode_string_field(&bytes[offset(112)..offset(144)])?;
-    let amount = decode_string_field(&bytes[offset(144)..152])?;
-    let message: Vec<u8> = bytes[offset(152)..].try_into().unwrap();
+    let amount = decode_string_field(&bytes[offset(144)..])?;
 
     Ok(L1OriginTxPublicValues {
         batch_hash,
+        message,
         batch_number,
         txn_type,
         nonce,
@@ -222,8 +224,7 @@ pub fn decode_refund_values(
         l2_address,
         l1_token_address,
         l2_token_address,
-        amount,
-        message,
+        amount, 
     })
 }
 

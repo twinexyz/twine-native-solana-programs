@@ -27,7 +27,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedRefundsBuffer, FinalizeInputWithdrawal, L2WithdrawValues, SplTokensVaultData,
+            ExecutedPayoutsBuffer, FinalizeInputWithdrawal, L2WithdrawValues, SplTokensVaultData,
             TokenDecimalMappings, L1OriginTxPublicValues,
         },
     },
@@ -92,7 +92,7 @@ pub fn process_spl_refund(
         msg!("Error: Incorrect MessagesReplicator PDA provided.");
         return Err(ProgramError::InvalidArgument);
     }
-    let messages_replicator =
+let messages_replicator =
         MessagesReplicator::deserialize(&mut &messages_replicator_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -142,15 +142,15 @@ pub fn process_spl_refund(
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
 
     let mut executed_refunds_buffer =
-        ExecutedRefundsBuffer::deserialize(&mut &executed_refunds_buffer_acc.data.borrow()[..])
+        ExecutedPayoutsBuffer::deserialize(&mut &executed_refunds_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if refund_values.nonce < executed_refunds_buffer.refund_nonce_lower_bound {
+    if refund_values.nonce < executed_refunds_buffer.payout_nonce_lower_bound {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
     };
 
     if executed_refunds_buffer
-        .executed_refund_nonces
+        .executed_payout_nonces
         .contains(&refund_values.nonce)
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
@@ -168,7 +168,7 @@ pub fn process_spl_refund(
         actual_amount,
     )?;
     executed_refunds_buffer
-        .executed_refund_nonces
+        .executed_payout_nonces
         .push(refund_values.nonce);
     executed_refunds_buffer.post_withdrawal_processing();
 
@@ -197,6 +197,8 @@ pub fn decode_refund_values(
     }
     let mut batch_hash = [0u8; 32];
     batch_hash.copy_from_slice(&bytes[0..32]);
+    let mut message = [0u8; 32];
+    message.copy_from_slice(&bytes[0..32]);
     let batch_number = u64::from_be_bytes(bytes[32..40].try_into().unwrap());
     let txn_type = TransactionType::try_from(bytes[40])?;
     let nonce = u64::from_be_bytes(bytes[40..48].try_into().unwrap());
@@ -209,10 +211,10 @@ pub fn decode_refund_values(
     let l1_token_address = decode_string_field(&bytes[offset(80)..offset(112)])?;
     let l2_token_address = decode_string_field(&bytes[offset(112)..offset(144)])?;
     let amount = decode_string_field(&bytes[offset(144)..152])?;
-    let message: Vec<u8> = bytes[offset(152)..].try_into().unwrap();
 
     Ok(L1OriginTxPublicValues {
         batch_hash,
+        message,
         batch_number,
         txn_type,
         nonce,
@@ -223,7 +225,6 @@ pub fn decode_refund_values(
         l1_token_address,
         l2_token_address,
         amount,
-        message,
     })
 }
 
