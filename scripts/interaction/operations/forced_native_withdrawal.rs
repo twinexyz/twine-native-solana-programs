@@ -6,7 +6,7 @@ use solana_sdk::{signature::Signer, transaction::Transaction};
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction, core::state::SignMessageInfo,
 };
-use twine_chain::core::state::{MessagesBuffer, TwineChainStorage};
+use twine_chain::core::state::MessagesBuffer;
 use twine_chain::{
     id as twine_chain_program_id, utils::address_derivation::derive_messages_buffer,
 };

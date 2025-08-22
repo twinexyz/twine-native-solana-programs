@@ -1,20 +1,22 @@
-use tokens_gateway::process_refund::process_native_refund::process_native_refund;
-
 use crate::action_commands::Commands;
-use crate::operations::process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal;
 use crate::operations::{
     create_spl_token::create_spl_token,
     deposit_native_token::native_token_deposit,
     deposit_spl_token::spl_token_deposit,
     execute_native_l2_withdrawal::execute_native_l2_withdrawal,
-    process_native_l1_refund::process_native_l1_refund,
     execute_spl_l2_withdrawal::execute_spl_l2_withdrawal,
     forced_native_withdrawal::forced_native_withdrawal,
     forced_spl_withdrawal::forced_spl_withdrawal,
     get_all_pdas::{get_all_pdas, get_batch_pda},
     get_associated_token_account::get_associated_token_account,
-    get_pdas_data::{get_messages_buffer_data,get_payouts_buffer_data, get_twine_chain_storage_data},
+    get_pdas_data::{
+        get_messages_buffer_data, get_payouts_buffer_data, get_twine_chain_storage_data,
+    },
     initialize_programs::initialize_twine_solana_programs,
+    process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal,
+    process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
+    process_native_l1_refund::process_native_l1_refund,
+    process_spl_l1_refund::process_spl_l1_refund,
     token_mapping::update_token_mapping,
 };
 
@@ -103,8 +105,14 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             privkey,
             amount,
         } => {
-            let result =
-                forced_native_withdrawal(l1_token, l2_token, from_twine_address,l1_receiver, privkey, amount);
+            let result = forced_native_withdrawal(
+                l1_token,
+                l2_token,
+                from_twine_address,
+                l1_receiver,
+                privkey,
+                amount,
+            );
             println!("Result: {:?}", result);
         }
         Commands::ForcedSplWithdrawal {
@@ -160,7 +168,27 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             receiver,
             public_values,
             proof,
-        } => match process_native_l1_refund(message_nonce,receiver,public_values,proof) {
+        } => match process_native_l1_refund(message_nonce, receiver, public_values, proof) {
+            Ok(_) => {
+                println!("refund successfull");
+            }
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+            }
+        },
+        Commands::ProcessSplRefund {
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        } => match process_spl_l1_refund(
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        ) {
             Ok(_) => {
                 println!("refund successfull");
             }
@@ -173,9 +201,32 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             receiver,
             public_values,
             proof,
-        } => match process_native_l1_forced_withdrawal(message_nonce,receiver,public_values,proof) {
+        } => {
+            match process_native_l1_forced_withdrawal(message_nonce, receiver, public_values, proof)
+            {
+                Ok(_) => {
+                    println!("forced withdrawal successfull");
+                }
+                Err(e) => {
+                    eprintln!("Error: {:?}", e);
+                }
+            }
+        }
+        Commands::ProcessSplForcedWithdrawal {
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        } => match process_spl_l1_forced_withdrawal(
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        ) {
             Ok(_) => {
-                println!("forced withdrawal successfull");
+                println!("refund successfull");
             }
             Err(e) => {
                 eprintln!("Error: {:?}", e);

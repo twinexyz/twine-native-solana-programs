@@ -142,7 +142,7 @@ pub fn forced_spl_token_withdrawal(
     let recovered_address = recover_address(sign_info.clone(), signature)?;
 
     if recovered_address.to_lowercase() != withdraw_info.from_twine_address.to_lowercase() {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramCustomError::PublicKeyMismatch.into());
     };
 
     let payload = TwineChainInstruction::AppendForcedWithdrawalMessage {
@@ -163,7 +163,7 @@ pub fn forced_spl_token_withdrawal(
         accounts: append_instruction_accounts,
         data: append_instruction_data,
     };
-
+msg!("9");
     invoke_signed(
         &append_instruction,
         &[

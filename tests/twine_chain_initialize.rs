@@ -165,7 +165,6 @@ async fn message_buffers_init() {
     let error = context.banks_client.process_transaction(transaction).await;
     println!("Transaction Status: {:?}", error);
 
-    println!("In here message");
 
     let messages_buffer_account = context
         .banks_client
@@ -254,23 +253,23 @@ async fn genesis_batch_init() {
     let error = context.banks_client.process_transaction(transaction).await;
     println!("Transaction Status: {:?}", error);
 
-    // let genesis_batch_account = context
-    //     .banks_client
-    //     .get_account(derive_commitment_pda(&id(),0u64).0)
-    //     .await
-    //     .unwrap()
-    //     .expect("Genesis Batch storage account not found");
+    let genesis_batch_account = context
+        .banks_client
+        .get_account(derive_commitment_pda(&id(),0u64).0)
+        .await
+        .unwrap()
+        .expect("Genesis Batch storage account not found");
 
-    // let genesis_batch_data = BatchPdaAccount::deserialize(&mut &genesis_batch_account.data[..])
-    //     .expect("Failed to deserialize Genesis Batch");
+    let genesis_batch_data = BatchPdaAccount::deserialize(&mut &genesis_batch_account.data[..])
+        .expect("Failed to deserialize Genesis Batch");
 
-    // assert!(
-    //     genesis_batch_data.is_initialized,
-    //     "Genesis Batch should be initialized"
-    // );
+    assert!(
+        genesis_batch_data.is_initialized,
+        "Genesis Batch should be initialized"
+    );
 
-    // assert_eq!(
-    //     genesis_batch_data.batch_hash, [1u8; 32],
-    //     "Batch hash should be set"
-    // )
+    assert_eq!(
+        genesis_batch_data.batch_hash, [1u8; 32],
+        "Batch hash should be set"
+    )
 }

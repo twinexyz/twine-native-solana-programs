@@ -179,7 +179,7 @@ pub fn process_instruction(
         GatewayInstruction::ProcessSplForcedWithdrawal {
             public_values,
             execution_proof,
-        } => process_native_forced_withdrawal::process_native_forced_withdrawal(
+        } => process_spl_forced_withdrawal::process_spl_forced_withdrawal(
             program_id,
             accounts,
             public_values,

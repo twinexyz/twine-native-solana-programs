@@ -164,10 +164,20 @@ process-native-refund:
 	@echo "Processing native refund..."
 	$(CARGO) run --bin interaction -- process-native-refund "$(message_nonce)" "$(receiver)" "$(public_values)" "$(proof)"
 
+# Usage: make process-spl-refund l1_token=l1_token_address l1_receiver=receiver_address message_nonce=nonce_value  public_values=values proof=proof_data
+process-spl-refund:
+	@echo "Processing spl refund..."
+	$(CARGO) run --bin interaction -- process-spl-refund "$(l1_token)" "$(l1_receiver)" $(message_nonce)" "$(public_values)" "$(proof)"
+
 # Usage: make process-native-forced-withdrawal message_nonce=nonce_value receiver=receiver_address public_values=values proof=proof_data
 process-native-forced-withdrawal:
 	@echo "Processing native forced withdrawal..."
 	$(CARGO) run --bin interaction -- process-native-forced-withdrawal "$(message_nonce)" "$(receiver)" "$(public_values)" "$(proof)"
+
+# Usage: make process-spl-forced-withdrawal l1_token=l1_token_address l1_receiver=receiver_address message_nonce=nonce_value  public_values=values proof=proof_data
+process-spl-forced-withdrawal:
+	@echo "Processing spl forced withdrawal..."
+	$(CARGO) run --bin interaction -- process-spl-forced-withdrawal "$(l1_token)" "$(l1_receiver)" $(message_nonce)" "$(public_values)" "$(proof)"
 
 # ==============================
 #        Data Retrieval Targets
@@ -198,7 +208,4 @@ get-twine-chain-storage-data:
 	@echo "Getting twine chain storage data..."
 	$(CARGO) run --bin interaction -- get-twine-chain-storage-data
 
-# ==============================
-#        Processing Targets
-# ==============================
 
