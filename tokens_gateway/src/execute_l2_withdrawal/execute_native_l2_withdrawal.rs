@@ -1,7 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
-// #[cfg(not(test))]
-use solana_program::sysvar::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -10,6 +8,7 @@ use solana_program::{
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
+    clock::Clock,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
@@ -23,7 +22,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, L2WithdrawValues,
+            ExecutedWithdrawalsBuffer,L2WithdrawValues,
             NativeTokenVaultData, TokenDecimalMappings,
         },
     },

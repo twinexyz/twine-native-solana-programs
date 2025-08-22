@@ -1,6 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
-// #[cfg(not(test))]
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -25,7 +24,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, L2WithdrawValues,
+            ExecutedWithdrawalsBuffer, L2WithdrawValues,
             SplTokensVaultData, TokenDecimalMappings,
         },
     },

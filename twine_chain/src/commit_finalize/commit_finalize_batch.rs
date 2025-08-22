@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -8,7 +9,7 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     clock::Clock,
-    program::invoke_signed,
+    invoke_signed,
     system_instruction,
     sysvar::Sysvar,
 };

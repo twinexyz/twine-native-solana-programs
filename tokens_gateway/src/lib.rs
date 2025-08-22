@@ -8,8 +8,7 @@ pub mod setters;
 pub mod initialize;
 pub use solana_program;
 pub mod process_refund;
-pub mod finalize_withdrawal;
 pub mod execute_l2_withdrawal;
 pub mod process_forced_withdrawal;
-solana_program::declare_id!("8ZNo4vVEDKcohLjE2cWALkwbQEJ7b9CK28R6RkTehvBM");
+solana_program::declare_id!("F6u9QiFeWnqXE7jiNYiPnscQuEG32Cm5NH3ziS9ueFXy");
 
