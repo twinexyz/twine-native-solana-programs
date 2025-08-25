@@ -4,12 +4,15 @@
 CARGO = cargo
 TOKENS_GATEWAY_KEYPAIR = ./target/deploy/tokens_gateway-keypair.json
 TWINE_CHAIN_KEYPAIR = target/deploy/twine_chain-keypair.json
+TWINE_CHAIN_LIB     ?= twine_chain/src/lib.rs
+TOKENS_GATEWAY_LIB  ?= tokens_gateway/src/lib.rs
 SOL_PUBKEY = 11111111111111111111111111111111
 
 # ==============================
 #        Phony Targets
 # ==============================
 .PHONY: all build build-sbf clean test deploy help \
+		sync-keys sync-keys-twine-chain sync-keys-gateway update-admin \
         update-tokens-gateway update-twine-chain \
         keygen-tokens-gateway-program-id keygen-twine-chain-program-id \
         start-validator initialize \
@@ -37,9 +40,17 @@ help:
 	@echo "  update-tokens-gateway             Update the tokens gateway"
 	@echo "  update-twine-chain                Update the twine chain"
 	@echo ""
+	@echo "=== UPDATE ADMIN ==="
+	@echo "  update-admin                      Update INITIAL_CHAIN_ADMIN for both programs"
+	@echo ""
 	@echo "=== KEY GENERATION TARGETS ==="
 	@echo "  keygen-tokens-gateway-program-id  Generate pubkey for tokens gateway"
 	@echo "  keygen-twine-chain-program-id     Generate pubkey for twine chain"
+	@echo ""
+	@echo "=== SYNC KEYS ==="
+	@echo "  sync-keys                         Update key in 'declare_id' with correct pubkeys"
+	@echo "  sync-keys-twine-chain             Update key in 'declare_id' with correct pubkey for twine chain"
+	@echo "  sync-keys-gateway                 Update key in 'declare_id' with correct pubkey for tokens gateway"
 	@echo ""
 	@echo "=== DEVELOPMENT TARGETS ==="
 	@echo "  start-validator                   Start a new solana-test-validator"
@@ -52,7 +63,7 @@ help:
 	@echo "  deposit-spl-token                 Deposit SPL tokens"
 	@echo ""
 	@echo "=== WITHDRAWAL OPERATIONS ==="
-	@echo "  forced-native-withdrawal    	   Forced native token withdrawal"
+	@echo "  forced-native-withdrawal          Forced native token withdrawal"
 	@echo "  forced-spl-token-withdrawal       Forced SPL token withdrawal"
 	@echo "  execute-native-l2-withdrawal      Execute l2 initiated native token withdrawal"
 	@echo "  execute-spl-l2-withdrawal         Execute l2 initiated spl token withdrawal"
@@ -68,6 +79,55 @@ help:
 	@echo "  get-twine-chain-storage-data      Get twine chain storage data"
 	@echo ""
 	@echo ""
+
+
+
+# Detect proper -i for sed
+# macos needs extra '-i' flag for sed
+SED_INPLACE := -i
+ifeq ($(shell uname -s),Darwin)
+  SED_INPLACE := -i ''
+endif
+
+# ==============================
+#       Update chain admins  
+# ==============================
+update-admin:
+	@if [ -z "$(ADMIN)" ]; then \
+		echo "Error: ADMIN variable not provided. Usage: make update-admin ADMIN=<new_address>"; \
+		exit 1; \
+	fi
+	@echo "Updating admin address to: $(ADMIN)"
+	@grep -rl 'pub const INITIAL_CHAIN_ADMIN: &str =' . --include '*.rs' | \
+	while read -r f; do \
+		sed $(SED_INPLACE) -E \
+			's|^pub const INITIAL_CHAIN_ADMIN: &str = ".*";|pub const INITIAL_CHAIN_ADMIN: \&str = "$(ADMIN)";|' \
+			"$$f"; \
+	done
+	@echo "Successfully updated admin address"
+
+# ==============================
+#       Update program pubkeys
+# ==============================
+sync-keys: sync-keys-twine-chain sync-keys-gateway
+	@echo "All keys synced successfully."
+
+
+sync-keys-twine-chain:
+	@PUBKEY=$$(solana-keygen pubkey $(TWINE_CHAIN_KEYPAIR)); \
+	echo "Setting declare_id! to $$PUBKEY in $(TWINE_CHAIN_LIB)"; \
+	sed $(SED_INPLACE) -E \
+	  's|^solana_program::declare_id!\("[^"]*"\);$$|solana_program::declare_id!("'"$$PUBKEY"'");|' \
+	  $(TWINE_CHAIN_LIB); \
+	echo "Updated: $(TWINE_CHAIN_LIB)"
+
+sync-keys-gateway:
+	@PUBKEY=$$(solana-keygen pubkey $(TOKENS_GATEWAY_KEYPAIR)); \
+	echo "Setting declare_id! to $$PUBKEY in $(TOKENS_GATEWAY_LIB)"; \
+	sed $(SED_INPLACE) -E \
+	  's|^solana_program::declare_id!\("[^"]*"\);$$|solana_program::declare_id!("'"$$PUBKEY"'");|' \
+	  $(TOKENS_GATEWAY_LIB); \
+	echo "Updated: $(TOKENS_GATEWAY_LIB)"
 
 # ==============================
 #        Build & Test Targets
