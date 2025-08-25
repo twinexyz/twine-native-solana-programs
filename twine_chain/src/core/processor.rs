@@ -4,7 +4,7 @@ use crate::{
     append_messages::{
         append_deposit_messages, append_withdrawal_messages,
     },
-    commit_finalize::{commit_batch, finalize_batch},
+    commit_finalize::{commit_and_finalize_batch, commit_batch, finalize_batch},
     core::instruction::TwineChainInstruction,
     initialize::{
         initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
@@ -82,6 +82,12 @@ pub fn process_instruction(
             public_values,
             execution_proof,
         } => finalize_batch::finalize_batch(program_id, accounts, batch_number,public_values, execution_proof),
+
+         TwineChainInstruction::CommitAndFinalizeBatch {
+            batch_number,
+            public_values,
+            execution_proof,
+        } => commit_and_finalize_batch::commit_and_finalize_batch(program_id, accounts, batch_number,public_values, execution_proof),
 
         TwineChainInstruction::AddRoleInTwineChain { address, role } => {
             add_role(program_id, accounts, address, role)
