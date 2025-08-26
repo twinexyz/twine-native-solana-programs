@@ -2,17 +2,14 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_program,
+    instruction::{AccountMeta, Instruction}, msg, program_error::ProgramError, pubkey::Pubkey, system_program
 };
 
 use crate::{
     core::state::{DepositMessageInfo, ForcedWithdrawMessageInfo, RoleType},
     utils::address_derivation::{
         derive_commitment_pda, derive_execution_message_buffer, derive_layer_zero_message_buffer,
-        derive_messages_buffer, derive_role_manager, derive_twine_chain_storage,
+        derive_messages_buffer, derive_role_manager, derive_twine_chain_storage,derive_messages_replicator
     },
     ID,
 };
@@ -53,11 +50,13 @@ pub enum TwineChainInstruction {
         address: Pubkey,
         role: RoleType,
     },
+    CopyMessagesBuffer,
     CommitAndFinalizeBatch {
         batch_number: u64,
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
     },
+    
 }
 
 #[derive(BorshDeserialize)]
@@ -280,6 +279,33 @@ pub fn finalize_batch(
         data,
     }]
 }
+
+pub fn copy_messages_buffer(
+    twine_operation_handler: &Pubkey,
+    start_nonce:u64,
+    end_nonce:u64
+) -> Vec<Instruction> {
+    let payload = TwineChainInstruction::CopyMessagesBuffer;
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_messages_buffer(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&ID, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(*twine_operation_handler, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
 pub fn commit_and_finalize_batch(
     twine_operation_handler: &Pubkey,
     batch_number: u64,
@@ -336,7 +362,6 @@ impl TwineChainInstruction {
         let (&discriminator, rest) = input
             .split_first()
             .ok_or(ProgramError::InvalidInstructionData)?;
-
         match discriminator {
             0 => Ok(Self::InitializeRoleManager),
             1 => Ok(Self::InitializeTwineChainStorage),
@@ -404,7 +429,8 @@ impl TwineChainInstruction {
                     role: payload.role,
                 })
             }
-             11 => {
+            11 => Ok(Self::CopyMessagesBuffer),
+            12 => {
                 let payload = CommitAndFinalizeBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::CommitAndFinalizeBatch {
