@@ -42,6 +42,7 @@ solana-secp256k1-recover = "=2.1.6"
 libsecp256k1             = { version = "0.7.1", default-features = false, features = ["hmac", "static-context"] }
 sp1-solana               = { git = "https://github.com/succinctlabs/sp1-solana" }
 spl-token                = { version = "6.0", features = ["no-entrypoint"] }
+spl-associated-token-account = { version = "3", features = ["no-entrypoint"] }
 thiserror                = "1.0.63"
 tokio                    = { version = "1.0", features = ["macros", "rt"], default-features = false }
 tokens_gateway           = { path = "./tokens_gateway", features = ["no-entrypoint"] }
@@ -61,7 +62,7 @@ ethabi                       = "18.0.0"
 libsecp256k1                 = { workspace = true }
 solana-program               = { workspace = true }
 spl-token                    = { workspace = true }
-spl-associated-token-account = "3.0"
+spl-associated-token-account = { workspace = true }
 hex                          = { workspace = true }
 dirs                         = "5"
 sha3                         = { workspace = true }
@@ -81,7 +82,7 @@ sha3                         = { workspace = true }
 solana-program               = { workspace = true }
 solana-program-test          = "=2.1.6"
 solana-sdk                   = { workspace = true }
-spl-associated-token-account = "3.0"
+spl-associated-token-account = { workspace = true }
 spl-token                    = { workspace = true }
 test-case                    = "3.3"
 tokio-test                   = "0.4"
