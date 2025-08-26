@@ -4,7 +4,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 use tokens_gateway::core::instruction as tokens_gateway_instruction;
 
 pub fn process_native_l1_refund(
-    message_nonce:u64,
+    message_nonce: u64,
     l1_receiver_address: Pubkey,
     public_value: String,
     proof: String,
@@ -30,6 +30,8 @@ pub fn process_native_l1_refund(
     let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Native token Refund successfull {:?}",signature);
+
+    println!("✅ Native token Refund successfull");
+    println!("Transaction: {}", signature);
     Ok(())
 }

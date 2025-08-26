@@ -37,7 +37,7 @@ pub enum Commands {
         l1_token: String,
         l2_token: String,
         from_twine_address: String,
-        l1_receiver:String,
+        l1_receiver: String,
         privkey: String,
         amount: u64,
     },
@@ -61,14 +61,28 @@ pub enum Commands {
         execution_proof: String,
     },
     ProcessNativeRefund {
-        message_nonce:u64,
+        message_nonce: u64,
         receiver: Pubkey,
         public_values: String,
         proof: String,
     },
+    ProcessSplRefund {
+        l1_token: Pubkey,
+        l1_receiver_address: Pubkey,
+        message_nonce: u64,
+        public_values: String,
+        proof: String,
+    },
     ProcessNativeForcedWithdrawal {
-        message_nonce:u64,
+        message_nonce: u64,
         receiver: Pubkey,
+        public_values: String,
+        proof: String,
+    },
+    ProcessSplForcedWithdrawal {
+        l1_token: Pubkey,
+        l1_receiver_address: Pubkey,
+        message_nonce: u64,
         public_values: String,
         proof: String,
     },
@@ -76,11 +90,32 @@ pub enum Commands {
     GetBatchPda {
         batch_number: u64,
     },
-    GetAssociatedTokenAccount{wallet_address: Pubkey, spl_token_pubkey: Pubkey},
+    GetAssociatedTokenAccount {
+        wallet_address: Pubkey,
+        spl_token_pubkey: Pubkey,
+    },
     CreateSplToken {},
     GetAllPdas {},
     GetMessagesBufferData {},
     GetExecutedPayoutsBufferData {},
     GetTwineChainStorageData {},
     ClearAllPdas{},
+    GetTwineChainRoleManagerData {},
+    GetTokensGatewayRoleManagerData {},
+    GetMessageReplicatorData {
+        start_nonce: u64,
+        end_nonce: u64,
+    },
+    AddRoleInTwineChain {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
+    AddRoleInTokensGateway {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
+    CopyMessagesBuffer {
+        start_nonce: u64,
+        end_nonce: u64,
+    },
 }

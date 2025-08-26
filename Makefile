@@ -4,12 +4,15 @@
 CARGO = cargo
 TOKENS_GATEWAY_KEYPAIR = ./target/deploy/tokens_gateway-keypair.json
 TWINE_CHAIN_KEYPAIR = target/deploy/twine_chain-keypair.json
+TWINE_CHAIN_LIB     ?= twine_chain/src/lib.rs
+TOKENS_GATEWAY_LIB  ?= tokens_gateway/src/lib.rs
 SOL_PUBKEY = 11111111111111111111111111111111
 
 # ==============================
 #        Phony Targets
 # ==============================
 .PHONY: all build build-sbf clean test deploy help \
+		sync-keys sync-keys-twine-chain sync-keys-gateway update-admin \
         update-tokens-gateway update-twine-chain \
         keygen-tokens-gateway-program-id keygen-twine-chain-program-id \
         start-validator initialize \
@@ -19,7 +22,8 @@ SOL_PUBKEY = 11111111111111111111111111111111
         forced-native-withdrawal execute-native-l2-withdrawal execute-spl-l2-withdrawal \
         get-all-pdas get-batch-pda get-messages-buffer-data \
         get-associated-token-account get-twine-chain-storage-data \
-        get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund
+        get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund \
+		add-role-in-twine-chain add-role-in-tokens-gateway\
 
 # ==============================
 #        Help Target
@@ -37,9 +41,17 @@ help:
 	@echo "  update-tokens-gateway             Update the tokens gateway"
 	@echo "  update-twine-chain                Update the twine chain"
 	@echo ""
+	@echo "=== UPDATE ADMIN ==="
+	@echo "  update-admin                      Update INITIAL_CHAIN_ADMIN for both programs"
+	@echo ""
 	@echo "=== KEY GENERATION TARGETS ==="
 	@echo "  keygen-tokens-gateway-program-id  Generate pubkey for tokens gateway"
 	@echo "  keygen-twine-chain-program-id     Generate pubkey for twine chain"
+	@echo ""
+	@echo "=== SYNC KEYS ==="
+	@echo "  sync-keys                         Update key in 'declare_id' with correct pubkeys"
+	@echo "  sync-keys-twine-chain             Update key in 'declare_id' with correct pubkey for twine chain"
+	@echo "  sync-keys-gateway                 Update key in 'declare_id' with correct pubkey for tokens gateway"
 	@echo ""
 	@echo "=== DEVELOPMENT TARGETS ==="
 	@echo "  start-validator                   Start a new solana-test-validator"
@@ -52,7 +64,7 @@ help:
 	@echo "  deposit-spl-token                 Deposit SPL tokens"
 	@echo ""
 	@echo "=== WITHDRAWAL OPERATIONS ==="
-	@echo "  forced-native-withdrawal    	   Forced native token withdrawal"
+	@echo "  forced-native-withdrawal          Forced native token withdrawal"
 	@echo "  forced-spl-token-withdrawal       Forced SPL token withdrawal"
 	@echo "  execute-native-l2-withdrawal      Execute l2 initiated native token withdrawal"
 	@echo "  execute-spl-l2-withdrawal         Execute l2 initiated spl token withdrawal"
@@ -61,14 +73,73 @@ help:
 	@echo ""
 	@echo "=== DATA TARGETS ==="
 	@echo "  clear-all-pdas                    clear all pdas"
+	@echo "=== ROLE MANAGEMENT ==="
+	@echo "  add-role-in-twine-chain           Add role in twine chain"
+	@echo "  add-role-in-tokens-gateway        Add role in tokens gateway"
+	@echo ""
+	@echo "=== Copy MessageBuffer ==="
+	@echo "  copy-message-buffer           Copy the message buffer"
+	@echo ""
+	@echo "=== DATA RETRIEVAL TARGETS ==="
 	@echo "  get-all-pdas                      Get all pdas"
 	@echo "  get-batch-pda                     Get batch pda id"
 	@echo "  get-messages-buffer-data          Get messages buffer data"
 	@echo "  get-executed-payouts-buffer-data  Get executed payouts buffer data"
 	@echo "  get-associated-token-account      Get associated token account of a wallet"
 	@echo "  get-twine-chain-storage-data      Get twine chain storage data"
+	@echo "  get-twine-chain-role-manager-data Get twine chain role manager data"
+	@echo "  get-tokens-gateway-role-manager-data Get tokens gateway role manager data"
 	@echo ""
 	@echo ""
+
+
+
+# Detect proper -i for sed
+# macos needs extra '-i' flag for sed
+SED_INPLACE := -i
+ifeq ($(shell uname -s),Darwin)
+  SED_INPLACE := -i ''
+endif
+
+# ==============================
+#       Update chain admins  
+# ==============================
+update-admin:
+	@if [ -z "$(ADMIN)" ]; then \
+		echo "Error: ADMIN variable not provided. Usage: make update-admin ADMIN=<new_address>"; \
+		exit 1; \
+	fi
+	@echo "Updating admin address to: $(ADMIN)"
+	@grep -rl 'pub const INITIAL_CHAIN_ADMIN: &str =' . --include '*.rs' | \
+	while read -r f; do \
+		sed $(SED_INPLACE) -E \
+			's|^pub const INITIAL_CHAIN_ADMIN: &str = ".*";|pub const INITIAL_CHAIN_ADMIN: \&str = "$(ADMIN)";|' \
+			"$$f"; \
+	done
+	@echo "Successfully updated admin address"
+
+# ==============================
+#       Update program pubkeys
+# ==============================
+sync-keys: sync-keys-twine-chain sync-keys-gateway
+	@echo "All keys synced successfully."
+
+
+sync-keys-twine-chain:
+	@PUBKEY=$$(solana-keygen pubkey $(TWINE_CHAIN_KEYPAIR)); \
+	echo "Setting declare_id! to $$PUBKEY in $(TWINE_CHAIN_LIB)"; \
+	sed $(SED_INPLACE) -E \
+	  's|^solana_program::declare_id!\("[^"]*"\);$$|solana_program::declare_id!("'"$$PUBKEY"'");|' \
+	  $(TWINE_CHAIN_LIB); \
+	echo "Updated: $(TWINE_CHAIN_LIB)"
+
+sync-keys-gateway:
+	@PUBKEY=$$(solana-keygen pubkey $(TOKENS_GATEWAY_KEYPAIR)); \
+	echo "Setting declare_id! to $$PUBKEY in $(TOKENS_GATEWAY_LIB)"; \
+	sed $(SED_INPLACE) -E \
+	  's|^solana_program::declare_id!\("[^"]*"\);$$|solana_program::declare_id!("'"$$PUBKEY"'");|' \
+	  $(TOKENS_GATEWAY_LIB); \
+	echo "Updated: $(TOKENS_GATEWAY_LIB)"
 
 # ==============================
 #        Build & Test Targets
@@ -165,11 +236,33 @@ process-native-refund:
 	@echo "Processing native refund..."
 	$(CARGO) run --bin interaction -- process-native-refund "$(message_nonce)" "$(receiver)" "$(public_values)" "$(proof)"
 
+# Usage: make process-spl-refund l1_token=l1_token_address l1_receiver=receiver_address message_nonce=nonce_value  public_values=values proof=proof_data
+process-spl-refund:
+	@echo "Processing spl refund..."
+	$(CARGO) run --bin interaction -- process-spl-refund "$(l1_token)" "$(l1_receiver)" $(message_nonce)" "$(public_values)" "$(proof)"
+
 # Usage: make process-native-forced-withdrawal message_nonce=nonce_value receiver=receiver_address public_values=values proof=proof_data
 process-native-forced-withdrawal:
 	@echo "Processing native forced withdrawal..."
 	$(CARGO) run --bin interaction -- process-native-forced-withdrawal "$(message_nonce)" "$(receiver)" "$(public_values)" "$(proof)"
 
+# Usage: make process-spl-forced-withdrawal l1_token=l1_token_address l1_receiver=receiver_address message_nonce=nonce_value  public_values=values proof=proof_data
+process-spl-forced-withdrawal:
+	@echo "Processing spl forced withdrawal..."
+	$(CARGO) run --bin interaction -- process-spl-forced-withdrawal "$(l1_token)" "$(l1_receiver)" $(message_nonce)" "$(public_values)" "$(proof)"
+
+# ==============================
+#        Role Management
+# ==============================
+# Usage: make add-role-in-twine-chain role_type= message_appender/twine_operation_handler user_pubkey=your_pubkey
+add-role-in-twine-chain:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- add-role-in-twine-chain "$(role_type)" "$(user_pubkey)"
+
+# Usage: make add-role-in-tokens_gateway role_type=twine_operation_handler user_pubkey=your_pubkey
+add-role-in-tokens-gateway:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- add-role-in-tokens-gateway "$(role_type)" "$(user_pubkey)"
 # ==============================
 #        Data Targets
 # ==============================
@@ -203,5 +296,24 @@ get-twine-chain-storage-data:
 	@echo "Getting twine chain storage data..."
 	$(CARGO) run --bin interaction -- get-twine-chain-storage-data
 
+# Usage: make get-message-replicator-data start_nonce=the_start_nonce end_nonce=the_end_nocne
+get-message-replicator-data:
+	@echo "Getting message replicator data..."	
+	$(CARGO) run --bin interaction -- get-message-replicator-data "$(start_nonce)" "$(end_nonce)"
 
+get-twine-chain-role-manager-data:
+	@echo "Getting twine chain role manager data..."
+	$(CARGO) run --bin interaction -- get-twine-chain-role-manager-data
+
+get-tokens-gateway-role-manager-data:
+	@echo "Getting tokens gateway role manager data..."
+	$(CARGO) run --bin interaction -- get-tokens-gateway-role-manager-data
+
+# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nocne
+# ==============================
+#     Copy Message Buffer
+# ==============================
+copy-messages-buffer:
+	@echo "Copy Message Buffer..."
+	$(CARGO) run --bin interaction -- copy-messages-buffer "$(start_nonce)" "$(end_nonce)"
 

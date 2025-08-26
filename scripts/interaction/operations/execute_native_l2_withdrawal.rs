@@ -24,10 +24,11 @@ pub fn execute_native_l2_withdrawal(
         &[&account],
         blockhash,
     );
-
-    rpc_client
+    let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
-        .context("Failed to execute L2 Native withdrawal")?;
-    print!("L2 Native Withdrawal Executed");
+        .context("Failed to send and confirm transaction")?;
+
+    println!("✅ L2 Native Withdrawal Executed!");
+    println!("Transaction: {}", signature);
     Ok(())
 }

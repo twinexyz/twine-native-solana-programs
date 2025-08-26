@@ -1,19 +1,28 @@
 use crate::action_commands::Commands;
-use crate::operations::process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal;
 use crate::operations::{
     create_spl_token::create_spl_token,
+    copy_messages_buffer::copy_messages_buffer,
     deposit_native_token::native_token_deposit,
     deposit_spl_token::spl_token_deposit,
     execute_native_l2_withdrawal::execute_native_l2_withdrawal,
-    process_native_l1_refund::process_native_l1_refund,
     execute_spl_l2_withdrawal::execute_spl_l2_withdrawal,
     forced_native_withdrawal::forced_native_withdrawal,
     forced_spl_withdrawal::forced_spl_withdrawal,
     get_all_pdas::{get_all_pdas, get_batch_pda},
     get_associated_token_account::get_associated_token_account,
-    get_pdas_data::{get_messages_buffer_data,get_payouts_buffer_data, get_twine_chain_storage_data},
+    get_pdas_data::{
+        get_messages_buffer_data, get_payouts_buffer_data, get_twine_chain_storage_data,get_message_replicator_data,
+        get_tokens_gateway_role_manager_data,get_twine_chain_role_manager_data
+    },
     initialize_programs::initialize_twine_solana_programs,
     token_mapping::update_token_mapping,clear_all_pdas::clear_all_pdas,
+    process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal,
+    process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
+    process_native_l1_refund::process_native_l1_refund,
+    process_spl_l1_refund::process_spl_l1_refund,
+    token_mapping::update_token_mapping,
+    role_operations_twine_chain::add_role_in_twine_chain,
+    role_operations_tokens_gateway::add_role_in_tokens_gateway,
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -28,6 +37,14 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::CreateSplToken {} => {
             let result = create_spl_token();
+            println!("Result: {:?}", result);
+        }
+        Commands::AddRoleInTwineChain {role_type,user_pubkey} => {
+            let result = add_role_in_twine_chain(role_type,user_pubkey);
+            println!("Result: {:?}", result);
+        }
+        Commands::AddRoleInTokensGateway {role_type,user_pubkey} => {
+            let result = add_role_in_tokens_gateway(role_type,user_pubkey);
             println!("Result: {:?}", result);
         }
         Commands::GetAssociatedTokenAccount {
@@ -45,7 +62,6 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = get_batch_pda(batch_number);
             println!("Result: {:?}", result);
         }
-
         Commands::GetMessagesBufferData {} => {
             let result = get_messages_buffer_data();
             println!("Result: {:?}", result);
@@ -56,6 +72,22 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::GetTwineChainStorageData {} => {
             let result = get_twine_chain_storage_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetTwineChainRoleManagerData {} => {
+            let result = get_twine_chain_role_manager_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetTokensGatewayRoleManagerData {} => {
+            let result = get_tokens_gateway_role_manager_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetMessageReplicatorData {start_nonce,end_nonce} => {
+            let result = get_message_replicator_data(start_nonce,end_nonce);
+            println!("Result: {:?}", result);
+        }
+        Commands::CopyMessagesBuffer {start_nonce,end_nonce} => {
+            let result = copy_messages_buffer(start_nonce,end_nonce);
             println!("Result: {:?}", result);
         }
         Commands::TokenMapping {
@@ -105,8 +137,14 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             privkey,
             amount,
         } => {
-            let result =
-                forced_native_withdrawal(l1_token, l2_token, from_twine_address,l1_receiver, privkey, amount);
+            let result = forced_native_withdrawal(
+                l1_token,
+                l2_token,
+                from_twine_address,
+                l1_receiver,
+                privkey,
+                amount,
+            );
             println!("Result: {:?}", result);
         }
         Commands::ForcedSplWithdrawal {
@@ -162,7 +200,27 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             receiver,
             public_values,
             proof,
-        } => match process_native_l1_refund(message_nonce,receiver,public_values,proof) {
+        } => match process_native_l1_refund(message_nonce, receiver, public_values, proof) {
+            Ok(_) => {
+                println!("refund successfull");
+            }
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+            }
+        },
+        Commands::ProcessSplRefund {
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        } => match process_spl_l1_refund(
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        ) {
             Ok(_) => {
                 println!("refund successfull");
             }
@@ -175,9 +233,32 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             receiver,
             public_values,
             proof,
-        } => match process_native_l1_forced_withdrawal(message_nonce,receiver,public_values,proof) {
+        } => {
+            match process_native_l1_forced_withdrawal(message_nonce, receiver, public_values, proof)
+            {
+                Ok(_) => {
+                    println!("forced withdrawal successfull");
+                }
+                Err(e) => {
+                    eprintln!("Error: {:?}", e);
+                }
+            }
+        }
+        Commands::ProcessSplForcedWithdrawal {
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        } => match process_spl_l1_forced_withdrawal(
+            l1_token,
+            l1_receiver_address,
+            message_nonce,
+            public_values,
+            proof,
+        ) {
             Ok(_) => {
-                println!("forced withdrawal successfull");
+                println!("refund successfull");
             }
             Err(e) => {
                 eprintln!("Error: {:?}", e);

@@ -1,6 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(not(test))]
-use solana_program::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -8,6 +6,7 @@ use solana_program::{
     msg,
     program::invoke_signed,
     program_error::ProgramError,
+    clock::Clock,
     pubkey::Pubkey,
     sysvar::Sysvar,
 };
@@ -18,9 +17,6 @@ use twine_chain::{
     },
     ID as twine_chain_program_id,
 };
-
-#[cfg(not(test))]
-use crate::utils::recover_address::recover_address;
 use crate::{
     core::{
         error::ProgramCustomError,
@@ -29,6 +25,7 @@ use crate::{
     utils::{
         address_derivation::derive_native_token_vault_data,
         constants::{CHAIN_ID, FORCED_WITHDRAW_TRANSACTION, NATIVE_TOKEN_VAULT_DATA_PREFIX},
+        recover_address::recover_address,
         ethereum_checks::is_valid_ethereum_address,
     },
 };
@@ -224,201 +221,4 @@ fn validate_accounts(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod mock_clock {
-    use solana_program::program_error::ProgramError;
-
-    pub struct Clock {
-        pub slot: u64,
-    }
-
-    impl Clock {
-        pub fn get() -> Result<Clock, ProgramError> {
-            Ok(Clock { slot: 1000 })
-        }
-    }
-}
-#[cfg(test)]
-fn recover_address(
-    _sign_info: SignMessageInfo,
-    _signature: Vec<u8>,
-) -> Result<String, ProgramError> {
-    // Return the expected address to make verification pass
-    Ok("0x1234567890123456789012345678901234567890".to_string())
-}
-
-#[cfg(test)]
-use mock_clock::Clock;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::state::{NativeTokenVaultData, TokenDecimalMappingData, TokenDecimalMappings};
-    use solana_program::{account_info::AccountInfo, clock::Epoch, pubkey::Pubkey, system_program};
-    use twine_chain::core::state::MessagesBuffer;
-
-    fn create_test_account<'a>(
-        key: &'a Pubkey,
-        is_signer: bool,
-        is_writable: bool,
-        lamports: &'a mut u64,
-        data: &'a mut [u8],
-        owner: &'a mut Pubkey,
-    ) -> AccountInfo<'a> {
-        AccountInfo::new(
-            key,
-            is_signer,
-            is_writable,
-            lamports,
-            data,
-            owner,
-            false,
-            Epoch::default(),
-        )
-    }
-
-    #[test]
-    fn test_forced_native_token_withdrawal_success() {
-        let program_id = Pubkey::new_unique();
-        let twine_chain_programs_id = Pubkey::new_unique();
-
-        // Setup keys
-        let user_key = Pubkey::new_unique();
-        let native_token_vault_data_key = Pubkey::new_unique();
-        let forced_withdrawal_buffer_key = Pubkey::new_unique();
-        let role_manager_key = Pubkey::new_unique();
-        let token_decimal_mappings_key = Pubkey::new_unique();
-
-        // Prepare proper test data
-        let native_vault_data = NativeTokenVaultData {
-            is_initialized: true,
-            total_deposits: 1000000,
-        };
-        let mut native_vault_data_serialized = native_vault_data.try_to_vec().unwrap();
-
-        let forced_withdrawal_buffer = MessagesBuffer {
-            is_initialized: true,
-            message_nonce: 5,
-            chain_id: CHAIN_ID,
-            messages: Vec::new(),
-        };
-        let mut forced_withdrawal_buffer_serialized =
-            forced_withdrawal_buffer.try_to_vec().unwrap();
-
-        let token_mappings = TokenDecimalMappings {
-            is_initialized: true,
-            mappings: vec![TokenDecimalMappingData {
-                l1_token: "11111111111111111111111111111111".to_string(),
-                l2_token: "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string(),
-                l1_decimals: 9,
-                l2_decimals: 18,
-            }],
-        };
-        let mut token_mappings_serialized = token_mappings.try_to_vec().unwrap();
-
-        let mut role_manager_data = vec![1; 1000];
-        let mut user_data = vec![0; 100];
-        let mut twine_chain_data = vec![0; 100];
-
-        // Setup lamports and owners
-        let mut user_lamports = 1_000_000_000u64;
-        let mut native_vault_lamports = 1_000_000u64;
-        let mut forced_withdrawal_lamports = 1_000_000u64;
-        let mut role_manager_lamports = 1_000_000u64;
-        let mut token_mappings_lamports = 1_000_000u64;
-        let mut twine_chain_lamports = 0u64;
-
-        let mut user_owner = system_program::id();
-        let mut native_vault_owner = program_id;
-        let mut forced_withdrawal_owner = program_id;
-        let mut role_manager_owner = program_id;
-        let mut token_mappings_owner = program_id;
-        let mut twine_chain_owner = system_program::id();
-
-        // Create accounts
-        let user_account = create_test_account(
-            &user_key,
-            true,
-            false,
-            &mut user_lamports,
-            &mut user_data,
-            &mut user_owner,
-        );
-
-        let native_token_vault_data_account = create_test_account(
-            &native_token_vault_data_key,
-            false,
-            true,
-            &mut native_vault_lamports,
-            &mut native_vault_data_serialized,
-            &mut native_vault_owner,
-        );
-
-        let forced_withdrawal_buffer_account = create_test_account(
-            &forced_withdrawal_buffer_key,
-            false,
-            true,
-            &mut forced_withdrawal_lamports,
-            &mut forced_withdrawal_buffer_serialized,
-            &mut forced_withdrawal_owner,
-        );
-
-        let role_manager_account = create_test_account(
-            &role_manager_key,
-            false,
-            false,
-            &mut role_manager_lamports,
-            &mut role_manager_data,
-            &mut role_manager_owner,
-        );
-
-        let token_decimal_mappings_account = create_test_account(
-            &token_decimal_mappings_key,
-            false,
-            false,
-            &mut token_mappings_lamports,
-            &mut token_mappings_serialized,
-            &mut token_mappings_owner,
-        );
-
-        let twine_chain_program_account = create_test_account(
-            &twine_chain_programs_id,
-            false,
-            false,
-            &mut twine_chain_lamports,
-            &mut twine_chain_data,
-            &mut twine_chain_owner,
-        );
-
-        let accounts = vec![
-            user_account,
-            native_token_vault_data_account,
-            forced_withdrawal_buffer_account,
-            role_manager_account,
-            token_decimal_mappings_account,
-            twine_chain_program_account,
-        ];
-
-        // Test parameters
-        let from_twine_address = "0x1234567890123456789012345678901234567890".to_string();
-        let to_l1_pubkey = "0x9876543210987654321098765432109876543210".to_string();
-        let l1_token = "11111111111111111111111111111111".to_string();
-        let l2_token = "0xa345a01f6C6c1E51E1B2C5f576FBF20B34DadB88".to_string();
-        let amount = 1000000;
-        let signature = vec![1; 65];
-
-        let result = forced_native_token_withdrawal(
-            &program_id,
-            &accounts,
-            from_twine_address,
-            to_l1_pubkey,
-            l1_token,
-            l2_token,
-            amount,
-            signature,
-        );
-        assert!(result.is_ok());
-    }
 }

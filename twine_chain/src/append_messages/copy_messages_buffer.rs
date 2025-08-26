@@ -41,7 +41,7 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     let (expected_twine_chain_storage_pda, _) = derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
 
-    let twine_chain_storage_data =
+    let mut twine_chain_storage_data =
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -110,7 +110,7 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     let mut messages_replicator_data =
         MessagesReplicator::deserialize(&mut &messages_replicator_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
+    messages_replicator_data.is_initialized = true;
     messages_replicator_data.start_nonce = start_nonce;
     messages_replicator_data.end_nonce = end_nonce;
 
@@ -133,6 +133,12 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
 
     messages_buffer_data
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+    twine_chain_storage_data.last_copied_message_start_nonce = start_nonce;
+    twine_chain_storage_data.last_copied_message_end_nonce = end_nonce;
+
+     twine_chain_storage_data
+        .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
         
     let clock = Clock::get()?;

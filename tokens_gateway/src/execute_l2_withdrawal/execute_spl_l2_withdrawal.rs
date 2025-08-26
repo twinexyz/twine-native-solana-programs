@@ -1,6 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
-// #[cfg(not(test))]
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -25,8 +24,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal, L2WithdrawValues,
-            SplTokensVaultData, TokenDecimalMappings,
+            ExecutedWithdrawalsBuffer, L2WithdrawValues, SplTokensVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -63,7 +61,7 @@ pub fn execute_spl_l2_withdrawal(
     if withdrawal_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
-     let amount = TokenDecimalMappings::parse_amount_to_biguint(&withdrawal_values.amount)?;
+    let amount = TokenDecimalMappings::parse_amount_to_biguint(&withdrawal_values.amount)?;
     if amount <= BigUint::ZERO {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
@@ -86,12 +84,10 @@ pub fn execute_spl_l2_withdrawal(
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
-    
-    // if withdrawal_values.batch_number
-    //     > twine_chain_storage.last_finalized_batch_number
-    // {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+
+    if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {

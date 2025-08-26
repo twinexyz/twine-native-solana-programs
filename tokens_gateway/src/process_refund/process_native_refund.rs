@@ -29,7 +29,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer,
             L1OriginTxPublicValues, NativeTokenVaultData, TokenDecimalMappings,
         },
     },

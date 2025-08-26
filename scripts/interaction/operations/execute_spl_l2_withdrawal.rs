@@ -51,11 +51,12 @@ pub fn execute_spl_l2_withdrawal(
         blockhash,
     );
 
-    rpc_client
+    let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
-        .context("Failed to execute L2 SPL withdrawal")?;
+        .context("Failed to send and confirm transaction")?;
 
-    println!("L2 SPL Withdrawal Executed");
+    println!("✅ L2 Spl Withdrawal Executed!");
+    println!("Transaction: {}", signature);
     Ok(())
 }
 

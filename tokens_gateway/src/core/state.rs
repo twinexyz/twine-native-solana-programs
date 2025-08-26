@@ -111,11 +111,6 @@ pub struct ExecutedPayoutsBuffer {
     pub executed_payout_nonces: Vec<u64>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct FinalizeInputWithdrawal {
-    pub public_input: ReceiptCommitment,
-    pub inclusion_proof: Vec<u8>,
-}
 
 /// Struct for signed messageAdd commentMore actions
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]

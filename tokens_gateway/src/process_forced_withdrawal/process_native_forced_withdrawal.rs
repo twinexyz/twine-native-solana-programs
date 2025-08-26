@@ -29,7 +29,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, FinalizeInputWithdrawal,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer,
             L1OriginTxPublicValues, NativeTokenVaultData, TokenDecimalMappings,
         },
     },
@@ -195,7 +195,7 @@ pub fn process_native_forced_withdrawal(
     let clock = Clock::get()?;
 
     msg!(
-    "EVENT:FORCED_WITHDRAWAL_PAYOUT_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, chain_id={}, amount={}, slot={}",
+    "EVENT:NATIVE_FORCED_WITHDRAWAL_PAYOUT_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, chain_id={}, amount={}, slot={}",
     withdraw_values.nonce,
     withdraw_values.l1_address,
     withdraw_values.l1_token_address,

@@ -42,10 +42,12 @@ pub fn spl_token_deposit(
         blockhash,
     );
 
-     rpc_client
+     let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    println!("Spl Token Deposit successfull");
+    
+    println!("✅ Spl token deposit successful!");
+    println!("Transaction: {}", signature);
 
     Ok(())
 }
