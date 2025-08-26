@@ -20,7 +20,6 @@ use crate::operations::{
     process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
     process_native_l1_refund::process_native_l1_refund,
     process_spl_l1_refund::process_spl_l1_refund,
-    token_mapping::update_token_mapping,
     role_operations_twine_chain::add_role_in_twine_chain,
     role_operations_tokens_gateway::add_role_in_tokens_gateway,
 };
