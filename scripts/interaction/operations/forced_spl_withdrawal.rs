@@ -12,7 +12,6 @@ pub fn forced_spl_withdrawal(
     privkey: String,
     user_token_account: Pubkey,
     amount: u64,
-   
 ) -> Result<()> {
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
@@ -41,17 +40,19 @@ pub fn forced_spl_withdrawal(
         signature,
     );
 
-     let transaction = Transaction::new_signed_with_payer(
+    let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&account.pubkey()),
         &[&account],
         blockhash,
     );
 
-    rpc_client
+    let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Forced SPL Token Withdrawal DONE");
+
+    println!("✅ Forced SPL Token Withdrawal DONE!");
+    println!("Transaction: {}", signature);
 
     Ok(())
 }

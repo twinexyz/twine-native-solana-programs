@@ -75,6 +75,9 @@ help:
 	@echo "  add-role-in-twine-chain           Add role in twine chain"
 	@echo "  add-role-in-tokens-gateway        Add role in tokens gateway"
 	@echo ""
+	@echo "=== Copy MessageBuffer ==="
+	@echo "  copy-message-buffer           Copy the message buffer"
+	@echo ""
 	@echo "=== DATA RETRIEVAL TARGETS ==="
 	@echo "  get-all-pdas                      Get all pdas"
 	@echo "  get-batch-pda                     Get batch pda id"
@@ -300,4 +303,11 @@ get-tokens-gateway-role-manager-data:
 	@echo "Getting tokens gateway role manager data..."
 	$(CARGO) run --bin interaction -- get-tokens-gateway-role-manager-data
 
+# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nocne
+# ==============================
+#     Copy Message Buffer
+# ==============================
+copy-messages-buffer:
+	@echo "Copy Message Buffer..."
+	$(CARGO) run --bin interaction -- copy-messages-buffer "$(start_nonce)" "$(end_nonce)"
 

@@ -2,13 +2,13 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
+    clock::Clock,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
-    clock::Clock,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
@@ -22,8 +22,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedWithdrawalsBuffer,L2WithdrawValues,
-            NativeTokenVaultData, TokenDecimalMappings,
+            ExecutedWithdrawalsBuffer, L2WithdrawValues, NativeTokenVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -60,7 +59,6 @@ pub fn execute_native_l2_withdrawal(
     if amount <= BigUint::ZERO {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
-   
 
     if withdrawal_values.l1_token_address != "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
@@ -79,9 +77,9 @@ pub fn execute_native_l2_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    // if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -100,7 +98,7 @@ pub fn execute_native_l2_withdrawal(
     let decimal_mapping = token_decimal_mappings
         .get_mapping(&withdrawal_values.l1_token_address)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
-    
+
     let converted_amount = TokenDecimalMappings::convert_l2_to_l1(
         &withdrawal_values.amount,
         decimal_mapping.l2_decimals,
@@ -108,8 +106,8 @@ pub fn execute_native_l2_withdrawal(
     )?;
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
-    
-     if native_token_vault_acc.lamports() <= actual_amount {
+
+    if native_token_vault_acc.lamports() <= actual_amount {
         msg!("Insufficient fund in native token vault");
         return Err(ProgramCustomError::InsufficientFunds.into());
     }
@@ -165,7 +163,7 @@ pub fn decode_l2_withdraw_values(
 ) -> Result<L2WithdrawValues, ProgramError> {
     const MIN_LEN: usize = 168;
     const PREFIX_LEN: usize = 48;
-    const L1_TOKEN_ADDRESS_LEN: usize = 32; 
+    const L1_TOKEN_ADDRESS_LEN: usize = 32;
     const L2_TOKEN_ADDRESS_LEN: usize = 42;
 
     if bytes.len() < MIN_LEN {

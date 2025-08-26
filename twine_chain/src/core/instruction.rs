@@ -2,7 +2,7 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    instruction::{AccountMeta, Instruction}, msg, program_error::ProgramError, pubkey::Pubkey, system_program
+    instruction::{AccountMeta, Instruction},program_error::ProgramError, pubkey::Pubkey, system_program
 };
 
 use crate::{

@@ -41,7 +41,7 @@ pub fn finalize_batch(
     let (executed_message_count, previous_batch_hash, current_batch_hash) =
         decode_batch_info(&public_values)?;
 
-    let mut twine_chain_storage_data = validate_pdas(
+    let mut twine_chain_storage_data = validate_accounts(
         program_id,
         batch_number,
         previous_batch_hash,
@@ -102,7 +102,7 @@ pub fn decode_batch_info(bytes: &[u8]) -> Result<(u64, [u8; 32], [u8; 32]), Prog
     Ok((solana_message_count, prev, curr))
 }
 
-fn validate_pdas(
+fn validate_accounts(
     program_id: &Pubkey,
     batch_number: u64,
     previous_batch_hash: [u8; 32],

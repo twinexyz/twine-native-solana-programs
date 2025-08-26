@@ -30,6 +30,9 @@ pub fn process_native_l1_forced_withdrawal(
     let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Native token Forced Withdrawal payout successfull {:?}",signature);
+
+    println!("✅ Native token Forced Withdrawal payout successfull");
+    println!("Transaction: {}", signature);
+    
     Ok(())
 }

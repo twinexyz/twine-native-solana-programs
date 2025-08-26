@@ -44,7 +44,7 @@ pub fn commit_batch(
     let system_program = next_account_info(account_iter)?;
 
     // Validate PDAs
-    let (current_pda_bump, mut twine_chain_storage_data) = validate_pdas(
+    let (current_pda_bump, mut twine_chain_storage_data) = validate_accounts(
         program_id,
         batch_number,
         twine_chain_storage_acc,
@@ -129,7 +129,7 @@ pub fn commit_batch(
     Ok(())
 }
 
-fn  validate_pdas(
+fn  validate_accounts(
     program_id: &Pubkey,
     batch_number: u64,
     twine_chain_storage_acc: &AccountInfo,

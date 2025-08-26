@@ -42,6 +42,8 @@ pub fn process_spl_l1_refund(
     let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Spl token Forced Withdrawal payout successfull {:?}",signature);
+
+    println!("✅ Spl token Refund successfull");
+    println!("Transaction: {}", signature);
     Ok(())
 }

@@ -99,11 +99,11 @@ pub enum Commands {
     GetMessagesBufferData {},
     GetExecutedPayoutsBufferData {},
     GetTwineChainStorageData {},
-    GetTwineChainRoleManagerData{},
-    GetTokensGatewayRoleManagerData{},
-    GetMessageReplicatorData{
-        start_nonce:u64,
-        end_nocne:u64,
+    GetTwineChainRoleManagerData {},
+    GetTokensGatewayRoleManagerData {},
+    GetMessageReplicatorData {
+        start_nonce: u64,
+        end_nonce: u64,
     },
     AddRoleInTwineChain {
         role_type: String,
@@ -112,5 +112,9 @@ pub enum Commands {
     AddRoleInTokensGateway {
         role_type: String,
         user_pubkey: Pubkey,
+    },
+    CopyMessagesBuffer {
+        start_nonce: u64,
+        end_nonce: u64,
     },
 }

@@ -1,4 +1,4 @@
-use crate::utils::{get_default_keypair, get_rpc_client,get_or_create_ata};
+use crate::utils::{get_default_keypair, get_or_create_ata, get_rpc_client};
 use anyhow::{Context, Result};
 use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 use tokens_gateway::{
@@ -7,9 +7,9 @@ use tokens_gateway::{
 };
 
 pub fn process_spl_l1_forced_withdrawal(
-    l1_token:Pubkey,
+    l1_token: Pubkey,
     l1_receiver_address: Pubkey,
-    message_nonce:u64,
+    message_nonce: u64,
     public_value: String,
     proof: String,
 ) -> Result<()> {
@@ -18,7 +18,7 @@ pub fn process_spl_l1_forced_withdrawal(
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
     let blockhash = rpc_client.get_latest_blockhash()?;
-      let spl_token_vault = get_or_create_ata(
+    let spl_token_vault = get_or_create_ata(
         &rpc_client,
         &account,
         &derive_spl_vault_authority(&tokens_gateway_ID).0,
@@ -42,6 +42,8 @@ pub fn process_spl_l1_forced_withdrawal(
     let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Spl token Forced Withdrawal payout successfull {:?}",signature);
+
+    println!("✅ Spl token Forced Withdrawal payout successfull");
+    println!("Transaction: {}", signature);
     Ok(())
 }

@@ -1,6 +1,7 @@
 use crate::action_commands::Commands;
 use crate::operations::{
     create_spl_token::create_spl_token,
+    copy_messages_buffer::copy_messages_buffer,
     deposit_native_token::native_token_deposit,
     deposit_spl_token::spl_token_deposit,
     execute_native_l2_withdrawal::execute_native_l2_withdrawal,
@@ -76,8 +77,12 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = get_tokens_gateway_role_manager_data();
             println!("Result: {:?}", result);
         }
-        Commands::GetMessageReplicatorData {start_nonce,end_nocne} => {
-            let result = get_message_replicator_data(start_nonce,end_nocne);
+        Commands::GetMessageReplicatorData {start_nonce,end_nonce} => {
+            let result = get_message_replicator_data(start_nonce,end_nonce);
+            println!("Result: {:?}", result);
+        }
+        Commands::CopyMessagesBuffer {start_nonce,end_nonce} => {
+            let result = copy_messages_buffer(start_nonce,end_nonce);
             println!("Result: {:?}", result);
         }
         Commands::TokenMapping {
