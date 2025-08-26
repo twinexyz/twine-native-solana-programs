@@ -18,7 +18,7 @@ SOL_PUBKEY = 11111111111111111111111111111111
         start-validator initialize \
         create-spl-token update-token-mapping \
         deposit-native-token deposit-spl-token \
-        forced-native-token-withdrawal forced-spl-token-withdrawal \
+        forced-native-token-withdrawal forced-spl-withdrawal \
         forced-native-withdrawal execute-native-l2-withdrawal execute-spl-l2-withdrawal \
         get-all-pdas get-batch-pda get-messages-buffer-data \
         get-associated-token-account get-twine-chain-storage-data \
@@ -65,7 +65,7 @@ help:
 	@echo ""
 	@echo "=== WITHDRAWAL OPERATIONS ==="
 	@echo "  forced-native-withdrawal          Forced native token withdrawal"
-	@echo "  forced-spl-token-withdrawal       Forced SPL token withdrawal"
+	@echo "  forced-spl-withdrawal             Forced SPL token withdrawal"
 	@echo "  execute-native-l2-withdrawal      Execute l2 initiated native token withdrawal"
 	@echo "  execute-spl-l2-withdrawal         Execute l2 initiated spl token withdrawal"
 	@echo "  process-native-forced-withdrawal  Process the forced withdrawal"
@@ -316,4 +316,3 @@ get-tokens-gateway-role-manager-data:
 copy-messages-buffer:
 	@echo "Copy Message Buffer..."
 	$(CARGO) run --bin interaction -- copy-messages-buffer "$(start_nonce)" "$(end_nonce)"
-

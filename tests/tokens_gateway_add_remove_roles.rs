@@ -45,8 +45,8 @@ async fn add_roles_tokens_gateway() {
         &chain_admin,
     ));
     instructions.extend(tokens_gateway_instruction::add_role_in_gateway(
-        user_pubkey,
         accounts.chain_admin.pubkey(),
+        user_pubkey, 
         RoleType::TwineOperationHandler,
     ));
     let transaction = Transaction::new_signed_with_payer(
@@ -99,9 +99,9 @@ async fn remove_roles_tokens_gateway() {
         &chain_admin,
     ));
     instructions.extend(tokens_gateway_instruction::add_role_in_gateway(
-        user_pubkey,
-        RoleType::TwineOperationHandler,
         accounts.chain_admin.pubkey(),
+        user_pubkey,  
+        RoleType::TwineOperationHandler,
     ));
     instructions.extend(tokens_gateway_instruction::remove_role_in_gateway(
         user_pubkey,
