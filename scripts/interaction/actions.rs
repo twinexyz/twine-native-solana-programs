@@ -10,7 +10,8 @@ use crate::operations::{
     get_all_pdas::{get_all_pdas, get_batch_pda},
     get_associated_token_account::get_associated_token_account,
     get_pdas_data::{
-        get_messages_buffer_data, get_payouts_buffer_data, get_twine_chain_storage_data,
+        get_messages_buffer_data, get_payouts_buffer_data, get_twine_chain_storage_data,get_message_replicator_data,
+        get_tokens_gateway_role_manager_data,get_twine_chain_role_manager_data
     },
     initialize_programs::initialize_twine_solana_programs,
     process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal,
@@ -55,7 +56,6 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = get_batch_pda(batch_number);
             println!("Result: {:?}", result);
         }
-
         Commands::GetMessagesBufferData {} => {
             let result = get_messages_buffer_data();
             println!("Result: {:?}", result);
@@ -66,6 +66,18 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::GetTwineChainStorageData {} => {
             let result = get_twine_chain_storage_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetTwineChainRoleManagerData {} => {
+            let result = get_twine_chain_role_manager_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetTokensGatewayRoleManagerData {} => {
+            let result = get_tokens_gateway_role_manager_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetMessageReplicatorData {start_nonce,end_nocne} => {
+            let result = get_message_replicator_data(start_nonce,end_nocne);
             println!("Result: {:?}", result);
         }
         Commands::TokenMapping {

@@ -23,7 +23,7 @@ SOL_PUBKEY = 11111111111111111111111111111111
         get-all-pdas get-batch-pda get-messages-buffer-data \
         get-associated-token-account get-twine-chain-storage-data \
         get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund \
-		add-role-in-twine-chain add-role-in-tokens-gateway
+		add-role-in-twine-chain add-role-in-tokens-gateway\
 
 # ==============================
 #        Help Target
@@ -82,6 +82,8 @@ help:
 	@echo "  get-executed-payouts-buffer-data  Get executed payouts buffer data"
 	@echo "  get-associated-token-account      Get associated token account of a wallet"
 	@echo "  get-twine-chain-storage-data      Get twine chain storage data"
+	@echo "  get-twine-chain-role-manager-data Get twine chain role manager data"
+	@echo "  get-tokens-gateway-role-manager-data Get tokens gateway role manager data"
 	@echo ""
 	@echo ""
 
@@ -285,5 +287,17 @@ get-twine-chain-storage-data:
 	@echo "Getting twine chain storage data..."
 	$(CARGO) run --bin interaction -- get-twine-chain-storage-data
 
+# Usage: make get-message-replicator-data start_nonce=the_start_nonce end_nonce=the_end_nocne
+get-message-replicator-data:
+	@echo "Getting message replicator data..."	
+	$(CARGO) run --bin interaction -- get-message-replicator-data "$(start_nonce)" "$(end_nonce)"
+
+get-twine-chain-role-manager-data:
+	@echo "Getting twine chain role manager data..."
+	$(CARGO) run --bin interaction -- get-twine-chain-role-manager-data
+
+get-tokens-gateway-role-manager-data:
+	@echo "Getting tokens gateway role manager data..."
+	$(CARGO) run --bin interaction -- get-tokens-gateway-role-manager-data
 
 
