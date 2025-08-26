@@ -688,9 +688,10 @@ pub fn set_gateway_role_chain_admin(new_admin: Pubkey, chain_admin: Pubkey) -> V
 }
 
 pub fn add_role_in_gateway(
+    chain_admin: Pubkey,
     account_address: Pubkey,
     role: RoleType,
-    chain_admin: Pubkey,
+    
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::AddRoleInGateway {
         address: account_address,

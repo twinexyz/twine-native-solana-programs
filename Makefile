@@ -22,7 +22,8 @@ SOL_PUBKEY = 11111111111111111111111111111111
         forced-native-withdrawal execute-native-l2-withdrawal execute-spl-l2-withdrawal \
         get-all-pdas get-batch-pda get-messages-buffer-data \
         get-associated-token-account get-twine-chain-storage-data \
-        get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund
+        get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund \
+		add-role-in-twine-chain add-role-in-tokens-gateway
 
 # ==============================
 #        Help Target
@@ -69,6 +70,10 @@ help:
 	@echo "  execute-spl-l2-withdrawal         Execute l2 initiated spl token withdrawal"
 	@echo "  process-native-forced-withdrawal  Process the forced withdrawal"
 	@echo "  process-native-refund             Process the refund"
+	@echo ""
+	@echo "=== ROLE MANAGEMENT ==="
+	@echo "  add-role-in-twine-chain           Add role in twine chain"
+	@echo "  add-role-in-tokens-gateway        Add role in tokens gateway"
 	@echo ""
 	@echo "=== DATA RETRIEVAL TARGETS ==="
 	@echo "  get-all-pdas                      Get all pdas"
@@ -240,6 +245,18 @@ process-spl-forced-withdrawal:
 	$(CARGO) run --bin interaction -- process-spl-forced-withdrawal "$(l1_token)" "$(l1_receiver)" $(message_nonce)" "$(public_values)" "$(proof)"
 
 # ==============================
+#        Role Management
+# ==============================
+# Usage: make add-role-in-twine-chain role_type= message_appender/twine_operation_handler user_pubkey=your_pubkey
+add-role-in-twine-chain:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- add-role-in-twine-chain "$(role_type)" "$(user_pubkey)"
+
+# Usage: make add-role-in-tokens_gateway role_type=twine_operation_handler user_pubkey=your_pubkey
+add-role-in-tokens-gateway:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- add-role-in-tokens-gateway "$(role_type)" "$(user_pubkey)"
+# ==============================
 #        Data Retrieval Targets
 # ==============================
 get-all-pdas:
@@ -267,5 +284,6 @@ get-associated-token-account:
 get-twine-chain-storage-data:
 	@echo "Getting twine chain storage data..."
 	$(CARGO) run --bin interaction -- get-twine-chain-storage-data
+
 
 

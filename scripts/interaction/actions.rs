@@ -18,6 +18,8 @@ use crate::operations::{
     process_native_l1_refund::process_native_l1_refund,
     process_spl_l1_refund::process_spl_l1_refund,
     token_mapping::update_token_mapping,
+    role_operations_twine_chain::add_role_in_twine_chain,
+    role_operations_tokens_gateway::add_role_in_tokens_gateway,
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -28,6 +30,14 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::CreateSplToken {} => {
             let result = create_spl_token();
+            println!("Result: {:?}", result);
+        }
+        Commands::AddRoleInTwineChain {role_type,user_pubkey} => {
+            let result = add_role_in_twine_chain(role_type,user_pubkey);
+            println!("Result: {:?}", result);
+        }
+        Commands::AddRoleInTokensGateway {role_type,user_pubkey} => {
+            let result = add_role_in_tokens_gateway(role_type,user_pubkey);
             println!("Result: {:?}", result);
         }
         Commands::GetAssociatedTokenAccount {

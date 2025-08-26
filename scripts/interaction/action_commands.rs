@@ -99,4 +99,12 @@ pub enum Commands {
     GetMessagesBufferData {},
     GetExecutedPayoutsBufferData {},
     GetTwineChainStorageData {},
+    AddRoleInTwineChain {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
+    AddRoleInTokensGateway {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
 }
