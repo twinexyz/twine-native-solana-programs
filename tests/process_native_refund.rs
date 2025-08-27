@@ -5,7 +5,8 @@ use sha3::{Digest, Keccak256};
 use solana_sdk::{
     msg, signature::{Keypair, Signer}, transaction::Transaction
 };
-
+use solana_program::pubkey::Pubkey;
+use std::str::FromStr;
 use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
@@ -44,7 +45,7 @@ async fn process_native_refund() {
     let batch_number = 1u64;
     let nonce = 1u64;
     let batch_hash = [1u8; 32];
-    let l1_address = accounts.chain_admin.pubkey();
+    let l1_address = Pubkey::from_str("em1AJXBRXHubbtSEFFKnkbqACdGuvKhhoHTFCU9cKzS").unwrap();
     let l2_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let l1_token = "11111111111111111111111111111111".to_string();
     let l2_token = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
@@ -60,18 +61,16 @@ async fn process_native_refund() {
     public_values.extend_from_slice(&CHAIN_ID.to_be_bytes());
     public_values.extend_from_slice(&slot_number.to_be_bytes());
     public_values.extend_from_slice(&Keccak256::digest(&data.as_bytes()));
-    public_values.extend_from_slice(&l1_address.to_string().as_bytes());
-    public_values.extend_from_slice(&l2_address.as_bytes());
-    public_values.extend_from_slice(&l1_token.as_bytes());
-    public_values.extend_from_slice(&l2_token.as_bytes());
+    public_values.extend_from_slice(&l1_address.to_string().to_lowercase().as_bytes());
+    public_values.extend_from_slice(&l2_address.to_lowercase().as_bytes());
+    public_values.extend_from_slice(&l1_token.to_lowercase().as_bytes());
+    public_values.extend_from_slice(&l2_token.to_lowercase().as_bytes());
     public_values.extend_from_slice(&l2_amount.to_string().as_bytes());
-   
-   
+
 
     println!("The public values{:?}",public_values);
     msg!("The hex values {:?}",hex::encode(&public_values));
-
-
+    
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(

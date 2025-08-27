@@ -79,14 +79,14 @@ pub fn process_spl_refund(
     if refund_values.l1_token_address == "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
     }
-    if refund_values.l1_token_address != mint.key.to_string() {
+    if refund_values.l1_token_address != mint.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
     if !is_valid_ethereum_address(&refund_values.l2_token_address)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
 
-    if refund_values.l1_address != receiver_acc.key.to_string() {
+    if refund_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
     let mut executed_payouts_buffer =
@@ -153,7 +153,7 @@ pub fn process_spl_refund(
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let decimal_mapping = token_decimal_mappings
-        .get_mapping(&refund_values.l1_token_address)
+        .get_mapping(&mint.key.to_string())
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
 
     let converted_amount = TokenDecimalMappings::convert_l2_to_l1(

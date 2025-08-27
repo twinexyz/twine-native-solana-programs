@@ -176,10 +176,10 @@ impl DepositMessageInfo {
         hasher.update(self.data.as_bytes());
         let data_hash = hasher.finalize();
         encoded.extend(data_hash.as_slice()); 
-        encoded.extend(self.from_l1_pubkey.as_bytes());
-        encoded.extend(self.to_twine_address.as_bytes());
-        encoded.extend(self.l1_token.as_bytes());
-        encoded.extend(self.l2_token.as_bytes());
+        encoded.extend(self.from_l1_pubkey.to_lowercase().as_bytes());
+        encoded.extend(self.to_twine_address.to_lowercase().as_bytes());
+        encoded.extend(self.l1_token.to_lowercase().as_bytes());
+        encoded.extend(self.l2_token.to_lowercase().as_bytes());
         encoded.extend(self.amount.as_bytes());
         
 
@@ -206,10 +206,10 @@ impl ForcedWithdrawMessageInfo {
         hasher.update(self.data.as_bytes());
         let data_hash = hasher.finalize();
         encoded.extend(data_hash.as_slice()); 
-        encoded.extend(self.to_l1_pubkey.as_bytes());
-        encoded.extend(self.from_twine_address.as_bytes());
-        encoded.extend(self.l1_token.as_bytes());
-        encoded.extend(self.l2_token.as_bytes());
+        encoded.extend(self.to_l1_pubkey.to_lowercase().as_bytes());
+        encoded.extend(self.from_twine_address.to_lowercase().as_bytes());
+        encoded.extend(self.l1_token.to_lowercase().as_bytes());
+        encoded.extend(self.l2_token.to_lowercase().as_bytes());
         encoded.extend(self.amount.as_bytes());
         encoded
     }

@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use sha3::{Digest, Keccak256};
 use num_bigint::BigUint;
+use sha3::{Digest, Keccak256};
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -29,8 +29,8 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer,
-            L1OriginTxPublicValues, NativeTokenVaultData, TokenDecimalMappings,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, L1OriginTxPublicValues,
+            NativeTokenVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -85,7 +85,7 @@ pub fn process_native_forced_withdrawal(
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
 
-    if withdraw_values.l1_address != receiver_acc.key.to_string() {
+    if withdraw_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
 
