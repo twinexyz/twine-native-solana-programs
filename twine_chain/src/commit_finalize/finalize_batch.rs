@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde_json::json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -76,13 +77,18 @@ pub fn finalize_batch(
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     let clock = Clock::get()?;
-    msg!(
-        "event=BatchFinalizationSuccessful batch_number={}  chain_id={} batch_hash={:?} slot_number={}",
-        batch_number,
-        CHAIN_ID,
-        current_batch_hash,
-        clock.slot
-    );
+
+    let event = json!(
+        {
+            "event": "Batch_Finalization_Successful",
+            "batch_number": batch_number,
+            "chain_id": CHAIN_ID,
+            "batch_hash": current_batch_hash,
+            "slot_number": clock.slot
+        }
+    )
+    .to_string();
+    msg!(&event);
     Ok(())
 }
 

@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde_json::json;
 use solana_program::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -142,12 +143,17 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
         
     let clock = Clock::get()?;
-    msg!(
-        "event=CopiedMessageBuffer start_nonce={}  end_nonce={}  slot_number={}",
-        start_nonce,
-        end_nonce,
-        clock.slot
-    );
+
+    let event = json!(
+        {
+            "event": "Copied_Message_Buffer",
+            "start_nonce": start_nonce,
+            "end_nonce": end_nonce,
+            "slot_number": clock.slot
+        }
+    )
+    .to_string();
+    msg!(&event);
     
     Ok(())
 }
