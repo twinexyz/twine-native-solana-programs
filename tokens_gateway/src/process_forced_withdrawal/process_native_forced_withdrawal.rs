@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
+use serde_json::json;
 use sha3::{Digest, Keccak256};
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -194,15 +195,20 @@ pub fn process_native_forced_withdrawal(
     executed_payouts_buffer.post_withdrawal_processing();
     let clock = Clock::get()?;
 
-    msg!(
-    "EVENT:NATIVE_FORCED_WITHDRAWAL_PAYOUT_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, chain_id={}, amount={}, slot={}",
-    withdraw_values.nonce,
-    withdraw_values.l1_address,
-    withdraw_values.l1_token_address,
-    withdraw_values.chain_id,
-    actual_amount,
-    clock.slot
-);
+    let event = json!(
+        {
+            "event": "Native_Forced_Withdrawal_Payout_Successful",
+            "nonce": withdraw_values.nonce,
+            "l1_receiver_address": withdraw_values.l1_address,
+            "l1_token_address": withdraw_values.l1_token_address,
+            "chain_id": withdraw_values.chain_id,
+            "amount": actual_amount,
+            "slot_number": clock.slot
+        }
+    )
+    .to_string();
+    msg!(&event);
+
     Ok(())
 }
 

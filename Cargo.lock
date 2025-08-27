@@ -6748,6 +6748,7 @@ dependencies = [
  "libsecp256k1 0.7.2",
  "num-bigint 0.4.6",
  "num-traits",
+ "serde_json",
  "sha3",
  "solana-program",
  "solana-secp256k1-recover",
