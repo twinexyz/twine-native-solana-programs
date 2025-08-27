@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use serde_json::json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -95,11 +96,16 @@ pub fn initialize_genesis_batch(
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
      let clock = Clock::get()?;
-    msg!(
-        "event=GenesisBatchInitialized genesis_batch_hash={:?}  slot_number={}",
-        genesis_batch_hash,
-        clock.slot
-    );
+
+    let event = json!(
+        {
+            "event": "Genesis_Batch_Initialized",
+            "genesis_batch_hash": genesis_batch_hash,
+            "slot_number": clock.slot
+        }
+    )
+    .to_string();
+    msg!(&event);
     Ok(())
 }
 

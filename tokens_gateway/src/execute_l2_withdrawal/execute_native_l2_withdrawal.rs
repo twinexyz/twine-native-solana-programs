@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
+use serde_json::json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
@@ -145,15 +146,19 @@ pub fn execute_native_l2_withdrawal(
 
     let clock = Clock::get()?;
 
-    msg!(
-    "EVENT:NATIVE_L2_WITHDRAWAL_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, chain_id={}, amount={}, slot={}",
-    withdrawal_values.nonce,
-    withdrawal_values.l1_receiver_address,
-    withdrawal_values.l1_token_address,
-    CHAIN_ID,
-    actual_amount,
-    clock.slot
-);
+    let event = json!(
+        {
+            "event": "Native_L2_Withdrawal_Successful",
+            "nonce": withdrawal_values.nonce,
+            "l1_receiver_address": withdrawal_values.l1_receiver_address,
+            "l1_token_address:": withdrawal_values.l1_token_address,
+            "chain_id": CHAIN_ID,
+            "amount": actual_amount,
+            "slot_number":  clock.slot 
+        }
+    )
+    .to_string();
+    msg!(&event);
     Ok(())
 }
 

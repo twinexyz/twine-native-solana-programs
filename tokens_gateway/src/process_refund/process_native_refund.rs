@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
+use serde_json::json;
 use sha3::{Digest, Keccak256};
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -192,15 +193,19 @@ pub fn process_native_refund(
     executed_payouts_buffer.post_withdrawal_processing();
     let clock = Clock::get()?;
 
-    msg!(
-    "EVENT:REFUND_SUCCESSFUL: nonce={}, l1_receiver_address={}, l1_token_address={}, chain_id={}, amount={}, slot={}",
-    refund_values.nonce,
-    refund_values.l1_address,
-    refund_values.l1_token_address,
-    refund_values.chain_id,
-    actual_amount,
-    clock.slot
-);
+    let event = json!(
+        {
+            "event": "Native_Refund_Successful",
+            "nonce": refund_values.nonce,
+            "l1_receiver_address": refund_values.l1_address,
+            "l1_token_address:": refund_values.l1_token_address,
+            "chain_id": refund_values.chain_id,
+            "amount": actual_amount,
+            "slot_number":  clock.slot 
+        }
+    )
+    .to_string();
+    msg!(&event);
 
     Ok(())
 }
