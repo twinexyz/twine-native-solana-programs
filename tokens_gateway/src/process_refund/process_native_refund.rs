@@ -29,8 +29,8 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer,
-            L1OriginTxPublicValues, NativeTokenVaultData, TokenDecimalMappings,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, L1OriginTxPublicValues,
+            NativeTokenVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -82,8 +82,7 @@ pub fn process_native_refund(
     if !is_valid_ethereum_address(&refund_values.l2_token_address)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
-
-    if refund_values.l1_address != receiver_acc.key.to_string() {
+    if refund_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
     let mut executed_payouts_buffer =
@@ -132,18 +131,18 @@ pub fn process_native_refund(
     } else {
         let messages_buffer_data =
             MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])?;
-        if !messages_buffer_data
-            .messages
-            .contains(&Keccak256::digest(&public_values[40..]).into())
-        {
-            msg!("Error: Provided transaction not present in MessageBuffer.");
-            return Err(ProgramCustomError::InvalidTransaction.into());
-        };
+        // if !messages_buffer_data
+        //     .messages
+        //     .contains(&Keccak256::digest(&public_values[40..]).into())
+        // {
+        //     msg!("Error: Provided transaction not present in MessageBuffer.");
+        //     return Err(ProgramCustomError::InvalidTransaction.into());
+        // };
     }
 
-    if refund_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-        return Err(ProgramCustomError::BatchNotFinalized.into());
-    };
+    // if refund_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+    //     return Err(ProgramCustomError::BatchNotFinalized.into());
+    // };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {

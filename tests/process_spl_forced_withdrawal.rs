@@ -91,10 +91,10 @@ async fn process_spl_forced_withdrawal() {
     public_values.extend_from_slice(&CHAIN_ID.to_be_bytes());
     public_values.extend_from_slice(&slot_number.to_be_bytes());
     public_values.extend_from_slice(&Keccak256::digest(&data.as_bytes()));
-    public_values.extend_from_slice(&user_token_account.to_string().as_bytes());
-    public_values.extend_from_slice(&l2_address.as_bytes());
-    public_values.extend_from_slice(&l1_token.as_bytes());
-    public_values.extend_from_slice(&l2_token.as_bytes());
+    public_values.extend_from_slice(&user_token_account.to_string().to_lowercase().as_bytes());
+    public_values.extend_from_slice(&l2_address.to_lowercase().as_bytes());
+    public_values.extend_from_slice(&l1_token.to_lowercase().as_bytes());
+    public_values.extend_from_slice(&l2_token.to_lowercase().as_bytes());
     public_values.extend_from_slice(&l2_amount.to_string().as_bytes());
     println!("The public values{:?}", public_values);
     println!("The hex values {:?}", hex::encode(&public_values));

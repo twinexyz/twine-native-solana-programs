@@ -77,16 +77,18 @@ pub fn process_spl_forced_withdrawal(
     if withdraw_values.l1_token_address == "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
     }
-    if withdraw_values.l1_token_address != mint.key.to_string() {
+    if withdraw_values.l1_token_address != mint.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
     if !is_valid_ethereum_address(&withdraw_values.l2_token_address)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
-
-    if withdraw_values.l1_address != receiver_acc.key.to_string() {
+msg!("The withdraw values {:?}",withdraw_values.l1_address);
+msg!("Hello 1");
+    if withdraw_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+    msg!("Hello 2");
     let mut executed_payouts_buffer =
         ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -151,7 +153,7 @@ pub fn process_spl_forced_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let decimal_mapping = token_decimal_mappings
-        .get_mapping(&withdraw_values.l1_token_address)
+        .get_mapping(&mint.key.to_string())
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
 
     let converted_amount = TokenDecimalMappings::convert_l2_to_l1(
@@ -274,7 +276,6 @@ pub fn decode_withdraw_values(
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
     let amount = decode_string_field(&bytes[offset..])?;
-
     Ok(L1OriginTxPublicValues {
         batch_hash,
         batch_number,
