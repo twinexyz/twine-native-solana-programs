@@ -28,7 +28,6 @@ pub fn forced_native_withdrawal(
 
     let messages_buffer_data = MessagesBuffer::deserialize(&mut &messages_buffer_account.data[..])
         .context("Failed to deserialize Message Buffer")?;
-    msg!("nonce here {:?}", messages_buffer_data.message_nonce + 1);
 
     let sign_info = SignMessageInfo {
         nonce: messages_buffer_data.message_nonce + 1,
@@ -41,7 +40,6 @@ pub fn forced_native_withdrawal(
     };
 
     let signature = get_ethereum_signature(&sign_info, &privkey);
-    msg!("signature {:?}", signature);
 
     let instructions = tokens_gateway_instruction::forced_native_token_withdrawal(
         &account.pubkey(),
