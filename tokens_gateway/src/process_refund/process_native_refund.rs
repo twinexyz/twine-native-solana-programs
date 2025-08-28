@@ -195,10 +195,10 @@ pub fn process_native_refund(
 
     let event = json!(
         {
-            "event": "Native_Refund_Successful",
+            "event": "RefundSuccessful",
             "nonce": refund_values.nonce,
-            "l1_receiver_address": receiver_acc.key.to_string(),
-            "l1_token_address:": refund_values.l1_token_address,
+            "l1_receiver": receiver_acc.key.to_string(),
+            "l1_token": refund_values.l1_token_address,
             "chain_id": refund_values.chain_id,
             "amount": actual_amount,
             "slot_number":  clock.slot

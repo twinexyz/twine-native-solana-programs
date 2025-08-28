@@ -153,10 +153,11 @@ pub fn execute_spl_l2_withdrawal(
 
     let event = json!(
         {
-            "event": "Spl_L2_Withdrawal_Successful",
+            "event": "L2WithdrawExecuted",
             "nonce": withdrawal_values.nonce,
-            "l1_receiver_address": withdrawal_values.l1_receiver_address,
-            "l1_token_address:": withdrawal_values.l1_token_address,
+            "l1_token:": withdrawal_values.l1_token_address,
+            "l2_token": withdrawal_values.l2_token_address,
+            "l1_receiver": withdrawal_values.l1_receiver_address,
             "chain_id": CHAIN_ID,
             "amount": actual_amount,
             "slot_number":  clock.slot 

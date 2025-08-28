@@ -200,10 +200,10 @@ pub fn process_spl_refund(
 
     let event = json!(
         {
-            "event": "Spl_Refund_Successful",
+            "event": "RefundSuccessful",
             "nonce": refund_values.nonce,
-            "l1_receiver_address": receiver_acc.key.to_string(),
-            "l1_token_address:": mint.key.to_string(),
+            "l1_receiver": receiver_acc.key.to_string(),
+            "l1_token": mint.key.to_string(),
             "chain_id": CHAIN_ID,
             "amount": actual_amount,
             "slot_number":  clock.slot 

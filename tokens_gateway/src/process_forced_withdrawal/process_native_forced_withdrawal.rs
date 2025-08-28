@@ -197,10 +197,10 @@ pub fn process_native_forced_withdrawal(
 
     let event = json!(
         {
-            "event": "Native_Forced_Withdrawal_Payout_Successful",
+            "event": "ForcedWithdrawalSuccessful",
             "nonce": withdraw_values.nonce,
-            "l1_receiver_address": receiver_acc.key.to_string(),
-            "l1_token_address": withdraw_values.l1_token_address,
+            "l1_receiver": receiver_acc.key.to_string(),
+            "l1_token": withdraw_values.l1_token_address,
             "chain_id": withdraw_values.chain_id,
             "amount": actual_amount,
             "slot_number": clock.slot
