@@ -39,7 +39,7 @@ pub fn initialize_twine_solana_programs() -> Result<()> {
         "Transaction signature: {}",
         tokens_gateway_initialize_signature
     );
-    print!("Tokens Gateway Initialized");
+    print!("✅ Tokens Gateway Initialized");
 
     let mut twine_chain_instructions = vec![];
     twine_chain_instructions
@@ -80,6 +80,6 @@ pub fn initialize_twine_solana_programs() -> Result<()> {
         "Transaction signature: {}",
         twine_chain_initialize_signature
     );
-    print!("Twine Chain Initialized");
+    print!("✅ Twine Chain Initialized");
     Ok(())
 }

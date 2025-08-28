@@ -1,9 +1,9 @@
 use action_commands::Cli;
 use clap::*;
-pub mod action_commands;
+pub mod utils;
 pub mod actions;
 pub mod operations;
-pub mod utils;
+pub mod action_commands;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();

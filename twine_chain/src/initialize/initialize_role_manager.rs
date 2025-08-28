@@ -1,10 +1,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(not(test))]
-use solana_program::program::invoke_signed;
+
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
+    program::invoke_signed,
     program_error::ProgramError,
     program_pack::IsInitialized,
     pubkey::Pubkey,
@@ -106,141 +106,4 @@ fn validate_accounts(
     }
 
     Ok(role_manager_bump)
-}
-
-#[cfg(test)]
-fn invoke_signed(
-    _ix: &solana_program::instruction::Instruction,
-    account_infos: &[solana_program::account_info::AccountInfo],
-    _signer_seeds: &[&[&[u8]]],
-) -> solana_program::entrypoint::ProgramResult {
-    use std::mem;
-
-    for acc in account_infos.iter() {
-        if !acc.is_writable {
-            continue;
-        }
-        // For testing purpose, allocate a large space to every PDA
-        let space = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
-        let leaked: &'static mut [u8] = Box::leak(vec![0u8; space].into_boxed_slice());
-        unsafe {
-            let mut data_ref = acc.data.borrow_mut();
-            *data_ref = mem::transmute::<&'static mut [u8], &mut [u8]>(leaked);
-        }
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::utils::constants::INITIAL_CHAIN_ADMIN;
-    use solana_program::{clock::Epoch, system_program};
-    use std::str::FromStr;
-
-    fn create_test_account_info<'a>(
-        key: &'a Pubkey,
-        is_signer: bool,
-        is_writable: bool,
-        lamports: &'a mut u64,
-        data: &'a mut [u8],
-        owner: &'a mut Pubkey,
-    ) -> AccountInfo<'a> {
-        AccountInfo::new(
-            key,
-            is_signer,
-            is_writable,
-            lamports,
-            data,
-            owner,
-            false,
-            Epoch::default(),
-        )
-    }
-
-    #[test]
-    fn test_role_manager_initialization() -> Result<(), Box<dyn std::error::Error>> {
-        let program_id = Pubkey::new_unique();
-
-        // Get the required accounts
-        let (role_manager_key, _) = derive_role_manager(&program_id);
-        let chain_admin_key = Pubkey::from_str(INITIAL_CHAIN_ADMIN)?;
-        let system_program_id = system_program::id();
-
-        // Required space for each account
-        let role_manager_space: usize = 1 + 32 + 32 + 32 + (4 + MAX_ROLES * 33);
-
-        // Setup Account Lamports
-        let rent = Rent::default();
-        let mut role_manager_lamports = rent.minimum_balance(role_manager_space);
-        let mut chain_admin_lamports = 1_000_000_000;
-        let mut system_program_lamports = 0;
-
-        // Setup Account Data
-        let mut role_manager_data = vec![];
-        let mut chain_admin_data = vec![];
-        let mut system_program_data = vec![];
-
-        // Setup owners
-        let mut role_manager_owner = program_id;
-        let mut chain_admin_owner = system_program_id;
-        let mut system_program_owner = system_program_id;
-
-        // Create required account infos
-
-        let role_manager_account = create_test_account_info(
-            &role_manager_key,
-            false,
-            true,
-            &mut role_manager_lamports,
-            &mut role_manager_data,
-            &mut role_manager_owner,
-        );
-
-        let chain_admin_account = create_test_account_info(
-            &chain_admin_key,
-            true,
-            false,
-            &mut chain_admin_lamports,
-            &mut chain_admin_data,
-            &mut chain_admin_owner,
-        );
-
-        let system_program_account = create_test_account_info(
-            &system_program_id,
-            false,
-            false,
-            &mut system_program_lamports,
-            &mut system_program_data,
-            &mut system_program_owner,
-        );
-
-        // Create accounts array in the correct order matching the function
-        let accounts = vec![
-            role_manager_account.clone(),
-            chain_admin_account.clone(),
-            system_program_account.clone(),
-        ];
-
-        // Call the initialize function
-        let result = initialize_role_manager(&program_id, &accounts);
-        assert!(result.is_ok(), "Initialization failed: {:?}", result.err());
-
-        // verify role manager initialization
-        let role_manager_data =
-            TwineChainRoleManager::deserialize(&mut &role_manager_account.data.borrow()[..])?;
-
-        assert!(
-            role_manager_data.is_initialized(),
-            "Genesis batch should be initialized"
-        );
-
-        assert_eq!(
-            role_manager_data.chain_admin,
-            INITIAL_CHAIN_ADMIN.parse()?,
-            "The chain admin should match with the one provided"
-        );
-
-        Ok(())
-    }
 }

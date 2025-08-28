@@ -22,4 +22,6 @@ solana-secp256k1-recover = { workspace = true }
 sp1-solana               = { workspace = true }
 spl-token                = { workspace = true }
 thiserror                = { workspace = true }
+serde_json               = { workspace = true }
 twine_chain              = { path = "../twine_chain", features = ["no-entrypoint"] }
+

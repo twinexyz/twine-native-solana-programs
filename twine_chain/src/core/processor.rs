@@ -1,10 +1,8 @@
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 use crate::{
-    append_messages::{
-        append_deposit_messages, append_withdrawal_messages, remove_withdrawal_message,
-    },
-    commit_finalize::{commit_and_finalize_txn, commit_batch, finalize_batch},
+    append_messages::{append_deposit_messages, append_withdrawal_messages, copy_messages_buffer},
+    commit_finalize::{commit_and_finalize_batch, commit_batch, finalize_batch},
     core::instruction::TwineChainInstruction,
     initialize::{
         initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
@@ -64,41 +62,48 @@ pub fn process_instruction(
             )
         }
 
-        TwineChainInstruction::InitializeGenesisBatch { genesis_block_hash } => {
+        TwineChainInstruction::InitializeGenesisBatch { genesis_batch_hash } => {
             initialize_genesis_batch::initialize_genesis_batch(
                 program_id,
                 accounts,
-                genesis_block_hash,
+                genesis_batch_hash,
             )
         }
 
-        TwineChainInstruction::RemoveWithdrawalMessage { nonce } => {
-            remove_withdrawal_message::remove_withdrawal_message(program_id, accounts, nonce)
-        }
-
         TwineChainInstruction::CommitBatch {
-            start_block,
-            end_block,
-            batch_data,
-        } => commit_batch::commit_batch(program_id, accounts, start_block, end_block, batch_data),
+            batch_number,
+            batch_hash,
+        } => commit_batch::commit_batch(program_id, accounts, batch_number, batch_hash),
 
         TwineChainInstruction::FinalizeBatch {
+            batch_number,
             public_values,
             execution_proof,
-        } => finalize_batch::finalize_batch(program_id, accounts, public_values, execution_proof),
-
-        TwineChainInstruction::CommitAndFinalizeTransaction {
-            transaction_info,
-            inclusion_proof,
-        } => commit_and_finalize_txn::commit_and_finalize_transaction(
+        } => finalize_batch::finalize_batch(
             program_id,
             accounts,
-            transaction_info,
-            inclusion_proof,
+            batch_number,
+            public_values,
+            execution_proof,
         ),
 
         TwineChainInstruction::AddRoleInTwineChain { address, role } => {
             add_role(program_id, accounts, address, role)
         }
+
+        TwineChainInstruction::CopyMessagesBuffer => {
+            copy_messages_buffer::copy_messages_buffer(program_id, accounts)
+        }
+        TwineChainInstruction::CommitAndFinalizeBatch {
+            batch_number,
+            public_values,
+            execution_proof,
+        } => commit_and_finalize_batch::commit_and_finalize_batch(
+            program_id,
+            accounts,
+            batch_number,
+            public_values,
+            execution_proof,
+        ),
     }
 }

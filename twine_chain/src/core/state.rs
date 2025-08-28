@@ -1,5 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{program_pack::IsInitialized, pubkey::Pubkey};
+use sha3::{Digest, Keccak256};
+use solana_program::{message, msg, program_error::ProgramError, program_pack::IsInitialized, pubkey::Pubkey};
+use crate::core::error::ProgramCustomError;
 /****************
  * Role Manager *
  ****************/
@@ -14,28 +16,37 @@ pub struct TwineChainRoleManager {
 }
 
 /// Role types for authorization.
-#[derive(BorshSerialize, BorshDeserialize, Clone, PartialEq, Debug)]
+#[repr(u8)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Copy, PartialEq, Debug)]
 pub enum RoleType {
     MessageAppender,
     TwineOperationHandler,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Clone, Copy, PartialEq, Debug)]
+pub enum TransactionType {
+    Deposit,
+    Withdraw,
+    Message,
+}
 /*******************
  * Message Buffers *
  *******************/
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct DepositMessagesBuffer {
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub struct MessagesBuffer {
     pub is_initialized: bool,
-    pub deposit_nonce: u64,
-    pub deposit_messages: Vec<DepositMessageInfo>,
+    pub message_nonce: u64,
+    pub chain_id: u64,
+    pub messages: Vec<[u8; 32]>,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct ForcedWithdrawMessagesBuffer {
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone)]
+pub struct MessagesReplicator {
     pub is_initialized: bool,
-    pub withdraw_nonce: u64,
-    pub withdraw_messages: Vec<ForcedWithdrawMessageInfo>,
+    pub start_nonce: u64,
+    pub end_nonce: u64,
+    pub messages: Vec<[u8; 32]>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
@@ -58,23 +69,24 @@ pub struct ExecutionMessageBuffer {
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TwineChainStorage {
     pub is_initialized: bool,
+    pub last_copied_message_start_nonce: u64,
+    pub last_copied_message_end_nonce: u64,
+    pub total_msg_handled_on_twine: u64,
+    pub last_committed_batch_number: u64,
+    pub last_finalized_batch_number: u64,
     pub groth16_vk: Vec<u8>,
     pub execution_vkey: String,
     pub inclusion_vkey: String,
     pub withdrawal_vkey: String,
     pub skip_verification: bool,
-    pub last_finalized_batch: BatchInfo,
-    pub last_committed_batch: BatchInfo,
-    pub last_transaction_finalized_batch: BatchInfo,
-    pub last_finalized_receipt_root: [u8; 32],
+    pub last_committed_batch_hash: [u8; 32],
+    pub last_finalized_batch_hash: [u8; 32],
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct BatchPdaAccount {
     pub is_initialized: bool,
-    pub infos: Vec<BlockInfo>,
-    pub verified: bool,
-    pub is_full: bool,
+    pub batch_hash: [u8; 32],
 }
 
 /*******************************
@@ -83,6 +95,7 @@ pub struct BatchPdaAccount {
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct DepositMessageInfo {
+    pub txn_type: TransactionType,
     pub nonce: u64,
     pub chain_id: u64,
     pub slot_number: u64,
@@ -91,11 +104,12 @@ pub struct DepositMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
-    pub data :  String
+    pub data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct ForcedWithdrawMessageInfo {
+    pub txn_type: TransactionType,
     pub nonce: u64,
     pub chain_id: u64,
     pub slot_number: u64,
@@ -104,6 +118,7 @@ pub struct ForcedWithdrawMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
+    pub data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -114,20 +129,6 @@ pub struct LayerZeroMessageInfo {
 /*****************************
  * Data Storage Informations *
  *****************************/
-
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct BatchInfo {
-    pub start_block: u64,
-    pub end_block: u64,
-}
-
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct BlockInfo {
-    pub previous_hash: [u8; 32],
-    pub block_hash: [u8; 32],
-    pub transaction_root: [u8; 32],
-    pub receipt_root: [u8; 32],
-}
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct ChainCommitment {
@@ -150,32 +151,46 @@ pub struct CommitBatchInfo {
 /********************************
  * Implementations for encoding *
  ********************************/
-impl BlockInfo {
-    pub fn abi_encode_packed(&self) -> Vec<u8> {
-        let mut encoded: Vec<u8> = Vec::with_capacity(BlockInfo::LEN);
-
-        encoded.extend(self.previous_hash);
-        encoded.extend(self.block_hash);
-        encoded.extend(self.transaction_root);
-        encoded.extend(self.receipt_root);
-
-        encoded
+impl TransactionType {
+    /// Return the variant as a single-byte array so we can
+    /// `extend()` it into our Vec<u8>.
+    pub fn as_bytes(self) -> [u8; 1] {
+        [self as u8]
+    }
+    pub fn try_from(value: u8) -> Result<Self, ProgramError> {
+        match value {
+            v @ 0..=3 => Ok(unsafe { std::mem::transmute(v) }),
+            _ => Err(ProgramCustomError::InvalidTransactionType.into()),
+        }
     }
 }
 
 impl DepositMessageInfo {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::with_capacity(DepositMessageInfo::LEN);
+        encoded.extend(self.txn_type.as_bytes());
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
-        encoded.extend(self.from_l1_pubkey.as_bytes());
-        encoded.extend(self.to_twine_address.as_bytes());
-        encoded.extend(self.l1_token.as_bytes());
-        encoded.extend(self.l2_token.as_bytes());
+        let mut hasher = Keccak256::new();
+        hasher.update(self.data.clone());
+        let data_hash = hasher.finalize();
+        encoded.extend(data_hash.as_slice()); 
+        encoded.extend(self.from_l1_pubkey.to_lowercase().as_bytes());
+        encoded.extend(self.to_twine_address.to_lowercase().as_bytes());
+        encoded.extend(self.l1_token.to_lowercase().as_bytes());
+        encoded.extend(self.l2_token.to_lowercase().as_bytes());
         encoded.extend(self.amount.as_bytes());
+        
 
         encoded
+    }
+
+    pub fn calculate_deposit_hash(&self) -> [u8; 32] {
+        let hash = Keccak256::digest(&self.abi_encode_packed());
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hash);
+        result
     }
 }
 
@@ -183,16 +198,26 @@ impl ForcedWithdrawMessageInfo {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::with_capacity(ForcedWithdrawMessageInfo::LEN);
 
+        encoded.extend(self.txn_type.as_bytes());
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
-        encoded.extend(self.from_twine_address.as_bytes());
-        encoded.extend(self.to_l1_pubkey.as_bytes());
-        encoded.extend(self.l1_token.as_bytes());
-        encoded.extend(self.l2_token.as_bytes());
+        let mut hasher = Keccak256::new();
+        hasher.update(self.data.clone());
+        let data_hash = hasher.finalize();
+        encoded.extend(data_hash.as_slice()); 
+        encoded.extend(self.to_l1_pubkey.to_lowercase().as_bytes());
+        encoded.extend(self.from_twine_address.to_lowercase().as_bytes());
+        encoded.extend(self.l1_token.to_lowercase().as_bytes());
+        encoded.extend(self.l2_token.to_lowercase().as_bytes());
         encoded.extend(self.amount.as_bytes());
-
         encoded
+    }
+    pub fn calculate_withdraw_hash(&self) -> [u8; 32] {
+        let hash = Keccak256::digest(&self.abi_encode_packed());
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hash);
+        result
     }
 }
 
@@ -221,7 +246,8 @@ impl TwineChainStorage {
 }
 
 impl DepositMessageInfo {
-    pub const LEN: usize = 8           // nonce (u64)
+    pub const LEN: usize = 1
+        + 8           // nonce (u64)
         + 8         // chain_id (u64)
         + 8         // slot_number(u64)
         + 4 + 44    // from_L1_publkey (String)
@@ -232,7 +258,8 @@ impl DepositMessageInfo {
 }
 
 impl ForcedWithdrawMessageInfo {
-    pub const LEN: usize = 8       // nonce (u64)
+    pub const LEN: usize = 1
+        + 8       // nonce (u64)
         + 8         // chain_id (u64)
         + 8         // slot_number(u64)
         + 4 + 42    // from_twine_address (String)
@@ -243,11 +270,8 @@ impl ForcedWithdrawMessageInfo {
                   //Total: 250 bytes
 }
 
-impl BlockInfo {
-    pub const LEN: usize = 32   //prev_hash(32)
-    + 32    //block_hash(32)    
-    + 32    //transaction_root(32)
-    + 32; //receipt_root(32)
+impl BatchPdaAccount {
+    pub const LEN: usize = 1 + 32;
 }
 
 /******************************************************
@@ -259,16 +283,12 @@ impl IsInitialized for TwineChainRoleManager {
         self.is_initialized
     }
 }
-impl IsInitialized for DepositMessagesBuffer {
+impl IsInitialized for MessagesBuffer {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
-impl IsInitialized for ForcedWithdrawMessagesBuffer {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
+
 impl IsInitialized for LayerZeroMessagesBuffer {
     fn is_initialized(&self) -> bool {
         self.is_initialized

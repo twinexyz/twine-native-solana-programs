@@ -1,0 +1,223 @@
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{BatchPdaAccount, RoleType, TwineChainRoleManager, TwineChainStorage},
+    },
+    utils::{
+        address_derivation::{
+            derive_commitment_pda, derive_role_manager, derive_twine_chain_storage,
+            verify_derived_address, verify_system_program,
+        },
+        constants::{CHAIN_ID, COMMITMENT_PDA_PREFIX},
+    },
+};
+use borsh::{BorshDeserialize, BorshSerialize};
+use serde_json::json;
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    clock::Clock,
+    entrypoint::ProgramResult,
+    msg,
+    program::invoke_signed,
+    program_error::ProgramError,
+    program_pack::IsInitialized,
+    pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
+    sysvar::Sysvar,
+};
+use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
+
+pub fn commit_and_finalize_batch(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    batch_number: u64,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> ProgramResult {
+    let account_iter = &mut accounts.iter();
+    let twine_chain_storage_acc = next_account_info(account_iter)?;
+    let current_batch_acc = next_account_info(account_iter)?;
+    let role_manager_acc = next_account_info(account_iter)?;
+    let twine_operation_handler_acc = next_account_info(account_iter)?;
+    let system_program = next_account_info(account_iter)?;
+
+    let (executed_message_count, previous_batch_hash, current_batch_hash) =
+        decode_batch_info(&public_values)?;
+
+    // Validate PDAs
+    let (current_pda_bump, mut twine_chain_storage_data) = validate_accounts(
+        program_id,
+        batch_number,
+        previous_batch_hash,
+        twine_chain_storage_acc,
+        current_batch_acc,
+        role_manager_acc,
+        twine_operation_handler_acc,
+        system_program,
+    )?;
+
+    if batch_number != twine_chain_storage_data.last_committed_batch_number + 1 {
+        return Err(ProgramCustomError::InvalidBlockCommitmentSequence.into());
+    }
+
+    // Initialize commitment PDA if not already initialized
+    if current_batch_acc.data_is_empty() {
+        let rent = Rent::default();
+        let batch_space = BatchPdaAccount::LEN;
+        let required_lamports = rent.minimum_balance(batch_space);
+        let create_ix = system_instruction::create_account(
+            twine_operation_handler_acc.key,
+            current_batch_acc.key,
+            required_lamports,
+            batch_space as u64,
+            program_id,
+        );
+        invoke_signed(
+            &create_ix,
+            &[
+                twine_operation_handler_acc.clone(),
+                current_batch_acc.clone(),
+                system_program.clone(),
+            ],
+            &[&[
+                COMMITMENT_PDA_PREFIX.as_bytes(),
+                &batch_number.to_be_bytes(),
+                &[current_pda_bump],
+            ]],
+        )?;
+        let batch_data = BatchPdaAccount {
+            is_initialized: true,
+            batch_hash: [0u8; 32],
+        };
+
+        batch_data
+            .serialize(&mut &mut current_batch_acc.data.borrow_mut()[..])
+            .map_err(|_| ProgramCustomError::SerializeFailed)?;
+    }
+
+    let mut current_batch_data =
+        BatchPdaAccount::deserialize(&mut &current_batch_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if !current_batch_data.is_initialized() {
+        return Err(ProgramCustomError::UninitializedAccount.into());
+    }
+
+    current_batch_data.batch_hash = current_batch_hash;
+
+    // Update current batch
+    current_batch_data
+        .serialize(&mut &mut current_batch_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
+    twine_chain_storage_data.last_committed_batch_number = batch_number;
+    twine_chain_storage_data.last_committed_batch_hash = current_batch_hash;
+    
+    if executed_message_count < twine_chain_storage_data.total_msg_handled_on_twine {
+        return Err(ProgramCustomError::MessageExecutedCountError.into());
+    }
+
+    // Calling SP1 Verifier to verify the execution proof
+    if !twine_chain_storage_data.skip_verification {
+        verify_proof(
+            &execution_proof,
+            &public_values,
+            &twine_chain_storage_data.execution_vkey,
+            GROTH16_VK_4_0_0_RC3_BYTES,
+        )
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    }
+    //Updating the states
+    twine_chain_storage_data.last_finalized_batch_number = batch_number;
+    twine_chain_storage_data.last_finalized_batch_hash = current_batch_hash;
+    twine_chain_storage_data.total_msg_handled_on_twine = executed_message_count;
+
+    twine_chain_storage_data
+        .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
+    let clock = Clock::get()?;
+
+    let event = json!(
+        {
+            "event": "BatchCommitmentAndFinalizationSuccessful",
+            "messages_handled_on_twine": executed_message_count,
+            "batch_number": batch_number,
+            "chain_id": CHAIN_ID,
+            "slot_number": clock.slot,
+            "batch_hash": current_batch_hash
+        }
+    )
+    .to_string();
+    msg!(&event);
+
+    Ok(())
+}
+
+pub fn decode_batch_info(bytes: &[u8]) -> Result<(u64, [u8; 32], [u8; 32]), ProgramError> {
+    const LEN: usize = 32 + 32 + 8 + 8;
+
+    if bytes.len() != LEN {
+        return Err(ProgramCustomError::PublicValueDecodeFailed.into());
+    }
+
+    let solana_message_count = u64::from_be_bytes(bytes[72..80].try_into().unwrap());
+    let mut prev = [0u8; 32];
+    prev.copy_from_slice(&bytes[0..32]);
+    let mut curr = [0u8; 32];
+    curr.copy_from_slice(&bytes[32..64]);
+
+    Ok((solana_message_count, prev, curr))
+}
+
+fn validate_accounts(
+    program_id: &Pubkey,
+    batch_number: u64,
+    previous_batch_hash: [u8; 32],
+    twine_chain_storage_acc: &AccountInfo,
+    current_batch_acc: &AccountInfo,
+    role_manager_acc: &AccountInfo,
+    twine_operation_handler_acc: &AccountInfo,
+    system_program: &AccountInfo,
+) -> Result<(u8, TwineChainStorage), ProgramError> {
+    // Validate signer
+    if !twine_operation_handler_acc.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Dervie and validate PDAs
+    let (expected_twine_chain_storage_pda, _) = derive_twine_chain_storage(program_id);
+    verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
+
+    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
+
+    let (expected_current_pda, current_pda_bump) = derive_commitment_pda(program_id, batch_number);
+    verify_derived_address(expected_current_pda, current_batch_acc)?;
+
+    // Deserialize Twine chain storage's data
+    let twine_chain_storage_data =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Check if initiator has TwineOperationHandler Role
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        
+     if previous_batch_hash != twine_chain_storage_data.last_finalized_batch_hash {
+        return Err(ProgramCustomError::LastFinalizedBatchHashMismatch.into());
+    }
+
+    if !role_manager_data.has_role(
+        twine_operation_handler_acc.key,
+        RoleType::TwineOperationHandler,
+    ) {
+        return Err(ProgramCustomError::Unauthorized.into());
+    }
+
+    verify_system_program(system_program)?;
+
+    Ok((current_pda_bump, twine_chain_storage_data))
+}

@@ -2,18 +2,14 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_program,
+    instruction::{AccountMeta, Instruction},program_error::ProgramError, pubkey::Pubkey, system_program
 };
 
 use crate::{
-    core::state::{CommitBatchInfo, DepositMessageInfo, ForcedWithdrawMessageInfo, RoleType},
+    core::state::{DepositMessageInfo, ForcedWithdrawMessageInfo, RoleType},
     utils::address_derivation::{
-        derive_commitment_pda, derive_deposit_message_buffer, derive_execution_message_buffer,
-        derive_forced_withdraw_message_buffer, derive_layer_zero_message_buffer,
-        derive_role_manager, derive_twine_chain_storage,
+        derive_commitment_pda, derive_execution_message_buffer, derive_layer_zero_message_buffer,
+        derive_messages_buffer, derive_role_manager, derive_twine_chain_storage,derive_messages_replicator
     },
     ID,
 };
@@ -39,28 +35,28 @@ pub enum TwineChainInstruction {
         withdraw_info: ForcedWithdrawMessageInfo,
     },
     InitializeGenesisBatch {
-        genesis_block_hash: [u8; 32],
-    },
-    RemoveWithdrawalMessage {
-        nonce: u64,
+        genesis_batch_hash: [u8; 32],
     },
     CommitBatch {
-        start_block: u64,
-        end_block: u64,
-        batch_data: Vec<CommitBatchInfo>,
+        batch_number: u64,
+        batch_hash: [u8; 32],
     },
     FinalizeBatch {
+        batch_number: u64,
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
-    },
-    CommitAndFinalizeTransaction {
-        transaction_info: Vec<u8>,
-        inclusion_proof: Vec<u8>,
     },
     AddRoleInTwineChain {
         address: Pubkey,
         role: RoleType,
     },
+    CopyMessagesBuffer,
+    CommitAndFinalizeBatch {
+        batch_number: u64,
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
+    },
+    
 }
 
 #[derive(BorshDeserialize)]
@@ -92,27 +88,23 @@ struct InitializeGenesisBatchPayload {
 }
 
 #[derive(BorshDeserialize)]
-struct RemoveWithdrawalMessagePayload {
-    nonce: u64,
-}
-
-#[derive(BorshDeserialize)]
 struct CommitBatchPayload {
-    start_block: u64,
-    end_block: u64,
-    batch_data: Vec<CommitBatchInfo>,
+    batch_number: u64,
+    batch_hash: [u8; 32],
 }
 
 #[derive(BorshDeserialize)]
 struct FinalizeBatchPayload {
+    batch_number: u64,
     public_values: Vec<u8>,
     execution_proof: Vec<u8>,
 }
 
 #[derive(BorshDeserialize)]
-struct CommitAndFinalizeTransactionPayload {
-    transaction_info: Vec<u8>,
-    inclusion_proof: Vec<u8>,
+struct CommitAndFinalizeBatchPayload {
+    batch_number: u64,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
@@ -159,8 +151,7 @@ pub fn initialize_message_buffer(chain_admin: &Pubkey) -> Vec<Instruction> {
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
-        AccountMeta::new(derive_deposit_message_buffer(&ID).0, false),
-        AccountMeta::new(derive_forced_withdraw_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&ID).0, false),
         AccountMeta::new(derive_layer_zero_message_buffer(&ID).0, false),
         AccountMeta::new(derive_execution_message_buffer(&ID).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
@@ -182,7 +173,7 @@ pub fn append_deposit_message(
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
-        AccountMeta::new(derive_deposit_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&ID).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
     ];
@@ -202,7 +193,7 @@ pub fn append_forced_withdrawal_message(
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
-        AccountMeta::new(derive_forced_withdraw_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&ID).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
     ];
@@ -216,14 +207,15 @@ pub fn append_forced_withdrawal_message(
 
 pub fn initialize_genesis_batch(
     twine_operation_handler: &Pubkey,
-    genesis_block_hash: [u8; 32],
+    genesis_batch_hash: [u8; 32],
 ) -> Vec<Instruction> {
     let payload: TwineChainInstruction =
-        TwineChainInstruction::InitializeGenesisBatch { genesis_block_hash };
+        TwineChainInstruction::InitializeGenesisBatch { genesis_batch_hash };
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts: Vec<AccountMeta> = vec![
-        AccountMeta::new(derive_commitment_pda(&ID, 0, 0).0, false),
+        AccountMeta::new(derive_commitment_pda(&ID, 0).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
@@ -237,21 +229,18 @@ pub fn initialize_genesis_batch(
 
 pub fn commit_batch(
     twine_operation_handler: &Pubkey,
-    start_block: u64,
-    end_block: u64,
-    batch_data: Vec<CommitBatchInfo>,
+    batch_number: u64,
+    batch_hash: [u8; 32],
 ) -> Vec<Instruction> {
     let payload = TwineChainInstruction::CommitBatch {
-        start_block,
-        end_block,
-        batch_data,
+        batch_number,
+        batch_hash,
     };
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
-        AccountMeta::new(derive_commitment_pda(&ID, start_block, end_block).0, false),
-        AccountMeta::new(derive_commitment_pda(&ID, 0, 0).0, false),
+        AccountMeta::new(derive_commitment_pda(&ID, batch_number).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
@@ -265,12 +254,12 @@ pub fn commit_batch(
 
 pub fn finalize_batch(
     twine_operation_handler: &Pubkey,
-    start_block: u64,
-    end_block: u64,
+    batch_number: u64,
     public_values: Vec<u8>,
     execution_proof: Vec<u8>,
 ) -> Vec<Instruction> {
     let payload = TwineChainInstruction::FinalizeBatch {
+        batch_number,
         public_values,
         execution_proof,
     };
@@ -278,8 +267,7 @@ pub fn finalize_batch(
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
-        AccountMeta::new(derive_commitment_pda(&ID, start_block, end_block).0, false),
-        AccountMeta::new(derive_commitment_pda(&ID, 0, 0).0, false),
+        AccountMeta::new(derive_commitment_pda(&ID, batch_number).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
@@ -292,29 +280,53 @@ pub fn finalize_batch(
     }]
 }
 
-pub fn commit_and_finalize_transaction(
+pub fn copy_messages_buffer(
     twine_operation_handler: &Pubkey,
-    start_block: u64,
-    end_block: u64,
-    transaction_info: Vec<u8>,
-    inclusion_proof: Vec<u8>,
+    start_nonce:u64,
+    end_nonce:u64
 ) -> Vec<Instruction> {
-    let payload = TwineChainInstruction::CommitAndFinalizeTransaction {
-        transaction_info,
-        inclusion_proof,
+    let payload = TwineChainInstruction::CopyMessagesBuffer;
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+    let accounts = vec![
+        AccountMeta::new(derive_messages_buffer(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&ID, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(*twine_operation_handler, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+pub fn commit_and_finalize_batch(
+    twine_operation_handler: &Pubkey,
+    batch_number: u64,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> Vec<Instruction> {
+    let payload = TwineChainInstruction::CommitAndFinalizeBatch {
+        batch_number,
+        public_values,
+        execution_proof,
     };
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
-        AccountMeta::new(derive_commitment_pda(&ID, start_block, end_block).0, false),
-        AccountMeta::new(derive_deposit_message_buffer(&ID).0, false),
-        AccountMeta::new(derive_forced_withdraw_message_buffer(&ID).0, false),
-        AccountMeta::new(derive_layer_zero_message_buffer(&ID).0, false),
-        AccountMeta::new(derive_execution_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_commitment_pda(&ID, batch_number).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
+        AccountMeta::new(system_program::id(), false),
     ];
+
     vec![Instruction {
         program_id: ID,
         accounts,
@@ -350,7 +362,6 @@ impl TwineChainInstruction {
         let (&discriminator, rest) = input
             .split_first()
             .ok_or(ProgramError::InvalidInstructionData)?;
-
         match discriminator {
             0 => Ok(Self::InitializeRoleManager),
             1 => Ok(Self::InitializeTwineChainStorage),
@@ -390,47 +401,42 @@ impl TwineChainInstruction {
                 let payload = InitializeGenesisBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::InitializeGenesisBatch {
-                    genesis_block_hash: payload.genesis_block_hash,
+                    genesis_batch_hash: payload.genesis_block_hash,
                 })
             }
             8 => {
-                let payload = RemoveWithdrawalMessagePayload::try_from_slice(rest)
-                    .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::RemoveWithdrawalMessage {
-                    nonce: payload.nonce,
-                })
-            }
-            9 => {
                 let payload = CommitBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::CommitBatch {
-                    start_block: payload.start_block,
-                    end_block: payload.end_block,
-                    batch_data: payload.batch_data,
+                    batch_number: payload.batch_number,
+                    batch_hash: payload.batch_hash,
                 })
             }
-            10 => {
+            9 => {
                 let payload = FinalizeBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::FinalizeBatch {
+                    batch_number: payload.batch_number,
                     public_values: payload.public_values,
                     execution_proof: payload.execution_proof,
                 })
             }
-            11 => {
-                let payload = CommitAndFinalizeTransactionPayload::try_from_slice(rest)
-                    .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::CommitAndFinalizeTransaction {
-                    transaction_info: payload.transaction_info,
-                    inclusion_proof: payload.inclusion_proof,
-                })
-            }
-            12 => {
+            10 => {
                 let payload = AddRoleInTwineChainPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::AddRoleInTwineChain {
                     address: payload.address,
                     role: payload.role,
+                })
+            }
+            11 => Ok(Self::CopyMessagesBuffer),
+            12 => {
+                let payload = CommitAndFinalizeBatchPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::CommitAndFinalizeBatch {
+                    batch_number: payload.batch_number,
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),
