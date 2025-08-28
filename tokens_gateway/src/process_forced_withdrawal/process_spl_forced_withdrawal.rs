@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
-use serde_json::json;
+use serde_json;
 use sha3::{Digest, Keccak256};
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -19,7 +19,10 @@ use spl_token::instruction as token_instruction;
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ExecutionMessageBuffer, MessagesReplicator, TransactionType,MessagesBuffer, TwineChainStorage},
+        state::{
+            ExecutionMessageBuffer, MessagesBuffer, MessagesReplicator, TransactionType,
+            TwineChainStorage,
+        },
     },
     utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
     ID as twine_chain_program_id,
@@ -29,7 +32,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, L1OriginTxPublicValues,
+            ExecutedPayoutsBuffer, ForcedWithdrawalSuccessfulEvent, L1OriginTxPublicValues,
             L2WithdrawValues, SplTokensVaultData, TokenDecimalMappings,
         },
     },
@@ -187,19 +190,20 @@ pub fn process_spl_forced_withdrawal(
 
     let clock = Clock::get()?;
 
-    let event = json!(
-        {
-            "event": "ForcedWithdrawalSuccessful",
-            "nonce": withdraw_values.nonce,
-            "l1_receiver": receiver_acc.key.to_string(),
-            "l1_token": mint.key.to_string(),
-            "chain_id": CHAIN_ID,
-            "amount": actual_amount,
-            "slot_number": clock.slot
-        }
-    )
-    .to_string();
-    msg!(&event);
+    let event = ForcedWithdrawalSuccessfulEvent {
+        event: "ForcedWithdrawalSuccessful".to_string(),
+        nonce: withdraw_values.nonce,
+        l1_receiver: receiver_acc.key.to_string(),
+        l1_token: mint.key.to_string(),
+        chain_id: CHAIN_ID,
+        amount: actual_amount,
+        slot_number: clock.slot,
+    };
+
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramError::InvalidInstructionData)?;
+    msg!("{}", serialized_event);
+
     Ok(())
 }
 

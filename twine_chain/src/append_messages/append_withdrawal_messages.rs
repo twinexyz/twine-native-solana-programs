@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde_json::json;
+use serde_json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -12,7 +12,7 @@ use solana_program::{
 use crate::{
     core::{
         error::ProgramCustomError,
-        state::{ForcedWithdrawMessageInfo, MessagesBuffer, RoleType, TwineChainRoleManager},
+        state::{ForcedWithdrawMessageInfo, MessagesBuffer, RoleType, TwineChainRoleManager, MessageTransactionEvent},
     },
     utils::{
         address_derivation::{derive_messages_buffer, derive_role_manager, verify_derived_address},
@@ -56,24 +56,24 @@ pub fn append_forced_withdrawal_message(
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    let event = json!(
-        {
-            "event": "MessageTransaction",
-            "nonce": withdraw_info.nonce,
-            "l1_pubkey": withdraw_info.to_l1_pubkey,
-            "twine_address": withdraw_info.from_twine_address,
-            "l1_token": withdraw_info.l1_token,
-            "l2_token": withdraw_info.l2_token,
-            "chain_id": withdraw_info.chain_id,
-            "amount": withdraw_info.amount,
-            "data": withdraw_info.data,
-            "message_type": FORCED_WITHDRAW_MESSAGE_TYPE,
-            "slot_number": withdraw_info.slot_number
+    let event = MessageTransactionEvent {
+        event: "MessageTransaction".to_string(),
+        nonce: withdraw_info.nonce,
+        l1_pubkey: withdraw_info.to_l1_pubkey,
+        twine_address: withdraw_info.from_twine_address,
+        l1_token: withdraw_info.l1_token,
+        l2_token: withdraw_info.l2_token,
+        chain_id: withdraw_info.chain_id,
+        amount: withdraw_info.amount,
+        data: withdraw_info.data,
+        message_type: FORCED_WITHDRAW_MESSAGE_TYPE.to_string(),
+        slot_number: withdraw_info.slot_number
+    };
 
-        }
-    )
-    .to_string();
-    msg!(&event);
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramError::InvalidInstructionData)?;
+    msg!("{}", serialized_event);
+    
     Ok(())
 }
 fn validate_accounts(

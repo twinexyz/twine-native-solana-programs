@@ -1,13 +1,13 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde_json::json;
+use serde_json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
+    clock::Clock,
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
     program_pack::IsInitialized,
     pubkey::Pubkey,
-    clock::Clock,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
@@ -15,7 +15,10 @@ use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use crate::{
     core::{
         error::ProgramCustomError,
-        state::{BatchPdaAccount, RoleType, TwineChainRoleManager, TwineChainStorage},
+        state::{
+            BatchPdaAccount, FinalizedBatchEvent, RoleType, TwineChainRoleManager,
+            TwineChainStorage,
+        },
     },
     utils::{
         address_derivation::{
@@ -79,18 +82,18 @@ pub fn finalize_batch(
 
     let clock = Clock::get()?;
 
-    let event = json!(
-        {
-            "event": "FinalizedBatch",
-            "batch_number": batch_number,
-            "messages_handled_on_twine": executed_message_count,
-            "chain_id": CHAIN_ID,
-            "batch_hash": current_batch_hash,
-            "slot_number": clock.slot,
-        }
-    )
-    .to_string();
-    msg!(&event);
+    let event = FinalizedBatchEvent {
+        event: "FinalizedBatch".to_string(),
+        batch_number: batch_number,
+        messages_handled_on_twine: executed_message_count,
+        chain_id: CHAIN_ID,
+        batch_hash: current_batch_hash,
+        slot_number: clock.slot,
+    };
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramError::InvalidInstructionData)?;
+    msg!("{}", serialized_event);
+
     Ok(())
 }
 

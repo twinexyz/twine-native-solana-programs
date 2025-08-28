@@ -31,7 +31,7 @@ use crate::{
         error::ProgramCustomError,
         state::{
             ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, L1OriginTxPublicValues,
-            NativeTokenVaultData, TokenDecimalMappings,
+            NativeTokenVaultData, RefundSuccessfulEvent, TokenDecimalMappings,
         },
     },
     utils::{
@@ -193,19 +193,19 @@ pub fn process_native_refund(
     executed_payouts_buffer.post_withdrawal_processing();
     let clock = Clock::get()?;
 
-    let event = json!(
-        {
-            "event": "RefundSuccessful",
-            "nonce": refund_values.nonce,
-            "l1_receiver": receiver_acc.key.to_string(),
-            "l1_token": refund_values.l1_token_address,
-            "chain_id": refund_values.chain_id,
-            "amount": actual_amount,
-            "slot_number":  clock.slot
-        }
-    )
-    .to_string();
-    msg!(&event);
+    let event = RefundSuccessfulEvent {
+        event: "RefundSuccessful".to_string(),
+        nonce: refund_values.nonce,
+        l1_receiver: receiver_acc.key.to_string(),
+        l1_token: refund_values.l1_token_address,
+        chain_id: refund_values.chain_id,
+        amount: actual_amount,
+        slot_number: clock.slot,
+    };
+
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramError::InvalidInstructionData)?;
+    msg!("{}", serialized_event);
 
     Ok(())
 }

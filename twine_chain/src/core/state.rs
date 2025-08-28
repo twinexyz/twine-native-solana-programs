@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
-use solana_program::{message, msg, program_error::ProgramError, program_pack::IsInitialized, pubkey::Pubkey};
+use solana_program::{program_error::ProgramError, program_pack::IsInitialized, pubkey::Pubkey};
 use crate::core::error::ProgramCustomError;
 /****************
  * Role Manager *
@@ -147,6 +147,44 @@ pub struct CommitBatchInfo {
     pub transaction_root: [u8; 32],
     pub receipt_root: [u8; 32],
 }
+
+/**********
+ * Events *
+ *********/
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct MessageTransactionEvent {
+    pub event: String,
+    pub nonce: u64,
+    pub l1_pubkey: String,
+    pub twine_address: String,
+    pub l1_token: String,
+    pub l2_token: String,
+    pub chain_id: u64,
+    pub amount: String,
+    pub data: Vec<u8>, 
+    pub message_type: String,
+    pub slot_number: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct CommitedBatchEvent {
+    pub event: String,
+    pub batch_number: u64,
+    pub chain_id: u64,
+    pub batch_hash: [u8;32],
+    pub slot_number: u64
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct FinalizedBatchEvent {
+    pub event: String,
+    pub batch_number: u64,
+    pub messages_handled_on_twine: u64,
+    pub chain_id: u64,
+    pub batch_hash: [u8;32],
+    pub slot_number: u64
+}
+
 
 /********************************
  * Implementations for encoding *
