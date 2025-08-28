@@ -58,7 +58,7 @@ pub fn append_deposit_message(
 
     let event = json!(
         {
-            "event": "Message_Transaction",
+            "event": "MessageTransaction",
             "nonce": deposit_info.nonce,
             "l1_pubkey": deposit_info.from_l1_pubkey,
             "twine_address": deposit_info.to_twine_address,
