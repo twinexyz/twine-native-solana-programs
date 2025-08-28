@@ -58,7 +58,7 @@ pub fn append_forced_withdrawal_message(
 
     let event = json!(
         {
-            "event": "Message_Transaction",
+            "event": "MessageTransaction",
             "nonce": withdraw_info.nonce,
             "l1_pubkey": withdraw_info.to_l1_pubkey,
             "twine_address": withdraw_info.from_twine_address,
