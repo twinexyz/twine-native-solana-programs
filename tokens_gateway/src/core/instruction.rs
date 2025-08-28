@@ -55,14 +55,14 @@ pub enum GatewayInstruction {
         l1_token: String,
         l2_token: String,
         amount: u64,
-        data: String,
+        data: Vec<u8>,
     },
     SplTokenDepoist {
         receiver_twine_address: String,
         l1_token: String,
         l2_token: String,
         amount: u64,
-        data: String,
+        data: Vec<u8>,
     },
     NativeTokenForcedWithdrawal {
         from_twine_address: String,
@@ -134,7 +134,7 @@ struct NativeTokenDepoistPayload {
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -143,7 +143,7 @@ struct SplTokenDepoistPayload {
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -280,7 +280,7 @@ pub fn native_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::NativeTokenDepoist {
         receiver_twine_address,
@@ -356,7 +356,7 @@ pub fn spl_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::SplTokenDepoist {
         receiver_twine_address,

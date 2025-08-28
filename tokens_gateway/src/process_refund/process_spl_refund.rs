@@ -202,8 +202,8 @@ pub fn process_spl_refund(
         {
             "event": "Spl_Refund_Successful",
             "nonce": refund_values.nonce,
-            "l1_receiver_address": refund_values.l1_address,
-            "l1_token_address:": refund_values.l1_token_address,
+            "l1_receiver_address": receiver_acc.key.to_string(),
+            "l1_token_address:": mint.key.to_string(),
             "chain_id": CHAIN_ID,
             "amount": actual_amount,
             "slot_number":  clock.slot 

@@ -104,7 +104,7 @@ async fn l2_spl_withdrawal_finalized_succeed() {
         l1_token.clone(),
         l2_token.clone(),
         4000000000,
-        data,
+        hex::decode(data.clone()).unwrap(),
     ));
     instructions.extend(tokens_gateway_instruction::execute_l2_spl_withdrawal(
         &spl_token_pubkey,

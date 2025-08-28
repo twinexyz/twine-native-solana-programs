@@ -32,7 +32,7 @@ pub fn spl_token_deposit(
         l1_token.to_string(),
         l2_token.clone(),
         amount,
-        data
+        hex::decode(data.clone()).unwrap(),
     );
 
     let transaction = Transaction::new_signed_with_payer(

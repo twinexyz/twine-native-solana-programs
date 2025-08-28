@@ -41,7 +41,7 @@ pub fn spl_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 ) -> ProgramResult {
     if amount == 0 {
         return Err(ProgramCustomError::InvalidAmount.into());

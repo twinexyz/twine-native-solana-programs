@@ -86,7 +86,7 @@ async fn copy_messages_buffer() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
-        data.clone(),
+        hex::decode(data.clone()).unwrap(),
     ));
 }
      instructions.extend(twine_chain_instruction::copy_messages_buffer(

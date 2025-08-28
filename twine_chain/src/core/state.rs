@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use sha3::{Digest, Keccak256};
-use solana_program::{program_pack::IsInitialized,program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{message, msg, program_error::ProgramError, program_pack::IsInitialized, pubkey::Pubkey};
 use crate::core::error::ProgramCustomError;
 /****************
  * Role Manager *
@@ -104,7 +104,7 @@ pub struct DepositMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
-    pub data: String,
+    pub data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -118,7 +118,7 @@ pub struct ForcedWithdrawMessageInfo {
     pub l1_token: String,
     pub l2_token: String,
     pub amount: String,
-    pub data: String,
+    pub data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -173,7 +173,7 @@ impl DepositMessageInfo {
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
         let mut hasher = Keccak256::new();
-        hasher.update(self.data.as_bytes());
+        hasher.update(self.data.clone());
         let data_hash = hasher.finalize();
         encoded.extend(data_hash.as_slice()); 
         encoded.extend(self.from_l1_pubkey.to_lowercase().as_bytes());
@@ -203,7 +203,7 @@ impl ForcedWithdrawMessageInfo {
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.slot_number.to_be_bytes());
         let mut hasher = Keccak256::new();
-        hasher.update(self.data.as_bytes());
+        hasher.update(self.data.clone());
         let data_hash = hasher.finalize();
         encoded.extend(data_hash.as_slice()); 
         encoded.extend(self.to_l1_pubkey.to_lowercase().as_bytes());

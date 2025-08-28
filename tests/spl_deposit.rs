@@ -94,7 +94,7 @@ async fn spl_token_deposit_succeed() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
-        data
+        hex::decode(data.clone()).unwrap(),
     ));
 
     let transaction = Transaction::new_signed_with_payer(
