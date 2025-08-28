@@ -66,7 +66,7 @@ pub fn append_forced_withdrawal_message(
             "l2_token": withdraw_info.l2_token,
             "chain_id": withdraw_info.chain_id,
             "amount": withdraw_info.amount,
-            "data": "",
+            "data": withdraw_info.data,
             "message_type": FORCED_WITHDRAW_MESSAGE_TYPE,
             "slot_number": withdraw_info.slot_number
 
