@@ -71,6 +71,7 @@ pub fn finalize_batch(
     // Updating the states
     twine_chain_storage_data.last_finalized_batch_number = batch_number;
     twine_chain_storage_data.last_finalized_batch_hash = current_batch_hash;
+    twine_chain_storage_data.total_msg_handled_on_twine = executed_message_count;
 
     twine_chain_storage_data
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])
@@ -80,11 +81,12 @@ pub fn finalize_batch(
 
     let event = json!(
         {
-            "event": "Batch_Finalization_Successful",
+            "event": "FinalizedBatch",
             "batch_number": batch_number,
+            "messages_handled_on_twine": executed_message_count,
             "chain_id": CHAIN_ID,
             "batch_hash": current_batch_hash,
-            "slot_number": clock.slot
+            "slot_number": clock.slot,
         }
     )
     .to_string();

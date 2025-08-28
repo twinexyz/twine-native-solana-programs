@@ -122,11 +122,11 @@ pub fn commit_batch(
 
     let event = json!(
         {
-            "event": "Batch_Commitment_Successful",
+            "event": "CommitedBatch",
             "batch_number": batch_number,
             "chain_id": CHAIN_ID,
             "batch_hash": batch_hash,
-            "slot_number": clock.slot
+            "slot_number": clock.slot,
         }
     )
     .to_string();
