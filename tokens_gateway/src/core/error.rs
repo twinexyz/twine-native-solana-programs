@@ -15,24 +15,30 @@ pub enum ProgramCustomError {
     InvalidReceiver,
     #[error("Invalid L1 Token")]
     InvalidL1Token,
+    #[error("Invalid BatchNumber")]
+    InvalidBatchNumber,
     #[error("Invalid PDA derived")]
     InvalidPDA,
     #[error("Invalid Instruction")]
     InvalidInstructionData,
+    #[error("Invalid Transaction ")]
+    InvalidTransaction,
     #[error("Invalid Token Account")]
     InvalidTokenAccount,
     #[error("Invalid address provided")]
     InvalidAddress,
     #[error("Receiver account not found")]
     ReceiverAccountNotFound,
-    #[error("Invalid Token address format")]
-    InvalidTokenAddress,
-    #[error("Nonce not found in withdrawals")]
-    NonceNotFound,
-    #[error("Failed to serialize the state")]
-    SerializeFailed,
     #[error("Withdraw is already executed")]
     WithdrawalAlreadyExecuted,
+    #[error("Invalid Token address format")]
+    InvalidTokenAddress,
+    #[error("Failed to serialize the state")]
+    SerializeFailed,
+    #[error("Nonce not found in withdrawals")]
+    NonceNotFound,
+    #[error("Failed to decode public value")]
+    PublicValueDecodeFailed,
     #[error("Invalid L2 token address format")]
     InvalidL2Token,
     #[error("Token mint not found in the vault.")]
@@ -60,6 +66,7 @@ pub enum ProgramCustomError {
     #[error("The provided public key does not match the expected public key.")]
     PublicKeyMismatch,
 }
+
 
 impl From<ProgramCustomError> for ProgramError {
     fn from(e: ProgramCustomError) -> Self {

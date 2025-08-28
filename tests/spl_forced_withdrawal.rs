@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod helpers;
-
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -12,14 +12,21 @@ use helpers::tokens_gateway_helper::{
     TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::{
-        instruction as tokens_gateway_instruction,
-        state::SignMessageInfo,
+    core::{instruction as tokens_gateway_instruction, state::SignMessageInfo},
+    id as tokens_gateway_id,
+     utils::{
+        address_derivation::{derive_spl_tokens_vault_data},
+        constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
-    utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
 };
-use twine_chain::core::instruction as twine_chain_instruction;
-
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{MessagesBuffer, RoleType},
+    },
+    id as twine_chain_id,
+    utils::address_derivation::derive_messages_buffer,
+};
 
 #[tokio::test]
 async fn spl_forced_withdrawal_succeed() {
@@ -55,11 +62,17 @@ async fn spl_forced_withdrawal_succeed() {
     let privkey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
     let signature = get_ethereum_signature(&sign_info, privkey);
+    let spl_token_valut_data_account = derive_spl_tokens_vault_data(&tokens_gateway_id()).0;
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &chain_admin,
+    ));
+       instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
+        &chain_admin,
+        &spl_token_valut_data_account,
+        RoleType::MessageAppender,
     ));
     instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &chain_admin,
@@ -97,4 +110,18 @@ async fn spl_forced_withdrawal_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+    let forced_withdraw_message_buffer_account = context
+        .banks_client
+        .get_account(derive_messages_buffer(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Forced Message Buffer Not Found");
+
+    let forced_withdraw_message_buffer_data: MessagesBuffer =
+        MessagesBuffer::deserialize(&mut &forced_withdraw_message_buffer_account.data[..])
+            .expect("Failed to deserialize Native Token Vault Data");
+    assert!(
+        forced_withdraw_message_buffer_data.message_nonce == 1,
+        "Forced Withdrawal Not successful"
+    )
 }

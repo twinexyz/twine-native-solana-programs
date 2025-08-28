@@ -2,13 +2,17 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, 
 
 use crate::{
     core::{error::ProgramCustomError, instruction::GatewayInstruction},
-    finalize_withdrawal::{finalize_native_withdrawal, finalize_spl_withdrawal},
+    execute_l2_withdrawal::{execute_native_l2_withdrawal, execute_spl_l2_withdrawal},
     initialize::{initialize_tokens_gateway, initialze_role_manager},
     native::{native_deposit, native_forced_withdrawal},
+    process_forced_withdrawal::{process_native_forced_withdrawal, process_spl_forced_withdrawal},
+    process_refund::{process_native_refund, process_spl_refund},
     roles::roles_manager::{add_role, remove_role, set_role_chain_admin},
     setters::update_token_mapping,
     spl::{spl_deposit, spl_forced_withdrawal},
 };
+
+use super::instruction::process_native_refund;
 
 pub fn process_instruction(
     program_id: &Pubkey,
@@ -18,7 +22,6 @@ pub fn process_instruction(
     // Parse the instruction.
     let instruction = GatewayInstruction::unpack_instruction(instruction_data)
         .map_err(|_| ProgramCustomError::InvalidInstructionData)?;
-
     match instruction {
         GatewayInstruction::InitializeTokensGatewayRoleManager => {
             initialze_role_manager::initialize_role_manager(program_id, accounts)
@@ -113,19 +116,59 @@ pub fn process_instruction(
             amount,
             signature,
         ),
-        GatewayInstruction::FinalzeNativeWithdrawal { withdrawal_inputs } => {
-            finalize_native_withdrawal::finalize_native_withdrawal(
-                program_id,
-                accounts,
-                withdrawal_inputs,
-            )
-        }
-        GatewayInstruction::FinalizeSplWithdrawal { withdrawal_inputs } => {
-            finalize_spl_withdrawal::finalize_spl_withdrawal(
-                program_id,
-                accounts,
-                withdrawal_inputs,
-            )
-        }
+        GatewayInstruction::ExecuteL2NativeWithdrawal {
+            public_values,
+            execution_proof,
+        } => execute_native_l2_withdrawal::execute_native_l2_withdrawal(
+            program_id,
+            accounts,
+            public_values,
+            execution_proof,
+        ),
+        GatewayInstruction::ExecuteL2SplWithdrawal {
+            public_values,
+            execution_proof,
+        } => execute_spl_l2_withdrawal::execute_spl_l2_withdrawal(
+            program_id,
+            accounts,
+            public_values,
+            execution_proof,
+        ),
+        GatewayInstruction::ProcessNativeRefund {
+            public_values,
+            execution_proof,
+        } => process_native_refund::process_native_refund(
+            program_id,
+            accounts,
+            public_values,
+            execution_proof,
+        ),
+        GatewayInstruction::ProcessSplRefund {
+            public_values,
+            execution_proof,
+        } => process_spl_refund::process_spl_refund(
+            program_id,
+            accounts,
+            public_values,
+            execution_proof,
+        ),
+        GatewayInstruction::ProcessNativeForcedWithdrawal {
+            public_values,
+            execution_proof,
+        } => process_native_forced_withdrawal::process_native_forced_withdrawal(
+            program_id,
+            accounts,
+            public_values,
+            execution_proof,
+        ),
+        GatewayInstruction::ProcessSplForcedWithdrawal {
+            public_values,
+            execution_proof,
+        } => process_spl_forced_withdrawal::process_spl_forced_withdrawal(
+            program_id,
+            accounts,
+            public_values,
+            execution_proof,
+        ),
     }
 }

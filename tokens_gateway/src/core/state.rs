@@ -1,5 +1,8 @@
+use crate::core::error::ProgramCustomError;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{program_pack::IsInitialized, pubkey::Pubkey};
+use sha3::{Digest, Keccak256};
+use solana_program::{program_error::ProgramError, program_pack::IsInitialized, pubkey::Pubkey};
+use twine_chain::core::state::TransactionType;
 
 /****************
  * Role Manager *
@@ -21,7 +24,7 @@ pub enum RoleType {
 /**************
  * Vault Data *
  **************/
-#[derive(BorshSerialize, BorshDeserialize, Debug,PartialEq)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 pub struct NativeTokenVaultData {
     pub is_initialized: bool,
     pub total_deposits: u64,
@@ -62,20 +65,52 @@ pub struct TokenDecimalMappingData {
 }
 
 /***************
+ * Refund *
+ ***************/
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct L1OriginTxPublicValues {
+    pub batch_hash: [u8; 32],
+    pub batch_number: u64,
+    pub txn_type: TransactionType,
+    pub nonce: u64,
+    pub chain_id: u64,
+    pub slot_number: u64,
+    pub message: [u8; 32],
+    pub l1_address: String,
+    pub l2_address: String,
+    pub l1_token_address: String,
+    pub l2_token_address: String,
+    pub amount: String,
+}
+
+/***************
  * Withdrawals *
  ***************/
+
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct L2WithdrawValues {
+    pub batch_number: u64,
+    pub nonce: u64,
+    pub batch_hash: [u8; 32],
+    pub l1_receiver_address: String,
+    pub l1_token_address: String,
+    pub l2_token_address: String,
+    pub amount: String,
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct ExecutedWithdrawalsBuffer {
     pub is_initialized: bool,
     pub withdrawal_nonce_lower_bound: u64,
     pub executed_withdrawal_nonces: Vec<u64>,
 }
-
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct FinalizeInputWithdrawal {
-    pub public_input: ReceiptCommitment,
-    pub inclusion_proof: Vec<u8>,
+pub struct ExecutedPayoutsBuffer {
+    pub is_initialized: bool,
+    pub payout_nonce_lower_bound: u64,
+    pub executed_payout_nonces: Vec<u64>,
 }
+
 
 /// Struct for signed messageAdd commentMore actions
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -120,7 +155,6 @@ impl SignMessageInfo {
 
 impl ExecutedWithdrawalsBuffer {
     pub const SPACE: usize = 10000;
-
     pub fn post_withdrawal_processing(&mut self) {
         if self.executed_withdrawal_nonces.len() > 100 {
             // Sort the vector in ascending order
@@ -141,6 +175,52 @@ impl ExecutedWithdrawalsBuffer {
         }
     }
 }
+impl ExecutedPayoutsBuffer {
+    pub const SPACE: usize = 10000;
+    pub fn post_withdrawal_processing(&mut self) {
+        if self.executed_payout_nonces.len() > 100 {
+            // Sort the vector in ascending order
+            self.executed_payout_nonces.sort();
+
+            let mut last_removed_nonce = self.payout_nonce_lower_bound;
+            let mut consecutive_nonce_count = 0;
+
+            for nonces in self.executed_payout_nonces.clone() {
+                if nonces == last_removed_nonce + 1 {
+                    last_removed_nonce = nonces;
+                    self.payout_nonce_lower_bound = nonces;
+                    consecutive_nonce_count += 1;
+                }
+            }
+            self.executed_payout_nonces
+                .drain(0..consecutive_nonce_count);
+        }
+    }
+}
+
+impl L1OriginTxPublicValues {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded: Vec<u8> = Vec::new();
+        encoded.extend(self.txn_type.as_bytes());
+        encoded.extend_from_slice(&self.nonce.to_be_bytes());
+        encoded.extend_from_slice(&self.chain_id.to_be_bytes());
+        encoded.extend_from_slice(&self.slot_number.to_be_bytes());
+        encoded.extend(self.l1_address.as_bytes());
+        encoded.extend(self.l2_address.as_bytes());
+        encoded.extend(self.l1_token_address.as_bytes());
+        encoded.extend(self.l2_token_address.as_bytes());
+        encoded.extend(self.amount.as_bytes());
+        encoded.extend_from_slice(&self.message);
+        encoded
+    }
+    pub fn calculate_deposit_hash(&self) -> [u8; 32] {
+        let hash = Keccak256::digest(&self.abi_encode_packed());
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hash);
+        result
+    }
+}
+
 /*******************************************************
  *Implementation of methods for ReceiptCommitment *
  *******************************************************/

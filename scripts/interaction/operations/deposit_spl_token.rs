@@ -23,7 +23,6 @@ pub fn spl_token_deposit(
         &derive_spl_vault_authority(&tokens_gateway_ID).0,
         &l1_token,
     );
-
     let instructions = tokens_gateway_instruction::spl_token_deposit(
         &account.pubkey(),
         &user_token_account,
@@ -33,7 +32,7 @@ pub fn spl_token_deposit(
         l1_token.to_string(),
         l2_token.clone(),
         amount,
-        data
+        hex::decode(data.clone()).unwrap(),
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -43,10 +42,12 @@ pub fn spl_token_deposit(
         blockhash,
     );
 
-     rpc_client
+     let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    print!("Forced Native Token Withdrawal");
+    
+    println!("✅ Spl token deposit successful!");
+    println!("Transaction: {}", signature);
 
     Ok(())
 }

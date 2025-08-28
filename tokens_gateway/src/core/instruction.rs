@@ -8,19 +8,23 @@ use solana_program::{
 };
 use twine_chain::{
     utils::address_derivation::{
-        derive_deposit_message_buffer, derive_execution_message_buffer,
-        derive_forced_withdraw_message_buffer, derive_role_manager, derive_twine_chain_storage,
+        derive_execution_message_buffer, derive_messages_buffer, derive_messages_replicator,
+        derive_role_manager, derive_twine_chain_storage,
     },
-    ID as twine_chain_ID,
+    ID as twine_chain_id,
 };
 
-use super::state::{FinalizeInputWithdrawal, ReceiptCommitment, RoleType};
+use super::state::{RoleType};
 
 use crate::{
-    utils::address_derivation::{
-        derive_executed_withdrawals_buffer, derive_gateway_role_manager, derive_native_token_vault,
-        derive_native_token_vault_data, derive_spl_tokens_vault_data, derive_spl_vault_authority,
-        derive_token_decimal_mappings,
+    utils::{
+        address_derivation::{
+            derive_executed_payouts_buffer, derive_executed_withdrawals_buffer,
+            derive_gateway_role_manager, derive_native_token_vault, derive_native_token_vault_data,
+            derive_spl_tokens_vault_data, derive_spl_vault_authority,
+            derive_token_decimal_mappings,
+        },
+        batch_range_provider::batch_range_provider,
     },
     ID as tokens_gateway_ID,
 };
@@ -51,14 +55,14 @@ pub enum GatewayInstruction {
         l1_token: String,
         l2_token: String,
         amount: u64,
-        data: String,
+        data: Vec<u8>,
     },
     SplTokenDepoist {
         receiver_twine_address: String,
         l1_token: String,
         l2_token: String,
         amount: u64,
-        data: String,
+        data: Vec<u8>,
     },
     NativeTokenForcedWithdrawal {
         from_twine_address: String,
@@ -76,11 +80,29 @@ pub enum GatewayInstruction {
         amount: u64,
         signature: Vec<u8>,
     },
-    FinalzeNativeWithdrawal {
-        withdrawal_inputs: FinalizeInputWithdrawal,
+    ExecuteL2NativeWithdrawal {
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
     },
-    FinalizeSplWithdrawal {
-        withdrawal_inputs: FinalizeInputWithdrawal,
+    ExecuteL2SplWithdrawal {
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
+    },
+    ProcessNativeRefund {
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
+    },
+    ProcessSplRefund {
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
+    },
+    ProcessNativeForcedWithdrawal {
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
+    },
+    ProcessSplForcedWithdrawal {
+        public_values: Vec<u8>,
+        execution_proof: Vec<u8>,
     },
 }
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -112,7 +134,7 @@ struct NativeTokenDepoistPayload {
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -121,7 +143,7 @@ struct SplTokenDepoistPayload {
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -144,14 +166,40 @@ struct SplTokenForcedWithdrawalPayload {
     signature: Vec<u8>,
 }
 
+
 #[derive(BorshSerialize, BorshDeserialize)]
-struct FinalizeNativeWithdrawalPayload {
-    withdrawal_inputs: FinalizeInputWithdrawal,
+struct ExecuteL2NativeWithdrawalPayload {
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
-struct FinalizeSplWithdrawalPayload {
-    withdrawal_inputs: FinalizeInputWithdrawal,
+struct ExecuteL2SplWithdrawalPayload {
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize)]
+struct ProcessNativeRefund {
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize)]
+struct ProcessSplRefund {
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+}
+#[derive(BorshSerialize, BorshDeserialize)]
+struct ProcessNativeForcedWithdrawal {
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+}
+
+#[derive(BorshSerialize, BorshDeserialize)]
+struct ProcessSplForcedWithdrawal {
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
 }
 
 pub fn initialize_tokens_gateway_role_manager(chain_admin: &Pubkey) -> Vec<Instruction> {
@@ -178,6 +226,7 @@ pub fn initialize_tokens_gateway(chain_admin: &Pubkey) -> Vec<Instruction> {
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(
             derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
             false,
@@ -231,7 +280,7 @@ pub fn native_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::NativeTokenDepoist {
         receiver_twine_address,
@@ -248,11 +297,11 @@ pub fn native_token_deposit(
         AccountMeta::new(*user, false),
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_deposit_message_buffer(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(twine_chain_ID, false),
+        AccountMeta::new(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -286,13 +335,10 @@ pub fn forced_native_token_withdrawal(
     let accounts = vec![
         AccountMeta::new(*user, true),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
-        AccountMeta::new(
-            derive_forced_withdraw_message_buffer(&twine_chain_ID).0,
-            false,
-        ),
-        AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(twine_chain_ID, false),
+        AccountMeta::new(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -310,7 +356,7 @@ pub fn spl_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
-    data: String,
+    data: Vec<u8>,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::SplTokenDepoist {
         receiver_twine_address,
@@ -330,9 +376,9 @@ pub fn spl_token_deposit(
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(spl_token::id(), false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_deposit_message_buffer(&twine_chain_ID).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
-        AccountMeta::new(twine_chain_ID, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -370,12 +416,9 @@ pub fn forced_spl_token_withdrawal(
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(
-            derive_forced_withdraw_message_buffer(&twine_chain_ID).0,
-            false,
-        ),
-        AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
-        AccountMeta::new(twine_chain_ID, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -385,53 +428,32 @@ pub fn forced_spl_token_withdrawal(
     }]
 }
 
-pub fn finalize_native_token_withdrawal(
-    chain_id: u64,
-    block_number: u64,
-    nonce: u64,
-    is_forced_withdrawal: u8,
-    receipt_root: [u8; 32],
-    l1_receiver_address: Pubkey,
-    l1_token_address: String,
-    l2_token_address: String,
-    amount: String,
-    inclusion_proof: Vec<u8>,
-) -> Vec<Instruction> {
-    println!("Amount inside instruction {}", amount);
-    let payload = GatewayInstruction::FinalzeNativeWithdrawal {
-        withdrawal_inputs: FinalizeInputWithdrawal {
-            public_input: ReceiptCommitment {
-                chain_id,
-                block_number,
-                nonce,
-                is_forced_withdrawal,
-                receipt_root,
-                l1_receiver_address: l1_receiver_address.to_string(),
-                l1_token_address,
-                l2_token_address,
-                amount,
-            },
-            inclusion_proof: inclusion_proof,
-        },
-    };
 
+pub fn execute_l2_native_withdrawal(
+    l1_receiver_address: Pubkey,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::ExecuteL2NativeWithdrawal {
+        public_values: public_values,
+        execution_proof: execution_proof,
+    };
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_execution_message_buffer(&twine_chain_ID).0, false),
-        AccountMeta::new(derive_twine_chain_storage(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(twine_chain_ID, false),
+        AccountMeta::new(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -441,50 +463,28 @@ pub fn finalize_native_token_withdrawal(
     }]
 }
 
-pub fn finalize_spl_token_withdrawal(
-    chain_id: u64,
-    block_number: u64,
-    nonce: u64,
-    is_forced_withdrawal: u8,
-    receipt_root: [u8; 32],
-    user: &Pubkey,
+pub fn execute_l2_spl_withdrawal(
     token_mint_pubkey: &Pubkey,
     spl_tokens_vault: &Pubkey,
     l1_receiver_address: Pubkey,
-    l1_token_address: String,
-    l2_token_address: String,
-    amount: String,
-    inclusion_proof: Vec<u8>,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
 ) -> Vec<Instruction> {
-    let payload = GatewayInstruction::FinalizeSplWithdrawal {
-        withdrawal_inputs: FinalizeInputWithdrawal {
-            public_input: ReceiptCommitment {
-                chain_id,
-                block_number,
-                nonce,
-                is_forced_withdrawal,
-                receipt_root,
-                l1_receiver_address: l1_receiver_address.to_string(),
-                l1_token_address,
-                l2_token_address,
-                amount,
-            },
-            inclusion_proof: inclusion_proof,
-        },
+    let payload = GatewayInstruction::ExecuteL2SplWithdrawal {
+        public_values: public_values,
+        execution_proof: execution_proof,
     };
 
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(*user, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
         AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
         AccountMeta::new(spl_token::id(), false),
         AccountMeta::new(*token_mint_pubkey, false),
-        AccountMeta::new(derive_execution_message_buffer(&twine_chain_ID).0, false),
-        AccountMeta::new(derive_twine_chain_storage(&twine_chain_ID).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
             false,
@@ -492,7 +492,173 @@ pub fn finalize_spl_token_withdrawal(
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(twine_chain_ID, false),
+        AccountMeta::new(twine_chain_id, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn process_native_refund(
+    l1_receiver_address: Pubkey,
+    message_nonce: u64,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::ProcessNativeRefund {
+        public_values: public_values,
+        execution_proof: execution_proof,
+    };
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let (start_nonce, end_nonce) =
+        batch_range_provider(message_nonce).expect("Failed to calculate batch range");
+    let accounts = vec![
+        AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(l1_receiver_address, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(system_program::id(), false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new(twine_chain_id, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn process_spl_refund(
+    token_mint_pubkey: &Pubkey,
+    spl_tokens_vault: &Pubkey,
+    l1_receiver_address: Pubkey,
+    message_nonce: u64,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::ProcessSplRefund {
+        public_values: public_values,
+        execution_proof: execution_proof,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let (start_nonce, end_nonce) =
+        batch_range_provider(message_nonce).expect("Failed to calculate batch range");
+    let accounts = vec![
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(*spl_tokens_vault, false),
+        AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
+        AccountMeta::new(spl_token::id(), false),
+        AccountMeta::new(*token_mint_pubkey, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(l1_receiver_address, false),
+        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new(twine_chain_id, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn process_native_forced_withdrawal(
+    l1_receiver_address: Pubkey,
+    message_nonce: u64,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::ProcessNativeForcedWithdrawal {
+        public_values: public_values,
+        execution_proof: execution_proof,
+    };
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let (start_nonce, end_nonce) =
+        batch_range_provider(message_nonce).expect("Failed to calculate batch range");
+    let accounts = vec![
+        AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(l1_receiver_address, false),
+        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(system_program::id(), false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new(twine_chain_id, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn process_spl_forced_withdrawal(
+    token_mint_pubkey: &Pubkey,
+    spl_tokens_vault: &Pubkey,
+    l1_receiver_address: Pubkey,
+    message_nonce: u64,
+    public_values: Vec<u8>,
+    execution_proof: Vec<u8>,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::ProcessSplForcedWithdrawal {
+        public_values: public_values,
+        execution_proof: execution_proof,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let (start_nonce, end_nonce) =
+        batch_range_provider(message_nonce).expect("Failed to calculate batch range");
+    let accounts = vec![
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(*spl_tokens_vault, false),
+        AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
+        AccountMeta::new(spl_token::id(), false),
+        AccountMeta::new(*token_mint_pubkey, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(l1_receiver_address, false),
+        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -522,9 +688,10 @@ pub fn set_gateway_role_chain_admin(new_admin: Pubkey, chain_admin: Pubkey) -> V
 }
 
 pub fn add_role_in_gateway(
+    chain_admin: Pubkey,
     account_address: Pubkey,
     role: RoleType,
-    chain_admin: Pubkey,
+    
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::AddRoleInGateway {
         address: account_address,
@@ -659,19 +826,52 @@ impl GatewayInstruction {
                     signature: payload.signature,
                 })
             }
-
             10 => {
-                let payload = FinalizeNativeWithdrawalPayload::try_from_slice(rest)
+                let payload = ExecuteL2NativeWithdrawalPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::FinalzeNativeWithdrawal {
-                    withdrawal_inputs: payload.withdrawal_inputs,
+                Ok(Self::ExecuteL2NativeWithdrawal {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
                 })
             }
             11 => {
-                let payload = FinalizeSplWithdrawalPayload::try_from_slice(rest)
+                let payload = ExecuteL2SplWithdrawalPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::FinalizeSplWithdrawal {
-                    withdrawal_inputs: payload.withdrawal_inputs,
+                Ok(Self::ExecuteL2SplWithdrawal {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
+                })
+            }
+            12 => {
+                let payload = ProcessNativeRefund::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::ProcessNativeRefund {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
+                })
+            }
+            13 => {
+                let payload = ProcessSplRefund::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::ProcessSplRefund {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
+                })
+            }
+            14 => {
+                let payload = ProcessNativeForcedWithdrawal::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::ProcessNativeForcedWithdrawal {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
+                })
+            }
+            15 => {
+                let payload = ProcessSplForcedWithdrawal::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::ProcessSplForcedWithdrawal {
+                    public_values: payload.public_values,
+                    execution_proof: payload.execution_proof,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),
