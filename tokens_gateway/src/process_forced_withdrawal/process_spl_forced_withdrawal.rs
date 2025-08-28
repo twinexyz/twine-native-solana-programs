@@ -84,12 +84,9 @@ pub fn process_spl_forced_withdrawal(
     if !is_valid_ethereum_address(&withdraw_values.l2_token_address)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
-msg!("The withdraw values {:?}",withdraw_values.l1_address);
-msg!("Hello 1");
     if withdraw_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
-    msg!("Hello 2");
     let mut executed_payouts_buffer =
         ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -194,8 +191,8 @@ msg!("Hello 1");
         {
             "event": "Spl_Forced_Withdrawal_Payout_Successful",
             "nonce": withdraw_values.nonce,
-            "l1_receiver_address": withdraw_values.l1_address,
-            "l1_token_address": withdraw_values.l1_token_address,
+            "l1_receiver_address": receiver_acc.key.to_string(),
+            "l1_token_address": mint.key.to_string(),
             "chain_id": CHAIN_ID,
             "amount": actual_amount,
             "slot_number": clock.slot

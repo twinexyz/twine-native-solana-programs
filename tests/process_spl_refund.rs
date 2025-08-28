@@ -80,6 +80,10 @@ async fn process_spl_refund() {
     println!("The public values{:?}", public_values);
     println!("The hex values {:?}", hex::encode(&public_values));
 
+    let v = vec![75, 7, 207, 71, 237, 98, 17, 132, 109, 172, 255, 82, 61, 64, 90, 183, 184, 5, 237, 182, 73, 225, 247, 233, 208, 250, 160, 229, 125, 197, 50, 192];
+
+    println!("The hex values sample {:?}", hex::encode(&v));
+
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
@@ -114,7 +118,7 @@ async fn process_spl_refund() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
-        data,
+        hex::decode(data.clone()).unwrap(),
     ));
      let genesis_block_hash = [0u8; 32];
     instructions.extend(twine_chain_instruction::initialize_genesis_batch(

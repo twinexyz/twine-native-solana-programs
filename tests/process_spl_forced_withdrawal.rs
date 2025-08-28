@@ -144,7 +144,7 @@ async fn process_spl_forced_withdrawal() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
-        data,
+        hex::decode(data.clone()).unwrap(),
     ));
     let genesis_block_hash = [0u8; 32];
     instructions.extend(twine_chain_instruction::initialize_genesis_batch(

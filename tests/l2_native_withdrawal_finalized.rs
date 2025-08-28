@@ -46,6 +46,7 @@ async fn l2_native_withdrawal_finalized_succeed() {
     let l2_token = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let execution_proof = vec![];
     let mut public_values = vec![];
+    let data = "".to_string();
     let native_token_valut_data_account = derive_native_token_vault_data(&id()).0;
 
     public_values.extend_from_slice(&batch_number.to_be_bytes());
@@ -91,7 +92,7 @@ async fn l2_native_withdrawal_finalized_succeed() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
-        "".to_string(),
+        hex::decode(data.clone()).unwrap(),
     ));
     instructions.extend(tokens_gateway_instruction::execute_l2_native_withdrawal(
         l1_receiver_address,

@@ -132,18 +132,18 @@ pub fn process_native_refund(
     } else {
         let messages_buffer_data =
             MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])?;
-        // if !messages_buffer_data
-        //     .messages
-        //     .contains(&Keccak256::digest(&public_values[40..]).into())
-        // {
-        //     msg!("Error: Provided transaction not present in MessageBuffer.");
-        //     return Err(ProgramCustomError::InvalidTransaction.into());
-        // };
+        if !messages_buffer_data
+            .messages
+            .contains(&Keccak256::digest(&public_values[40..]).into())
+        {
+            msg!("Error: Provided transaction not present in MessageBuffer.");
+            return Err(ProgramCustomError::InvalidTransaction.into());
+        };
     }
 
-    // if refund_values.batch_number > twine_chain_storage.last_finalized_batch_number {
-    //     return Err(ProgramCustomError::BatchNotFinalized.into());
-    // };
+    if refund_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+        return Err(ProgramCustomError::BatchNotFinalized.into());
+    };
 
     // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
@@ -197,11 +197,11 @@ pub fn process_native_refund(
         {
             "event": "Native_Refund_Successful",
             "nonce": refund_values.nonce,
-            "l1_receiver_address": refund_values.l1_address,
+            "l1_receiver_address": receiver_acc.key.to_string(),
             "l1_token_address:": refund_values.l1_token_address,
             "chain_id": refund_values.chain_id,
             "amount": actual_amount,
-            "slot_number":  clock.slot 
+            "slot_number":  clock.slot
         }
     )
     .to_string();

@@ -125,7 +125,7 @@ pub fn forced_native_token_withdrawal(
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount.to_string(),
-        data: String::new(),
+        data: Vec::<u8>::new(),
     };
 
     let sign_info = SignMessageInfo {

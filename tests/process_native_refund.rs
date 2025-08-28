@@ -103,7 +103,7 @@ async fn process_native_refund() {
         l1_token.clone(),
         l2_token.clone(),
         amount,
-        "".to_string(),
+        hex::decode(data.clone()).unwrap(),
     ));
 
     let genesis_block_hash = [0u8; 32];
