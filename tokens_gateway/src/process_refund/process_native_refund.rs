@@ -191,6 +191,9 @@ pub fn process_native_refund(
         .push(refund_values.nonce);
 
     executed_payouts_buffer.post_withdrawal_processing();
+    executed_payouts_buffer
+        .serialize(&mut &mut executed_payouts_buffer_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
     let clock = Clock::get()?;
 
     let event = RefundSuccessfulEvent {

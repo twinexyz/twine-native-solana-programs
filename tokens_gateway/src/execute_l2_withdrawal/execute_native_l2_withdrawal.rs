@@ -144,6 +144,9 @@ pub fn execute_native_l2_withdrawal(
         .executed_withdrawal_nonces
         .push(withdrawal_values.nonce);
     executed_withdrawal_buffer.post_withdrawal_processing();
+    executed_withdrawal_buffer
+        .serialize(&mut &mut executed_withdrawals_buffer_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     let clock = Clock::get()?;
 
