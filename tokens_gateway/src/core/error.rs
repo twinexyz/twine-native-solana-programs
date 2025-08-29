@@ -65,6 +65,8 @@ pub enum ProgramCustomError {
     InsufficientFunds,
     #[error("The provided public key does not match the expected public key.")]
     PublicKeyMismatch,
+    #[error("Failed to serialize event.")]
+    FailedToSerializeEvent,
 }
 
 

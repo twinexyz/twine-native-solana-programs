@@ -1,15 +1,15 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde_json::json;
+use serde_json;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
+    clock::Clock,
     entrypoint::ProgramResult,
     msg,
+    program::invoke_signed,
     program_error::ProgramError,
     program_pack::IsInitialized,
     pubkey::Pubkey,
     rent::Rent,
-    clock::Clock,
-    program::invoke_signed,
     system_instruction,
     sysvar::Sysvar,
 };
@@ -18,8 +18,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            BatchPdaAccount, RoleType, TwineChainRoleManager,
-            TwineChainStorage,
+            BatchPdaAccount, CommitedBatchEvent, RoleType, TwineChainRoleManager, TwineChainStorage,
         },
     },
     utils::{
@@ -120,22 +119,22 @@ pub fn commit_batch(
     // Emit event
     let clock = Clock::get()?;
 
-    let event = json!(
-        {
-            "event": "CommitedBatch",
-            "batch_number": batch_number,
-            "chain_id": CHAIN_ID,
-            "batch_hash": batch_hash,
-            "slot_number": clock.slot,
-        }
-    )
-    .to_string();
-    msg!(&event);
-    
+    let event = CommitedBatchEvent {
+        event: "CommitedBatch".to_string(),
+        batch_number: batch_number,
+        chain_id: CHAIN_ID,
+        batch_hash: batch_hash,
+        slot_number: clock.slot,
+    };
+
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
+    msg!("{}", serialized_event);
+
     Ok(())
 }
 
-fn  validate_accounts(
+fn validate_accounts(
     program_id: &Pubkey,
     batch_number: u64,
     twine_chain_storage_acc: &AccountInfo,
@@ -156,8 +155,7 @@ fn  validate_accounts(
     let (expected_role_manager_pda, _) = derive_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
-    let (expected_current_pda, current_pda_bump) =
-        derive_commitment_pda(program_id, batch_number);
+    let (expected_current_pda, current_pda_bump) = derive_commitment_pda(program_id, batch_number);
     verify_derived_address(expected_current_pda, current_batch_acc)?;
 
     // Deserialize Twine chain storage's data
@@ -181,4 +179,3 @@ fn  validate_accounts(
 
     Ok((current_pda_bump, twine_chain_storage_data))
 }
-

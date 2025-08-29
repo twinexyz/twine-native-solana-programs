@@ -20,7 +20,8 @@ pub fn get_rpc_url() -> Result<String, String> {
     if let Ok(url) = std::env::var("SOLANA_RPC_URL") {
         return Ok(url);
     }
-    Err("RPC URL is not set. Set SOLANA_RPC_URL first.".to_string())
+    println!("SOLANA_RPC_URL not set. Defaulting to localnet at `http://127.0.0.1:8899`");
+    Ok("http://127.0.0.1:8899".to_string())
 }
 
 pub fn get_rpc_client() -> RpcClient {
