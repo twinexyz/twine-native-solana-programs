@@ -91,7 +91,7 @@ pub fn finalize_batch(
         slot_number: clock.slot,
     };
     let serialized_event =
-        serde_json::to_string(&event).map_err(|_| ProgramError::InvalidInstructionData)?;
+        serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
     msg!("{}", serialized_event);
 
     Ok(())

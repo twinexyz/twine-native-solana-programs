@@ -85,6 +85,8 @@ pub enum ProgramCustomError {
     WithdrawalAlreadyExecuted,
     #[error("The transaction count is greater than transactions present in the queue")]
     GreaterCount,
+    #[error("Failed to serialize event.")]
+    FailedToSerializeEvent,
 }
 
 

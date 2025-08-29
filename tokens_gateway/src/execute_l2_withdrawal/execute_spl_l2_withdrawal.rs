@@ -164,7 +164,7 @@ pub fn execute_spl_l2_withdrawal(
     };
 
     let serialized_event =
-        serde_json::to_string(&event).map_err(|_| ProgramError::InvalidInstructionData)?;
+        serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
     msg!("{}", serialized_event);
 
     Ok(())
