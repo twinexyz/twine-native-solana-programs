@@ -111,7 +111,6 @@ pub struct ExecutedPayoutsBuffer {
     pub executed_payout_nonces: Vec<u64>,
 }
 
-
 /// Struct for signed messageAdd commentMore actions
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
 pub struct SignMessageInfo {
@@ -135,6 +134,43 @@ pub struct ReceiptCommitment {
     pub l1_token_address: String,
     pub l2_token_address: String,
     pub amount: String,
+}
+
+/**********
+ * Events *
+ *********/
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct RefundSuccessfulEvent {
+    pub event: String,
+    pub nonce: u64,
+    pub l1_receiver: String,
+    pub l1_token: String,
+    pub chain_id: u64,
+    pub amount: u64,
+    pub slot_number: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct ForcedWithdrawalSuccessfulEvent {
+    pub event: String,
+    pub nonce: u64,
+    pub l1_receiver: String,
+    pub l1_token: String,
+    pub chain_id: u64,
+    pub amount: u64,
+    pub slot_number: u64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct L2WithdrawExecutedEvent {
+    pub event: String,
+    pub nonce: u64,
+    pub l1_token: String,
+    pub l2_token: String,
+    pub l1_receiver: String,
+    pub chain_id: u64,
+    pub amount: u64,
+    pub slot_number: u64,
 }
 
 impl SignMessageInfo {
