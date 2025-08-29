@@ -146,7 +146,7 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
 
     let event = json!(
         {
-            "event": "Copied_Message_Buffer",
+            "event": "CopiedMessageBuffer",
             "start_nonce": start_nonce,
             "end_nonce": end_nonce,
             "slot_number": clock.slot

@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
-use serde_json::json;
+use serde_json;
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -25,7 +25,8 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedWithdrawalsBuffer, L2WithdrawValues, SplTokensVaultData, TokenDecimalMappings,
+            ExecutedWithdrawalsBuffer, L2WithdrawExecutedEvent, L2WithdrawValues,
+            SplTokensVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -151,20 +152,21 @@ pub fn execute_spl_l2_withdrawal(
 
     let clock = Clock::get()?;
 
-    let event = json!(
-        {
-            "event": "Spl_L2_Withdrawal_Successful",
-            "nonce": withdrawal_values.nonce,
-            "l1_receiver_address": withdrawal_values.l1_receiver_address,
-            "l1_token_address:": withdrawal_values.l1_token_address,
-            "chain_id": CHAIN_ID,
-            "amount": actual_amount,
-            "slot_number":  clock.slot 
-        }
-    )
-    .to_string();
-    msg!(&event);
-    
+    let event = L2WithdrawExecutedEvent {
+        event: "L2WithdrawExecuted".to_string(),
+        nonce: withdrawal_values.nonce,
+        l1_token: withdrawal_values.l1_token_address,
+        l2_token: withdrawal_values.l2_token_address,
+        l1_receiver: withdrawal_values.l1_receiver_address,
+        chain_id: CHAIN_ID,
+        amount: actual_amount,
+        slot_number: clock.slot,
+    };
+
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
+    msg!("{}", serialized_event);
+
     Ok(())
 }
 
