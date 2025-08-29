@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
-use serde_json::json;
+use serde_json;
 use sha3::{Digest, Keccak256};
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -32,8 +32,8 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, L1OriginTxPublicValues, L2WithdrawValues, SplTokensVaultData,
-            TokenDecimalMappings,
+            ExecutedPayoutsBuffer, L1OriginTxPublicValues, L2WithdrawValues, RefundSuccessfulEvent,
+            SplTokensVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -202,19 +202,19 @@ pub fn process_spl_refund(
 
     let clock = Clock::get()?;
 
-    let event = json!(
-        {
-            "event": "RefundSuccessful",
-            "nonce": refund_values.nonce,
-            "l1_receiver": receiver_acc.key.to_string(),
-            "l1_token": mint.key.to_string(),
-            "chain_id": CHAIN_ID,
-            "amount": actual_amount,
-            "slot_number":  clock.slot
-        }
-    )
-    .to_string();
-    msg!(&event);
+    let event = RefundSuccessfulEvent {
+        event: "RefundSuccessful".to_string(),
+        nonce: refund_values.nonce,
+        l1_receiver: receiver_acc.key.to_string(),
+        l1_token: mint.key.to_string(),
+        chain_id: CHAIN_ID,
+        amount: actual_amount,
+        slot_number: clock.slot,
+    };
+
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
+    msg!("{}", serialized_event);
 
     Ok(())
 }

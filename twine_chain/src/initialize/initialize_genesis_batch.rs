@@ -99,7 +99,7 @@ pub fn initialize_genesis_batch(
 
     let event = json!(
         {
-            "event": "Genesis_Batch_Initialized",
+            "event": "GenesisBatchInitialized",
             "genesis_batch_hash": genesis_batch_hash,
             "slot_number": clock.slot
         }

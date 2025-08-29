@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
-use serde_json::json;
+use serde_json;
 use sha3::{Digest, Keccak256};
 use solana_program::sysvar::clock::Clock;
 use solana_program::{
@@ -30,8 +30,8 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, L1OriginTxPublicValues,
-            NativeTokenVaultData, TokenDecimalMappings,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, ForcedWithdrawalSuccessfulEvent,
+            L1OriginTxPublicValues, NativeTokenVaultData, TokenDecimalMappings,
         },
     },
     utils::{
@@ -199,19 +199,19 @@ pub fn process_native_forced_withdrawal(
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
     let clock = Clock::get()?;
 
-    let event = json!(
-        {
-            "event": "ForcedWithdrawalSuccessful",
-            "nonce": withdraw_values.nonce,
-            "l1_receiver": receiver_acc.key.to_string(),
-            "l1_token": withdraw_values.l1_token_address,
-            "chain_id": withdraw_values.chain_id,
-            "amount": actual_amount,
-            "slot_number": clock.slot
-        }
-    )
-    .to_string();
-    msg!(&event);
+    let event = ForcedWithdrawalSuccessfulEvent {
+        event: "ForcedWithdrawalSuccessful".to_string(),
+        nonce: withdraw_values.nonce,
+        l1_receiver: receiver_acc.key.to_string(),
+        l1_token: withdraw_values.l1_token_address,
+        chain_id: withdraw_values.chain_id,
+        amount: actual_amount,
+        slot_number: clock.slot,
+    };
+
+    let serialized_event =
+        serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
+    msg!("{}", serialized_event);
 
     Ok(())
 }
