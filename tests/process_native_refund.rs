@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod helpers;
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use sha3::{Digest, Keccak256};
 use solana_sdk::{
@@ -11,10 +12,10 @@ use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::{instruction as tokens_gateway_instruction,},
-    id,
+    core::{instruction as tokens_gateway_instruction,state::ExecutedPayoutsBuffer},
+    id as tokens_gateway_id,
     utils::{
-        address_derivation::derive_native_token_vault_data, constants::{ROLE_MANAGER_ACCOUNT_SIZE,CHAIN_ID}
+        address_derivation::{derive_executed_payouts_buffer, derive_native_token_vault_data}, constants::{CHAIN_ID, ROLE_MANAGER_ACCOUNT_SIZE}
     },
 };
 use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
@@ -45,14 +46,14 @@ async fn process_native_refund() {
     let batch_number = 1u64;
     let nonce = 1u64;
     let batch_hash = [1u8; 32];
-    let l1_address = Pubkey::from_str("em1AJXBRXHubbtSEFFKnkbqACdGuvKhhoHTFCU9cKzS").unwrap();
+    let l1_address = accounts.chain_admin.pubkey();
     let l2_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let l1_token = "11111111111111111111111111111111".to_string();
     let l2_token = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let data = "".to_string();
     let execution_proof = vec![];
     let mut public_values = vec![];
-    let native_token_valut_data_account = derive_native_token_vault_data(&id()).0;
+    let native_token_valut_data_account = derive_native_token_vault_data(&tokens_gateway_id()).0;
 
     public_values.extend_from_slice(&batch_hash);
     public_values.extend_from_slice(&batch_number.to_be_bytes());
@@ -152,4 +153,17 @@ async fn process_native_refund() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+
+    let executed_payouts_buffer_account = context
+        .banks_client
+        .get_account(derive_executed_payouts_buffer(&tokens_gateway_id()).0)
+        .await
+        .unwrap()
+        .expect("Executed Payouts Buffer Not Found");
+
+      let executed_payouts_buffer_data: ExecutedPayoutsBuffer =
+        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_account.data[..])
+            .expect("Failed to Executed Payouts Buffer");
+    print!("Executed Payouts Buffer {:?}",executed_payouts_buffer_data);
+
 }
