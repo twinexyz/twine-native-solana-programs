@@ -149,6 +149,10 @@ pub fn execute_spl_l2_withdrawal(
         .push(withdrawal_values.nonce);
     executed_withdrawal_buffer.post_withdrawal_processing();
 
+    executed_withdrawal_buffer
+        .serialize(&mut &mut executed_withdrawals_buffer_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
     let clock = Clock::get()?;
 
     let event = json!(
@@ -160,12 +164,12 @@ pub fn execute_spl_l2_withdrawal(
             "l1_receiver": withdrawal_values.l1_receiver_address,
             "chain_id": CHAIN_ID,
             "amount": actual_amount,
-            "slot_number":  clock.slot 
+            "slot_number":  clock.slot
         }
     )
     .to_string();
     msg!(&event);
-    
+
     Ok(())
 }
 
