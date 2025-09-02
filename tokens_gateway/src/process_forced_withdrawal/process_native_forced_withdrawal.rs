@@ -220,11 +220,18 @@ pub fn decode_withdraw_values(
     bytes: &[u8],
     l1_address_length: usize,
 ) -> Result<L1OriginTxPublicValues, ProgramError> {
-    const PREFIX_LEN: usize = 97;
+    const FIXED_PREFIX_LEN: usize = 97;
     const L1_TOKEN_ADDRESS_LEN: usize = 32;
     const L2_ADDRESS_LEN: usize = 42;
+    const MIN_AMOUNT_FIELD_SIZE: usize = 1;
 
-    let min_len = 233;
+    let min_len = FIXED_PREFIX_LEN
+        .checked_add(l1_address_length)
+        .and_then(|v| v.checked_add(L2_ADDRESS_LEN))
+        .and_then(|v| v.checked_add(L1_TOKEN_ADDRESS_LEN))
+        .and_then(|v| v.checked_add(L2_ADDRESS_LEN))
+        .and_then(|v| v.checked_add(MIN_AMOUNT_FIELD_SIZE))
+        .ok_or(ProgramCustomError::PublicValueDecodeFailed)?;
 
     if bytes.len() < min_len {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
@@ -269,7 +276,7 @@ pub fn decode_withdraw_values(
     let message = take(32, &mut offset)?
         .try_into()
         .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?;
-    if offset != PREFIX_LEN {
+    if offset != FIXED_PREFIX_LEN {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
 

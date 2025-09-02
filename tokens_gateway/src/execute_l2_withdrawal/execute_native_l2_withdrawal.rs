@@ -172,7 +172,7 @@ pub fn decode_l2_withdraw_values(
     bytes: &[u8],
     l1_receiver_address_length: usize,
 ) -> Result<L2WithdrawValues, ProgramError> {
-    const MIN_LEN: usize = 168;
+    const MIN_LEN: usize = 165;
     const PREFIX_LEN: usize = 48;
     const L1_TOKEN_ADDRESS_LEN: usize = 32;
     const L2_TOKEN_ADDRESS_LEN: usize = 42;

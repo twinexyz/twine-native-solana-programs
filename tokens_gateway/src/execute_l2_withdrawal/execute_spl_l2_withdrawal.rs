@@ -239,7 +239,6 @@ fn process_spl_token_withdrawal<'info>(
     receiver: &AccountInfo<'info>,
     amount: u64,
 ) -> ProgramResult {
-    msg!("the amount output {}",amount);
     if amount <= 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
