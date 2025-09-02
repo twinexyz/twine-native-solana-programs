@@ -117,7 +117,7 @@ pub fn execute_spl_l2_withdrawal(
     )?;
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
-
+msg!("the actual amount output {}",actual_amount);
     let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::deserialize(
         &mut &executed_withdrawals_buffer_acc.data.borrow()[..],
     )
@@ -179,7 +179,7 @@ pub fn decode_l2_withdraw_values(
     l1_receiver_address_length: usize,
     l1_token_address_length: usize,
 ) -> Result<L2WithdrawValues, ProgramError> {
-    const MIN_LEN: usize = 168;
+    const MIN_LEN: usize = 165;
     const PREFIX_LEN: usize = 48;
     const L2_TOKEN_ADDRESS_LEN: usize = 42;
 
@@ -239,6 +239,7 @@ fn process_spl_token_withdrawal<'info>(
     receiver: &AccountInfo<'info>,
     amount: u64,
 ) -> ProgramResult {
+    msg!("the amount output {}",amount);
     if amount <= 0 {
         return Err(ProgramCustomError::InvalidAmount.into());
     }

@@ -106,6 +106,33 @@ async fn l2_spl_withdrawal_finalized_succeed() {
         4000000000,
         hex::decode(data.clone()).unwrap(),
     ));
+    let genesis_block_hash = [0u8; 32];
+    instructions.extend(twine_chain_instruction::initialize_genesis_batch(
+        &accounts.chain_admin.pubkey(),
+        genesis_block_hash,
+    ));
+    let batch_number = 1;
+    let batch_hash = [5u8; 32];
+
+    instructions.extend(twine_chain_instruction::commit_batch(
+        &accounts.chain_admin.pubkey(),
+        batch_number,
+        batch_hash,
+    ));
+    let total_msg_handled_on_twine: u64 = 2;
+
+    let mut finalize_public_values = Vec::with_capacity(72);
+    finalize_public_values.extend_from_slice(&genesis_block_hash);
+    finalize_public_values.extend_from_slice(&batch_hash);
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+
+    instructions.extend(twine_chain_instruction::finalize_batch(
+        &accounts.chain_admin.pubkey(),
+        batch_number,
+        finalize_public_values.clone(),
+        finalize_public_values,
+    ));
     instructions.extend(tokens_gateway_instruction::execute_l2_spl_withdrawal(
         &spl_token_pubkey,
         &spl_token_vault,
