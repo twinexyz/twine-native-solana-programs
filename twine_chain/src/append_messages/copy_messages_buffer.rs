@@ -26,7 +26,7 @@ use crate::{
             derive_messages_buffer, derive_messages_replicator, derive_role_manager,
             derive_twine_chain_storage, verify_derived_address, verify_system_program,
         },
-        constants::{MAX_MESSAGE_NONCE, MEESSAGES_REPLICATOR_PREFIX, MESSAGE_NONCE_GAP},
+        constants::{MESSAGE_NONCE_GAP_SIZE,MEESSAGES_REPLICATOR_PREFIX, MESSAGE_NONCE_GAP},
     },
 };
 
@@ -82,7 +82,7 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         let rent = Rent::default();
         let (_, deposit_messages_replicator_bump) =
             derive_messages_replicator(&program_id, start_nonce, end_nonce);
-        let replicator_space = 1 + 8 + 8 + 8 + 4 + (MAX_MESSAGE_NONCE * 32);
+        let replicator_space = 1 + 8 + 8 + 8 + 4 + (MESSAGE_NONCE_GAP_SIZE * 32);
         let required_lamports = rent.minimum_balance(replicator_space);
         let create_ix = system_instruction::create_account(
             initializer_acc.key,
