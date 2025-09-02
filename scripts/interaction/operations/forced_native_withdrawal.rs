@@ -1,14 +1,13 @@
 use crate::utils::{get_default_keypair, get_ethereum_signature, get_rpc_client};
 use anyhow::{Context, Result};
 use borsh::BorshDeserialize;
-use solana_sdk::msg;
-use solana_sdk::{signature::Signer, transaction::Transaction};
+use solana_sdk::{signature::Signer, transaction::Transaction,msg};
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction, core::state::SignMessageInfo,
 };
-use twine_chain::core::state::MessagesBuffer;
 use twine_chain::{
-    id as twine_chain_program_id, utils::address_derivation::derive_messages_buffer,
+    core::state::MessagesBuffer, id as twine_chain_program_id,
+    utils::address_derivation::derive_messages_buffer,
 };
 
 pub fn forced_native_withdrawal(
@@ -41,7 +40,6 @@ pub fn forced_native_withdrawal(
     };
 
     let signature = get_ethereum_signature(&sign_info, &privkey);
-    msg!("signature {:?}", signature);
 
     let instructions = tokens_gateway_instruction::forced_native_token_withdrawal(
         &account.pubkey(),

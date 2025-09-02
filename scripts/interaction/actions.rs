@@ -12,7 +12,7 @@ use crate::operations::{
     get_associated_token_account::get_associated_token_account,
     get_pdas_data::{
         get_messages_buffer_data, get_payouts_buffer_data, get_twine_chain_storage_data,get_message_replicator_data,
-        get_tokens_gateway_role_manager_data,get_twine_chain_role_manager_data
+        get_tokens_gateway_role_manager_data,get_twine_chain_role_manager_data,get_tokens_mapping_data
     },
     initialize_programs::initialize_twine_solana_programs,
     process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal,
@@ -59,6 +59,10 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::GetMessagesBufferData {} => {
             let result = get_messages_buffer_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetTokensMappingData {} => {
+            let result = get_tokens_mapping_data();
             println!("Result: {:?}", result);
         }
         Commands::GetExecutedPayoutsBufferData {} => {
