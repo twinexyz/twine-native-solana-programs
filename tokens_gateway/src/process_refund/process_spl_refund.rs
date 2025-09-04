@@ -16,6 +16,7 @@ use solana_program::{
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use spl_token::instruction as token_instruction;
+use twine_chain::utils::address_derivation::{derive_messages_buffer, derive_twine_chain_storage};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
@@ -28,6 +29,10 @@ use twine_chain::{
     ID as twine_chain_program_id,
 };
 
+use crate::utils::address_derivation::{
+    derive_executed_payouts_buffer, derive_spl_tokens_vault_data, derive_spl_vault_authority,
+    derive_token_decimal_mappings, verify_derived_address,
+};
 use crate::{
     core::{
         error::ProgramCustomError,
@@ -64,6 +69,17 @@ pub fn process_spl_refund(
     let messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    validate_accounts(
+        spl_tokens_vault_data_acc,
+        vault_authority_acc,
+        twine_chain_storage_acc,
+        executed_payouts_buffer_acc,
+        token_decimal_mappings_acc,
+        messages_buffer_acc,
+        twine_chain_program,
+        program_id,
+    )?;
 
     let refund_values = decode_refund_values(
         &public_values,
@@ -215,6 +231,44 @@ pub fn process_spl_refund(
     let serialized_event =
         serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
     msg!("{}", serialized_event);
+
+    Ok(())
+}
+
+fn validate_accounts(
+    spl_tokens_vault_data_acc: &AccountInfo,
+    vault_authority_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    executed_payouts_buffer_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    messages_buffer_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let (expected_spl_token_vault_data, _) = derive_spl_tokens_vault_data(program_id);
+    verify_derived_address(expected_spl_token_vault_data, spl_tokens_vault_data_acc)?;
+
+    let (expected_vault_authority, _) = derive_spl_vault_authority(program_id);
+    verify_derived_address(expected_vault_authority, vault_authority_acc)?;
+
+    let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
+
+    let (expected_executed_payouts_buffer, _) = derive_executed_payouts_buffer(program_id);
+    verify_derived_address(
+        expected_executed_payouts_buffer,
+        executed_payouts_buffer_acc,
+    )?;
+
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
+
+    let (expected_messages_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_messages_buffer, messages_buffer_acc)?;
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     Ok(())
 }

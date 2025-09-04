@@ -1,13 +1,13 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
+    clock::Clock,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
-    clock::Clock,
     system_instruction,
     sysvar::Sysvar,
 };
@@ -16,7 +16,10 @@ use twine_chain::{
         instruction::TwineChainInstruction,
         state::{DepositMessageInfo, MessagesBuffer, TransactionType},
     },
-    utils::constants::{DEPOSIT_MESSAGE_TYPE, MESSAGES_BUFFER_PREFIX},
+    utils::{
+        address_derivation::{derive_messages_buffer, derive_role_manager, verify_system_program},
+        constants::{DEPOSIT_MESSAGE_TYPE, MESSAGES_BUFFER_PREFIX},
+    },
     ID as twine_chain_program_id,
 };
 
@@ -26,7 +29,10 @@ use crate::{
         state::{NativeTokenVaultData, TokenDecimalMappings},
     },
     utils::{
-        address_derivation::derive_native_token_vault_data,
+        address_derivation::{
+            derive_native_token_vault, derive_native_token_vault_data,
+            derive_token_decimal_mappings, verify_derived_address,
+        },
         constants::{DEPOSIT_TRANSACTION, NATIVE_TOKEN_VAULT_DATA_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
     },
@@ -69,6 +75,7 @@ pub fn native_token_deposit(
         user_account,
         native_token_vault_acc,
         native_token_vault_data_acc,
+        messages_buffer_acc,
         token_decimal_mappings_acc,
         twine_chain_role_manager_acc,
         system_program,
@@ -119,15 +126,6 @@ pub fn native_token_deposit(
     )
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
-    let (expected_deposit_pda, _) = Pubkey::find_program_address(
-        &[MESSAGES_BUFFER_PREFIX.as_bytes()],
-        &twine_chain_program_id,
-    );
-
-    if expected_deposit_pda != *messages_buffer_acc.key {
-        return Err(ProgramError::InvalidAccountData.into());
-    }
-
     let deposit_message_buffer =
         MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -162,9 +160,6 @@ pub fn native_token_deposit(
         AccountMeta::new(*twine_chain_role_manager_acc.key, false),
         AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
     ];
-    if twine_chain_program.key != &twine_chain_program_id {
-        return Err(ProgramError::IncorrectProgramId);
-    }
 
     let append_instruction = Instruction {
         program_id: *twine_chain_program.key,
@@ -197,36 +192,39 @@ fn validate_accounts(
     user: &AccountInfo,
     native_token_vault_acc: &AccountInfo,
     native_token_vault_data_acc: &AccountInfo,
+    messages_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
     role_manager_acc: &AccountInfo,
     system_program: &AccountInfo,
     twine_chain_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
-    if native_token_vault_data_acc.owner != program_id {
-        msg!("Invalid native token vault data account owner");
-        return Err(ProgramError::IncorrectProgramId);
+    if !user.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
     }
 
-    if token_decimal_mappings_acc.owner != program_id {
-        msg!("Invalid token decimal mappings account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    if role_manager_acc.owner != &twine_chain_program_id {
-        msg!("Invalid role manager account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_native_token_vault, _) = derive_native_token_vault(program_id);
+    verify_derived_address(expected_native_token_vault, native_token_vault_acc)?;
+
+    let (expected_native_token_vault_data, _) = derive_native_token_vault_data(program_id);
+    verify_derived_address(
+        expected_native_token_vault_data,
+        native_token_vault_data_acc,
+    )?;
+
+    let (expected_messages_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_messages_buffer, messages_buffer_acc)?;
+
+    let (expecte_token_decimal_mapping, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expecte_token_decimal_mapping, token_decimal_mappings_acc)?;
+
+    let (expected_role_manager, _) = derive_role_manager(&twine_chain_program_id);
+    verify_derived_address(expected_role_manager, role_manager_acc)?;
+
+    verify_system_program(system_program)?;
 
     if twine_chain_program.key != &twine_chain_program_id {
-        msg!("Invalid Twine chain program account");
         return Err(ProgramError::IncorrectProgramId);
     }
-
-    // Validate system program
-    if system_program.key != &solana_program::system_program::ID {
-        msg!("Invalid system program account");
-        return Err(ProgramError::IncorrectProgramId);
-    }
-
     Ok(())
 }

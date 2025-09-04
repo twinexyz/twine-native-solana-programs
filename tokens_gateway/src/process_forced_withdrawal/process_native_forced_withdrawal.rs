@@ -14,6 +14,9 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
+use twine_chain::utils::address_derivation::{
+    derive_messages_buffer, derive_twine_chain_storage, verify_system_program,
+};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
@@ -26,6 +29,9 @@ use twine_chain::{
     ID as twine_chain_program_id,
 };
 
+use crate::utils::address_derivation::{
+    derive_executed_payouts_buffer, derive_token_decimal_mappings, verify_derived_address,
+};
 use crate::{
     core::{
         error::ProgramCustomError,
@@ -60,6 +66,17 @@ pub fn process_native_forced_withdrawal(
     let messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    validate_accounts(
+        native_token_vault_data_acc,
+        twine_chain_storage_acc,
+        executed_payouts_buffer_acc,
+        token_decimal_mappings_acc,
+        system_program,
+        messages_buffer_acc,
+        twine_chain_program,
+        program_id,
+    )?;
 
     let withdraw_values =
         decode_withdraw_values(&public_values, receiver_acc.key.to_string().len())?;
@@ -212,6 +229,46 @@ pub fn process_native_forced_withdrawal(
     let serialized_event =
         serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
     msg!("{}", serialized_event);
+
+    Ok(())
+}
+
+fn validate_accounts(
+    native_token_vault_data_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    executed_payouts_buffer_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    system_program: &AccountInfo,
+    messages_buffer_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let (expected_native_token_vault_data, _) = derive_native_token_vault_data(program_id);
+    verify_derived_address(
+        expected_native_token_vault_data,
+        native_token_vault_data_acc,
+    )?;
+
+    let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
+
+    let (expected_executed_payouts_buffer, _) = derive_executed_payouts_buffer(program_id);
+    verify_derived_address(
+        expected_executed_payouts_buffer,
+        executed_payouts_buffer_acc,
+    )?;
+
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
+
+    verify_system_program(system_program);
+
+    let (expected_message_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_message_buffer, messages_buffer_acc)?;
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
 
     Ok(())
 }
