@@ -308,7 +308,7 @@ get-tokens-gateway-role-manager-data:
 	@echo "Getting tokens gateway role manager data..."
 	$(CARGO) run --bin interaction -- get-tokens-gateway-role-manager-data
 
-# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nocne
+# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nonce
 # ==============================
 #     Copy Message Buffer
 # ==============================
