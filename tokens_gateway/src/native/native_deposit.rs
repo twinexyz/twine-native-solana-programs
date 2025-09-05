@@ -14,10 +14,10 @@ use solana_program::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{DepositMessageInfo, MessagesBuffer, TransactionType},
+        state::{MessageInfo, MessagesBuffer, TransactionType},
     },
     utils::{
-        address_derivation::{derive_messages_buffer, derive_role_manager, verify_system_program},
+        address_derivation::{derive_messages_buffer, derive_role_manager,derive_detailed_messages_buffer, verify_system_program},
         constants::{DEPOSIT_MESSAGE_TYPE, MESSAGES_BUFFER_PREFIX},
     },
     ID as twine_chain_program_id,
@@ -66,6 +66,7 @@ pub fn native_token_deposit(
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let twine_chain_role_manager_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
@@ -76,6 +77,7 @@ pub fn native_token_deposit(
         native_token_vault_acc,
         native_token_vault_data_acc,
         messages_buffer_acc,
+        detailed_messages_buffer_acc,
         token_decimal_mappings_acc,
         twine_chain_role_manager_acc,
         system_program,
@@ -134,13 +136,13 @@ pub fn native_token_deposit(
 
     let clock = Clock::get()?;
 
-    let deposit_info = DepositMessageInfo {
+    let deposit_info = MessageInfo {
         txn_type: TransactionType::Deposit,
         nonce: u64_nonce,
         chain_id: 900,
         slot_number: clock.slot,
-        from_l1_pubkey: user_account.key.to_string(),
-        to_twine_address: receiver_twine_address,
+        l1_pubkey: user_account.key.to_string(),
+        twine_address: receiver_twine_address,
         l1_token,
         l2_token,
         amount: l2_amount,
@@ -157,6 +159,7 @@ pub fn native_token_deposit(
 
     let append_instruction_accounts = vec![
         AccountMeta::new(*messages_buffer_acc.key, false),
+        AccountMeta::new(*detailed_messages_buffer_acc.key, false),
         AccountMeta::new(*twine_chain_role_manager_acc.key, false),
         AccountMeta::new_readonly(*native_token_vault_data_acc.key, true),
     ];
@@ -178,9 +181,9 @@ pub fn native_token_deposit(
         &append_instruction,
         &[
             messages_buffer_acc.clone(),
+            detailed_messages_buffer_acc.clone(),
             twine_chain_role_manager_acc.clone(),
             native_token_vault_data_acc.clone(),
-            twine_chain_program.clone(),
         ],
         signer_seeds,
     )?;
@@ -193,6 +196,7 @@ fn validate_accounts(
     native_token_vault_acc: &AccountInfo,
     native_token_vault_data_acc: &AccountInfo,
     messages_buffer_acc: &AccountInfo,
+    detailed_messages_buffer_acc:&AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
     role_manager_acc: &AccountInfo,
     system_program: &AccountInfo,
@@ -214,6 +218,9 @@ fn validate_accounts(
 
     let (expected_messages_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
     verify_derived_address(expected_messages_buffer, messages_buffer_acc)?;
+
+    let (expected_detailed_messages_buffer, _) = derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_detailed_messages_buffer, detailed_messages_buffer_acc)?;
 
     let (expecte_token_decimal_mapping, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expecte_token_decimal_mapping, token_decimal_mappings_acc)?;

@@ -33,8 +33,8 @@ pub fn forced_native_withdrawal(
         nonce: messages_buffer_data.message_nonce + 1,
         chain_id: 900,
         amount: amount,
-        from_twine_address: from_twine_address.clone(),
-        to_l1_pubkey: l1_receiver.clone(),
+        l1_pubkey: l1_receiver.clone(),
+        twine_address: from_twine_address.clone(),
         l1_token: l1_token.clone(),
         l2_token: l2_token.clone(),
     };

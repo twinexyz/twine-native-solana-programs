@@ -2,14 +2,17 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    instruction::{AccountMeta, Instruction},program_error::ProgramError, pubkey::Pubkey, system_program
+    instruction::{AccountMeta, Instruction},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    system_program,
 };
 
 use crate::{
-    core::state::{DepositMessageInfo, ForcedWithdrawMessageInfo, RoleType},
+    core::state::{MessageInfo, RoleType},
     utils::address_derivation::{
-        derive_commitment_pda, derive_execution_message_buffer, derive_layer_zero_message_buffer,
-        derive_messages_buffer, derive_role_manager, derive_twine_chain_storage,derive_messages_replicator
+        derive_commitment_pda, derive_detailed_messages_buffer, derive_messages_buffer,
+        derive_messages_replicator, derive_role_manager, derive_twine_chain_storage,
     },
     ID,
 };
@@ -29,10 +32,10 @@ pub enum TwineChainInstruction {
         withdrawal_vkey: String,
     },
     AppendDepositMessage {
-        deposit_info: DepositMessageInfo,
+        deposit_info: MessageInfo,
     },
     AppendForcedWithdrawalMessage {
-        withdraw_info: ForcedWithdrawMessageInfo,
+        withdraw_info: MessageInfo,
     },
     InitializeGenesisBatch {
         genesis_batch_hash: [u8; 32],
@@ -56,7 +59,6 @@ pub enum TwineChainInstruction {
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
     },
-    
 }
 
 #[derive(BorshDeserialize)]
@@ -74,12 +76,12 @@ struct SetVkeysPayload {
 
 #[derive(BorshDeserialize)]
 struct AppendDepositMessagePayload {
-    deposit_info: DepositMessageInfo,
+    deposit_info: MessageInfo,
 }
 
 #[derive(BorshDeserialize)]
 struct AppendForcedWithdrawalMessage {
-    withdraw_info: ForcedWithdrawMessageInfo,
+    withdraw_info: MessageInfo,
 }
 
 #[derive(BorshDeserialize)]
@@ -152,8 +154,7 @@ pub fn initialize_message_buffer(chain_admin: &Pubkey) -> Vec<Instruction> {
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
         AccountMeta::new(derive_messages_buffer(&ID).0, false),
-        AccountMeta::new(derive_layer_zero_message_buffer(&ID).0, false),
-        AccountMeta::new(derive_execution_message_buffer(&ID).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&ID).0, false),
         AccountMeta::new(derive_role_manager(&ID).0, false),
         AccountMeta::new(*chain_admin, true),
         AccountMeta::new(system_program::id(), false),
@@ -167,7 +168,7 @@ pub fn initialize_message_buffer(chain_admin: &Pubkey) -> Vec<Instruction> {
 
 pub fn append_deposit_message(
     twine_operation_handler: &Pubkey,
-    deposit_info: DepositMessageInfo,
+    deposit_info: MessageInfo,
 ) -> Vec<Instruction> {
     let payload = TwineChainInstruction::AppendDepositMessage { deposit_info };
     let mut data = vec![];
@@ -187,7 +188,7 @@ pub fn append_deposit_message(
 
 pub fn append_forced_withdrawal_message(
     twine_operation_handler: &Pubkey,
-    withdraw_info: ForcedWithdrawMessageInfo,
+    withdraw_info: MessageInfo,
 ) -> Vec<Instruction> {
     let payload = TwineChainInstruction::AppendForcedWithdrawalMessage { withdraw_info };
     let mut data = vec![];
@@ -282,8 +283,8 @@ pub fn finalize_batch(
 
 pub fn copy_messages_buffer(
     twine_operation_handler: &Pubkey,
-    start_nonce:u64,
-    end_nonce:u64
+    start_nonce: u64,
+    end_nonce: u64,
 ) -> Vec<Instruction> {
     let payload = TwineChainInstruction::CopyMessagesBuffer;
     let mut data = vec![];

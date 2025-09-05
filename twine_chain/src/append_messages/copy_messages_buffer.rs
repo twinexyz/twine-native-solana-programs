@@ -18,7 +18,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            MessagesBuffer, MessagesReplicator, RoleType, TwineChainRoleManager, TwineChainStorage,
+            DetailedMessagesBuffer, MessagesReplicator, RoleType, TwineChainRoleManager, TwineChainStorage,
         },
     },
     utils::{
@@ -32,7 +32,7 @@ use crate::{
 
 pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
-    let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
@@ -46,20 +46,20 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let (expected_meesage_pda, _) = derive_messages_buffer(program_id);
-    verify_derived_address(expected_meesage_pda, messages_buffer_acc)?;
+    let (expected_detailed_meesages_pda, _) = derive_messages_buffer(program_id);
+    verify_derived_address(expected_detailed_meesages_pda, detailed_messages_buffer_acc)?;
     
     // Deserialize account data
-    let mut messages_buffer_data =
-        MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
+    let mut detailed_messages_buffer_data =
+        DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Check if deposit message buffer is initialized
-    if !messages_buffer_data.is_initialized() {
+    if !detailed_messages_buffer_data.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());
     }
     
-    if messages_buffer_data.message_nonce
+    if detailed_messages_buffer_data.message_nonce
         < twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
     {
         return Err(ProgramCustomError::InvalidNonceGap.into());
@@ -115,25 +115,25 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     messages_replicator_data.start_nonce = start_nonce;
     messages_replicator_data.end_nonce = end_nonce;
 
-    let messages_to_skip = messages_buffer_data.message_nonce - end_nonce;
-    let end_index = messages_buffer_data
+    let messages_to_skip = detailed_messages_buffer_data.message_nonce - end_nonce;
+    let end_index = detailed_messages_buffer_data
         .messages
         .len()
         .saturating_sub(messages_to_skip as usize);
 
     messages_replicator_data
         .messages
-        .extend_from_slice(&messages_buffer_data.messages[..end_index]);
+        .extend_from_slice(&detailed_messages_buffer_data.messages[..end_index]);
 
     messages_replicator_data
         .serialize(&mut &mut messages_replicator_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     // Update Deposits
-    messages_buffer_data.messages.drain(..end_index);
+    detailed_messages_buffer_data.messages.drain(..end_index);
 
-    messages_buffer_data
-        .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
+    detailed_messages_buffer_data
+        .serialize(&mut &mut detailed_messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
     twine_chain_storage_data.last_copied_message_start_nonce = start_nonce;
     twine_chain_storage_data.last_copied_message_end_nonce = end_nonce;

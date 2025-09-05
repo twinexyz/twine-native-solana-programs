@@ -16,14 +16,13 @@ use solana_program::{
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use spl_token::instruction as token_instruction;
-use twine_chain::utils::address_derivation::{derive_messages_buffer, derive_twine_chain_storage};
+use twine_chain::utils::address_derivation::{
+    derive_detailed_messages_buffer, derive_twine_chain_storage,
+};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{
-            ExecutionMessageBuffer, MessagesBuffer, MessagesReplicator, TransactionType,
-            TwineChainStorage,
-        },
+        state::{DetailedMessagesBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
     },
     utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
     ID as twine_chain_program_id,
@@ -66,17 +65,16 @@ pub fn process_spl_forced_withdrawal(
     let receiver_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
-
     validate_accounts(
         spl_tokens_vault_data_acc,
         vault_authority_acc,
         twine_chain_storage_acc,
         executed_payouts_buffer_acc,
         token_decimal_mappings_acc,
-        messages_buffer_acc,
+        detailed_messages_buffer_acc,
         twine_chain_program,
         program_id,
     )?;
@@ -149,13 +147,14 @@ pub fn process_spl_forced_withdrawal(
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     } else {
-        let messages_buffer_data =
-            MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])?;
+        let messages_buffer_data = DetailedMessagesBuffer::deserialize(
+            &mut &detailed_messages_buffer_acc.data.borrow()[..],
+        )?;
         if !messages_buffer_data
             .messages
             .contains(&Keccak256::digest(&public_values[40..]).into())
         {
-            msg!("Error: Provided transaction not present in MessageBuffer.");
+            msg!("Error: Provided transaction not present in Detailed Messages Buffer.");
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     }
@@ -203,6 +202,10 @@ pub fn process_spl_forced_withdrawal(
         .push(withdraw_values.nonce);
     executed_payouts_buffer.post_withdrawal_processing();
 
+    executed_payouts_buffer
+        .serialize(&mut &mut executed_payouts_buffer_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
     let clock = Clock::get()?;
 
     let event = ForcedWithdrawalSuccessfulEvent {
@@ -228,7 +231,7 @@ fn validate_accounts(
     twine_chain_storage_acc: &AccountInfo,
     executed_payouts_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
-    messages_buffer_acc: &AccountInfo,
+    detailed_messages_buffer_acc: &AccountInfo,
     twine_chain_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
@@ -247,8 +250,12 @@ fn validate_accounts(
     let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
 
-    let (expected_message_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
-    verify_derived_address(expected_message_buffer, messages_buffer_acc)?;
+    let (expected_detailed_message_buffer, _) =
+        derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(
+        expected_detailed_message_buffer,
+        detailed_messages_buffer_acc,
+    )?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
@@ -384,6 +391,7 @@ fn process_spl_token_withdrawal<'info>(
     if spl_data_key != *spl_tokens_vault_data_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
+
     let spl_vault_seeds = &[SPL_AUTH_PREFIX.as_bytes()];
     let (_, spl_vault_bump) = Pubkey::find_program_address(spl_vault_seeds, program_id);
     let seeds = &[SPL_AUTH_PREFIX.as_bytes(), &[spl_vault_bump]];
@@ -408,6 +416,7 @@ fn process_spl_token_withdrawal<'info>(
         ],
         signer_seeds,
     )?;
+
     let receiver_token_account = spl_token::state::Account::unpack(&receiver.data.borrow())
         .map_err(|_| ProgramError::InvalidAccountData)?;
 

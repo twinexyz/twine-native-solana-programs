@@ -15,7 +15,6 @@ use twine_chain::{
         instruction::{self},
         state::{
             BatchPdaAccount,MessagesBuffer,
-            ExecutionMessageBuffer,LayerZeroMessagesBuffer,
             TwineChainRoleManager, TwineChainStorage,
         },
     },
@@ -24,7 +23,7 @@ use twine_chain::{
         address_derivation::{
             derive_commitment_pda, derive_messages_buffer,
             derive_execution_message_buffer,
-            derive_layer_zero_message_buffer, derive_twine_chain_storage,
+            derive_detailed_messages_buffer, derive_twine_chain_storage,
         },
         constants::MAX_ROLES,
     },
@@ -171,48 +170,17 @@ async fn message_buffers_init() {
         .get_account(derive_messages_buffer(&id()).0)
         .await
         .unwrap()
-        .expect("Twine chain storage account not found");
-
-    let layer_zero_buffer_account = context
-        .banks_client
-        .get_account(derive_layer_zero_message_buffer(&id()).0)
-        .await
-        .unwrap()
-        .expect("Twine chain storage account not found");
-
-    let execution_buffer_account = context
-        .banks_client
-        .get_account(derive_execution_message_buffer(&id()).0)
-        .await
-        .unwrap()
-        .expect("Twine chain storage account not found");
+        .expect("Derived Messages Buffer account not found");
 
     let messages_buffer_data =
         MessagesBuffer::deserialize(&mut &messages_buffer_account.data[..])
             .expect("Failed to deserialize Deposit Buffer");
 
-    let layer_zero_buffer_data =
-        LayerZeroMessagesBuffer::deserialize(&mut &layer_zero_buffer_account.data[..])
-            .expect("Failed to deserialize Execution Buffer");
-
-    let execution_buffer_data =
-        ExecutionMessageBuffer::deserialize(&mut &execution_buffer_account.data[..])
-            .expect("Failed to deserialize Execution Buffer");
-
     assert!(
         messages_buffer_data.is_initialized,
         "Deposit Buffer should be initialized"
     );
-
-    assert!(
-        layer_zero_buffer_data.is_initialized,
-        "LZ Buffer should be initialized"
-    );
-
-    assert!(
-        execution_buffer_data.is_initialized,
-        "Execution Buffer should be initialized"
-    );
+  
 }
 
 #[tokio::test]

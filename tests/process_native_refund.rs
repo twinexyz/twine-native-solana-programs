@@ -154,16 +154,16 @@ async fn process_native_refund() {
 
     println!("Transaction status: {:?}", error);
 
-    let executed_payouts_buffer_account = context
-        .banks_client
-        .get_account(derive_executed_payouts_buffer(&tokens_gateway_id()).0)
-        .await
-        .unwrap()
-        .expect("Executed Payouts Buffer Not Found");
+    // let executed_payouts_buffer_account = context
+    //     .banks_client
+    //     .get_account(derive_executed_payouts_buffer(&tokens_gateway_id()).0)
+    //     .await
+    //     .unwrap()
+    //     .expect("Executed Payouts Buffer Not Found");
 
-      let executed_payouts_buffer_data: ExecutedPayoutsBuffer =
-        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_account.data[..])
-            .expect("Failed to Executed Payouts Buffer");
-    print!("Executed Payouts Buffer {:?}",executed_payouts_buffer_data);
+    //   let executed_payouts_buffer_data: ExecutedPayoutsBuffer =
+    //     ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_account.data[..])
+    //         .expect("Failed to Executed Payouts Buffer");
+    // print!("Executed Payouts Buffer {:?}",executed_payouts_buffer_data);
 
 }

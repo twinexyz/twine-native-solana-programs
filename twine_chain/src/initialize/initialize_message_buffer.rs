@@ -14,18 +14,14 @@ use solana_program::{
 use crate::{
     core::{
         error::ProgramCustomError,
-        state::{
-            ExecutionMessageBuffer, LayerZeroMessagesBuffer, MessagesBuffer, TwineChainRoleManager
-        },
+        state::{DetailedMessagesBuffer, MessagesBuffer, TwineChainRoleManager},
     },
     utils::{
         address_derivation::{
-            derive_execution_message_buffer,derive_layer_zero_message_buffer, derive_messages_buffer, derive_role_manager, verify_derived_address, verify_owner, verify_system_program
+            derive_detailed_messages_buffer, derive_messages_buffer, derive_role_manager,
+            verify_derived_address, verify_owner, verify_system_program,
         },
-        constants::{
-            CHAIN_ID,EXECUTION_MESSAGE_BUFFER_PREFIX,
-             LAYER_ZERO_BUFFER_PREFIX, MESSAGES_BUFFER_PREFIX,
-        },
+        constants::{CHAIN_ID, DETAILED_MESSAGES_BUFFER_PREFIX, MESSAGES_BUFFER_PREFIX},
     },
 };
 
@@ -37,10 +33,10 @@ use crate::{
 /// - `accounts`: A list of accounts expected in the following order:
 ///
 ///     0. `[writable]` messages buffer account (PDA-owned)
-///         - Used to store messages 
-/// 
-///     2. `[writable]` LayerZero messages buffer account (PDA-owned)
-///         - Stores incoming messages from LayerZero protocol integration.
+///         - Holed rolling hash of messages
+///
+///     1. `[writable]` Detailed messages buffer account (PDA-owned)
+///         - Hold trandaction messages in detailed.
 ///
 ///     3. `[writable]` Execution messages buffer account (PDA-owned)
 ///         - Hold withdrawal messages that are ready for execution.
@@ -58,23 +54,20 @@ use crate::{
 pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let messages_buffer_acc = next_account_info(account_info_iter)?;
-    let layer_zero_messages_buffer_acc = next_account_info(account_info_iter)?;
-    let execution_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
     let chain_admin_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
 
     // Validate Provided accounts
-    let (messages_bump, layer_zero_bump, execution_message_bump) =
-        validate_accounts(
-            program_id,
-            messages_buffer_acc,
-            layer_zero_messages_buffer_acc,
-            execution_messages_buffer_acc,
-            role_manager_acc,
-            chain_admin_acc,
-            system_program,
-        )?;
+    let (messages_bump, detailed_messages_bump) = validate_accounts(
+        program_id,
+        messages_buffer_acc,
+        detailed_messages_buffer_acc,
+        role_manager_acc,
+        chain_admin_acc,
+        system_program,
+    )?;
     let rent = Rent::default();
 
     /**************************
@@ -102,11 +95,11 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
     }
 
     // Update account data
-    let messages_buffer_data = MessagesBuffer{
+    let messages_buffer_data = MessagesBuffer {
         is_initialized: true,
-        message_nonce:0,
+        message_nonce: 0,
         chain_id: CHAIN_ID,
-       messages: Vec::new(),
+        messages_rolling_hash: [0u8; 32],
     };
 
     // Serialize account data
@@ -115,86 +108,47 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     msg!("Message Buffer Initialized");
-
-
-    /*****************************
-     * Layer Zero Message Buffer *
-     *****************************/
-    let layer_zero_buffer_space = 10240;
-
-    // Dervive and validate PDA
-    if layer_zero_messages_buffer_acc.data_is_empty() {
-        let required_lamports = rent.minimum_balance(layer_zero_buffer_space);
+    /**************************
+     *  Detailed Message Buffer *
+     *************************/
+    if detailed_messages_buffer_acc.data_is_empty() {
+        let detailed_messages_buffer_space = 10240;
+        let required_lamports = rent.minimum_balance(detailed_messages_buffer_space);
         let create_ix = system_instruction::create_account(
             chain_admin_acc.key,
-            layer_zero_messages_buffer_acc.key,
+            detailed_messages_buffer_acc.key,
             required_lamports,
-            layer_zero_buffer_space as u64,
+            detailed_messages_buffer_space as u64,
             program_id,
         );
         invoke_signed(
             &create_ix,
             &[
                 chain_admin_acc.clone(),
-                layer_zero_messages_buffer_acc.clone(),
-                system_program.clone(),
-            ],
-            &[&[LAYER_ZERO_BUFFER_PREFIX.as_bytes(), &[layer_zero_bump]]],
-        )?;
-    }
-
-    // Update account data
-    let layer_zero_buffer_data = LayerZeroMessagesBuffer {
-        is_initialized: true,
-        lz_nonce: 0,
-        lz_messages: Vec::new(),
-    };
-
-    layer_zero_buffer_data
-        .serialize(&mut &mut layer_zero_messages_buffer_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
-    msg!("Layer Zero Message Buffer Initialized");
-
-    /****************************
-     * Execution Message Buffer *
-     ****************************/
-    let execution_buffer_space = 10240;
-
-    if execution_messages_buffer_acc.data_is_empty() {
-        let required_lamports = rent.minimum_balance(execution_buffer_space);
-        let create_ix = system_instruction::create_account(
-            chain_admin_acc.key,
-            execution_messages_buffer_acc.key,
-            required_lamports,
-            execution_buffer_space as u64,
-            program_id,
-        );
-        invoke_signed(
-            &create_ix,
-            &[
-                chain_admin_acc.clone(),
-                execution_messages_buffer_acc.clone(),
+                detailed_messages_buffer_acc.clone(),
                 system_program.clone(),
             ],
             &[&[
-                EXECUTION_MESSAGE_BUFFER_PREFIX.as_bytes(),
-                &[execution_message_bump],
+                DETAILED_MESSAGES_BUFFER_PREFIX.as_bytes(),
+                &[detailed_messages_bump],
             ]],
         )?;
     }
 
     // Update account data
-    let execution_buffer_data = ExecutionMessageBuffer {
+    let detailed_messages_buffer_data = DetailedMessagesBuffer {
         is_initialized: true,
-        withdrawals: Vec::new(),
+        message_nonce: 0,
+        chain_id: CHAIN_ID,
+        messages: Vec::new(),
     };
 
     // Serialize account data
-    execution_buffer_data
-        .serialize(&mut &mut execution_messages_buffer_acc.data.borrow_mut()[..])
+    detailed_messages_buffer_data
+        .serialize(&mut &mut detailed_messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-    msg!("Execution Message Buffer Initialized");
+
+    msg!("Detailed Message Buffer Initialized");
 
     Ok(())
 }
@@ -203,12 +157,11 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
 fn validate_accounts(
     program_id: &Pubkey,
     messages_buffer_acc: &AccountInfo,
-    layer_zero_messages_buffer_acc: &AccountInfo,
-    execution_messages_buffer_acc: &AccountInfo,
+    detailed_messages_buffer_acc: &AccountInfo,
     role_manager_acc: &AccountInfo,
     chain_admin_acc: &AccountInfo,
     system_program: &AccountInfo,
-) -> Result<(u8, u8, u8), ProgramError> {
+) -> Result<(u8, u8), ProgramError> {
     // Validate signer
     if !chain_admin_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -222,12 +175,9 @@ fn validate_accounts(
     let (expected_messages_pda, messages_bump) = derive_messages_buffer(program_id);
     verify_derived_address(expected_messages_pda, messages_buffer_acc)?;
 
-    let (expected_layer_zero_pda, layer_zero_bump) = derive_layer_zero_message_buffer(program_id);
-    verify_derived_address(expected_layer_zero_pda, layer_zero_messages_buffer_acc)?;
-
-    let (expected_execution_pda, execution_message_bump) =
-        derive_execution_message_buffer(program_id);
-    verify_derived_address(expected_execution_pda, execution_messages_buffer_acc)?;
+    let (expected_detailed_messages_pda, detailed_messages_bump) =
+        derive_detailed_messages_buffer(program_id);
+    verify_derived_address(expected_detailed_messages_pda, detailed_messages_buffer_acc)?;
 
     verify_system_program(system_program)?;
 
@@ -241,30 +191,6 @@ fn validate_accounts(
         }
     }
 
-    // re-initialization guard for layer zero buffer
-    if !layer_zero_messages_buffer_acc.data_is_empty() {
-        let layer_zero_buffer_data = LayerZeroMessagesBuffer::deserialize(
-            &mut &layer_zero_messages_buffer_acc.data.borrow()[..],
-        )
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        if layer_zero_buffer_data.is_initialized() {
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
-    }
-
-    // re-initialization guard for execution buffer
-    if !execution_messages_buffer_acc.data_is_empty() {
-        let execution_buffer_data = ExecutionMessageBuffer::deserialize(
-            &mut &execution_messages_buffer_acc.data.borrow()[..],
-        )
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        if execution_buffer_data.is_initialized() {
-            return Err(ProgramError::AccountAlreadyInitialized);
-        }
-    }
-
     // Checks if signer has required role(ChainAdmin)
     let role_manager_data =
         TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
@@ -274,9 +200,5 @@ fn validate_accounts(
         return Err(ProgramCustomError::Unauthorized.into());
     }
 
-    Ok((
-        messages_bump,
-        layer_zero_bump,
-        execution_message_bump,
-    ))
+    Ok((messages_bump, detailed_messages_bump))
 }

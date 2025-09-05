@@ -14,14 +14,11 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
-use twine_chain::utils::address_derivation::{derive_messages_buffer, derive_twine_chain_storage};
+use twine_chain::utils::address_derivation::{derive_detailed_messages_buffer, derive_twine_chain_storage};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{
-            ExecutionMessageBuffer, MessagesBuffer, MessagesReplicator, TransactionType,
-            TwineChainStorage,
-        },
+        state::{DetailedMessagesBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
     },
     utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
     ID as twine_chain_program_id,
@@ -62,7 +59,7 @@ pub fn process_native_refund(
     let role_manager = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
-    let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
@@ -73,7 +70,7 @@ pub fn process_native_refund(
         executed_payouts_buffer_acc,
         token_decimal_mappings_acc,
         system_program,
-        messages_buffer_acc,
+        detailed_messages_buffer_acc,
         twine_chain_program,
         program_id,
     )?;
@@ -148,12 +145,12 @@ pub fn process_native_refund(
         };
     } else {
         let messages_buffer_data =
-            MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])?;
+            DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])?;
         if !messages_buffer_data
             .messages
             .contains(&Keccak256::digest(&public_values[40..]).into())
         {
-            msg!("Error: Provided transaction not present in MessageBuffer.");
+            msg!("Error: Provided transaction not present in Detailed Messages Buffer.");
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     }
@@ -229,8 +226,6 @@ pub fn process_native_refund(
 
     Ok(())
 }
-
-
 
 pub fn decode_refund_values(
     bytes: &[u8],
@@ -322,7 +317,7 @@ fn validate_accounts(
     executed_payouts_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
     system_program: &AccountInfo,
-    messages_buffer_acc: &AccountInfo,
+    detailed_messages_buffer_acc: &AccountInfo,
     twine_chain_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
@@ -346,8 +341,8 @@ fn validate_accounts(
 
     verify_system_program(system_program)?;
 
-    let (expected_message_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
-    verify_derived_address(expected_message_buffer, messages_buffer_acc)?;
+    let (expected_detailed_message_buffer, _) = derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_detailed_message_buffer, detailed_messages_buffer_acc)?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);

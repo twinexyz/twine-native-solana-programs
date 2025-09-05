@@ -1,12 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
+    clock::Clock,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
     program::{invoke, invoke_signed},
     program_error::ProgramError,
-    clock::Clock,
     pubkey::Pubkey,
     sysvar::Sysvar,
 };
@@ -17,7 +17,7 @@ use spl_token::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{DepositMessageInfo, MessagesBuffer, TransactionType},
+        state::{DetailedMessagesBuffer, MessageInfo, TransactionType},
     },
     utils::constants::{FORCED_WITHDRAW_MESSAGE_TYPE, MESSAGES_BUFFER_PREFIX},
     ID as twine_chain_program_id,
@@ -57,7 +57,7 @@ pub fn spl_token_deposit(
     if !is_valid_ethereum_address(&receiver_twine_address)? {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
-    
+
     let account_info_iter = &mut accounts.iter();
     let user = next_account_info(account_info_iter)?;
     let user_token_account = next_account_info(account_info_iter)?;
@@ -67,7 +67,8 @@ pub fn spl_token_deposit(
     let token_program = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let messages_buffer_acc = next_account_info(account_info_iter)?;
-    let role_manager_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let twine_chain_role_manager_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
     if l1_token != mint.key.to_string() {
         return Err(ProgramCustomError::InvalidToken.into());
@@ -81,7 +82,8 @@ pub fn spl_token_deposit(
         token_program,
         token_decimal_mappings_acc,
         messages_buffer_acc,
-        role_manager_acc,
+        detailed_messages_buffer_acc,
+        twine_chain_role_manager_acc,
         twine_chain_program,
         program_id,
     );
@@ -152,20 +154,20 @@ pub fn spl_token_deposit(
     }
 
     let deposit_message_buffer =
-        MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
+        DetailedMessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = deposit_message_buffer.message_nonce + 1;
 
     let clock = Clock::get()?;
 
-    let deposit_info = DepositMessageInfo {
+    let deposit_info = MessageInfo {
         txn_type: TransactionType::Deposit,
         nonce: u64_nonce,
         chain_id: 900,
         slot_number: clock.slot,
-        from_l1_pubkey: user_token_account.key.to_string(),
-        to_twine_address: receiver_twine_address,
+        l1_pubkey: user_token_account.key.to_string(),
+        twine_address: receiver_twine_address,
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount,
@@ -182,7 +184,8 @@ pub fn spl_token_deposit(
 
     let append_instruction_accounts: Vec<AccountMeta> = vec![
         AccountMeta::new(*messages_buffer_acc.key, false),
-        AccountMeta::new_readonly(*role_manager_acc.key, false),
+        AccountMeta::new(*detailed_messages_buffer_acc.key, false),
+        AccountMeta::new_readonly(*twine_chain_role_manager_acc.key, false),
         AccountMeta::new_readonly(*spl_tokens_vault_data_acc.key, true),
     ];
     let append_instruction = Instruction {
@@ -195,7 +198,8 @@ pub fn spl_token_deposit(
         &append_instruction,
         &[
             messages_buffer_acc.clone(),
-            role_manager_acc.clone(),
+            detailed_messages_buffer_acc.clone(),
+            twine_chain_role_manager_acc.clone(),
             spl_tokens_vault_data_acc.clone(),
         ],
         &[&[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]]],
@@ -214,8 +218,9 @@ fn validate_accounts(
     mint: &AccountInfo,
     token_program: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
-    deposit_messages_buffer_acc: &AccountInfo,
-    role_manager_acc: &AccountInfo,
+    messages_buffer_acc: &AccountInfo,
+    detailed_messages_buffer_acc: &AccountInfo,
+    twine_chain_role_manager_acc: &AccountInfo,
     twine_chain_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
@@ -254,12 +259,17 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if deposit_messages_buffer_acc.owner != &twine_chain_program_id {
-        msg!("Invalid deposit messages buffer account owner");
+    if messages_buffer_acc.owner != &twine_chain_program_id {
+        msg!("Invalid messages buffer account owner");
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if role_manager_acc.owner != &twine_chain_program_id {
+    if detailed_messages_buffer_acc.owner != &twine_chain_program_id {
+        msg!("Invalid detailed messages buffer account owner");
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    if twine_chain_role_manager_acc.owner != &twine_chain_program_id {
         msg!("Invalid role manager account owner");
         return Err(ProgramError::IncorrectProgramId);
     }

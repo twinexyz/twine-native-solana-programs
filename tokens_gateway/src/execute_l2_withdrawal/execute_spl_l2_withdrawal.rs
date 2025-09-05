@@ -18,7 +18,7 @@ use spl_token::instruction as token_instruction;
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ExecutionMessageBuffer, TwineChainStorage},
+        state::TwineChainStorage,
     },
     utils::{
         address_derivation::{derive_twine_chain_storage, verify_derived_address},

@@ -13,7 +13,7 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            DepositMessageInfo, MessageTransactionEvent, MessagesBuffer, RoleType,
+            DetailedMessagesBuffer, MessageInfo, MessageTransactionEvent, MessagesBuffer, RoleType,
             TwineChainRoleManager,
         },
     },
@@ -26,10 +26,11 @@ use crate::{
 pub fn append_deposit_message(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    deposit_info: DepositMessageInfo,
+    deposit_info: MessageInfo,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
     let initializer_acc = next_account_info(account_info_iter)?;
 
@@ -41,36 +42,44 @@ pub fn append_deposit_message(
     )?;
 
     // Deserialize account data
-    let mut deposits = MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    let mut deposits =
+        DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    let mut messages_buffer =
+        MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Check if deposit message buffer is initialized
     if !deposits.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());
     }
 
+    let current_transaction_hash = deposit_info.calculate_message_hash();
     // Update Deposits
-    deposits
-        .messages
-        .push(deposit_info.calculate_deposit_hash());
+    deposits.messages.push(current_transaction_hash);
     deposits.message_nonce += 1;
-
     deposits
+        .serialize(&mut &mut detailed_messages_buffer_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
+    messages_buffer.update_rolling_hash(&current_transaction_hash);
+    messages_buffer
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     let event = MessageTransactionEvent {
         event: "MessageTransaction".to_string(),
         nonce: deposit_info.nonce,
-        l1_pubkey: deposit_info.from_l1_pubkey,
-        twine_address: deposit_info.to_twine_address,
+        slot_number: deposit_info.slot_number,
+        l1_pubkey: deposit_info.l1_pubkey,
+        twine_address: deposit_info.twine_address,
         l1_token: deposit_info.l1_token,
         l2_token: deposit_info.l2_token,
         chain_id: deposit_info.chain_id,
         amount: deposit_info.amount,
         data: deposit_info.data,
-        message_type: DEPOSIT_MESSAGE_TYPE.to_string(),
-        slot_number: deposit_info.slot_number,
+        message_type: DEPOSIT_MESSAGE_TYPE.to_string(),  
+        message_rolling_hash: messages_buffer.messages_rolling_hash,
     };
 
     let serialized_event =

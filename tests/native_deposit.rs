@@ -12,18 +12,17 @@ use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction,
-    id as tokens_gateway_id,
-    utils::address_derivation::{derive_native_token_vault_data},
+    core::instruction as tokens_gateway_instruction, id as tokens_gateway_id,
+    utils::address_derivation::derive_native_token_vault_data,
     utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
 };
 use twine_chain::{
     core::{
         instruction as twine_chain_instruction,
-        state::{MessagesBuffer, RoleType},
+        state::{DetailedMessagesBuffer, MessagesBuffer, RoleType},
     },
     id as twine_chain_id,
-    utils::address_derivation::derive_messages_buffer,
+    utils::address_derivation::{derive_detailed_messages_buffer, derive_messages_buffer},
 };
 
 #[tokio::test]
@@ -97,12 +96,12 @@ async fn native_token_deposit_succeed() {
     println!("Transaction status: {:?}", error);
     let deposit_message_buffer_account = context
         .banks_client
-        .get_account(derive_messages_buffer(&twine_chain_id()).0)
+        .get_account(derive_detailed_messages_buffer(&twine_chain_id()).0)
         .await
         .unwrap()
         .expect("Deposit Message Account Not Found");
-    let deposit_message_buffer_data: MessagesBuffer =
-        MessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
+    let deposit_message_buffer_data: DetailedMessagesBuffer =
+        DetailedMessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
             .expect("Failed to deserialize Deposit Message Buffer Data");
     assert!(
         deposit_message_buffer_data.message_nonce == 1,

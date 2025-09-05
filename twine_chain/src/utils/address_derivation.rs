@@ -8,12 +8,12 @@ use crate::{core::error::ProgramCustomError, utils::constants::*};
 pub fn derive_messages_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[MESSAGES_BUFFER_PREFIX.as_bytes()], program_id)
 }
+
+pub fn derive_detailed_messages_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[DETAILED_MESSAGES_BUFFER_PREFIX.as_bytes()], program_id)
+}
 pub fn derive_execution_message_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[EXECUTION_MESSAGE_BUFFER_PREFIX.as_bytes()], program_id)
-}
-
-pub fn derive_layer_zero_message_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[LAYER_ZERO_BUFFER_PREFIX.as_bytes()], program_id)
 }
 
 pub fn derive_role_manager(program_id: &Pubkey) -> (Pubkey, u8) {

@@ -16,7 +16,7 @@ use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ExecutionMessageBuffer, TwineChainStorage},
+        state::TwineChainStorage,
     },
     utils::address_derivation::derive_twine_chain_storage,
 };

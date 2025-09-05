@@ -144,8 +144,9 @@ pub fn commit_and_finalize_batch(
         batch_number: batch_number,
         messages_handled_on_twine: executed_message_count,
         chain_id: CHAIN_ID,
-        batch_hash: current_batch_hash,
         slot_number: clock.slot,
+        batch_hash: current_batch_hash,
+        
     };
     let serialized_event =
         serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;

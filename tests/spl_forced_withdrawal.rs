@@ -54,8 +54,8 @@ async fn spl_forced_withdrawal_succeed() {
         nonce: 1,
         chain_id: 900,
         amount: amount,
-        from_twine_address: from_twine_address.to_string(),
-        to_l1_pubkey: user_token_account.to_string(),
+         l1_pubkey: user_token_account.to_string(),
+        twine_address: from_twine_address.to_string(),
         l1_token: l1_token.to_string(),
         l2_token: l2_token.clone(),
     };
