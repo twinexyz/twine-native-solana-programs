@@ -56,12 +56,14 @@ pub fn append_deposit_message(
     }
 
     let current_transaction_hash = deposit_info.calculate_message_hash();
+    let previous_rolling_hash = messages_buffer.messages_rolling_hash;
     // Update Deposits
     deposits.messages.push(current_transaction_hash);
     deposits.message_nonce += 1;
     deposits
         .serialize(&mut &mut detailed_messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
     messages_buffer.update_rolling_hash(&current_transaction_hash);
     messages_buffer
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
@@ -79,7 +81,7 @@ pub fn append_deposit_message(
         amount: deposit_info.amount,
         data: deposit_info.data,
         message_type: DEPOSIT_MESSAGE_TYPE.to_string(),  
-        message_rolling_hash: messages_buffer.messages_rolling_hash,
+        message_rolling_hash: previous_rolling_hash,
     };
 
     let serialized_event =

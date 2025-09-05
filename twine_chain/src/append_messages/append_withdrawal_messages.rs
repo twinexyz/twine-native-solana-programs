@@ -56,6 +56,7 @@ pub fn append_forced_withdrawal_message(
         return Err(ProgramCustomError::UninitializedAccount.into());
     }
     let current_transaction_hash = withdraw_info.calculate_message_hash();
+    let previous_rolling_hash = messages_buffer.messages_rolling_hash;
     // Update Withdrawals
     withdrawals.messages.push(current_transaction_hash);
 
@@ -81,7 +82,7 @@ pub fn append_forced_withdrawal_message(
         data: withdraw_info.data,
         message_type: FORCED_WITHDRAW_MESSAGE_TYPE.to_string(),
         slot_number: withdraw_info.slot_number,
-        message_rolling_hash: messages_buffer.messages_rolling_hash,
+        message_rolling_hash: previous_rolling_hash,
     };
 
     let serialized_event =
