@@ -4,7 +4,9 @@ use crate::{
         state::{SignMessageInfo, TokenDecimalMappings},
     },
     utils::{
-        address_derivation::derive_native_token_vault_data,
+        address_derivation::{
+            derive_native_token_vault_data, derive_token_decimal_mappings, verify_derived_address,
+        },
         constants::{CHAIN_ID, FORCED_WITHDRAW_TRANSACTION, NATIVE_TOKEN_VAULT_DATA_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
         recover_address::recover_address,
@@ -26,6 +28,10 @@ use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
         state::{DetailedMessagesBuffer, MessageInfo, TransactionType},
+    },
+    utils::address_derivation::{
+        derive_detailed_messages_buffer, derive_messages_buffer, derive_twine_chain_role_manager,
+        verify_system_program,
     },
     ID as twine_chain_program_id,
 };
@@ -200,32 +206,28 @@ fn validate_accounts(
         msg!("User account must be a signer");
         return Err(ProgramError::MissingRequiredSignature);
     }
+    let (expected_native_token_vault_data, _) = derive_native_token_vault_data(program_id);
+    verify_derived_address(
+        expected_native_token_vault_data,
+        native_token_vault_data_acc,
+    )?;
+    let (expected_messages_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_messages_buffer, messages_buffer_acc)?;
 
-    if native_token_vault_data_acc.owner != program_id {
-        msg!("Invalid native token vault data account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_detailed_messages_buffer, _) =
+        derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(
+        expected_detailed_messages_buffer,
+        detailed_messages_buffer_acc,
+    )?;
 
-    if messages_buffer_acc.owner != &twine_chain_program_id {
-        msg!("Invalid forced withdrawal messages buffer account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    if detailed_messages_buffer_acc.owner != &twine_chain_program_id {
-        msg!("Invalid forced withdrawal messages buffer account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
-    if twine_chain_role_manager_acc.owner != &twine_chain_program_id {
-        msg!("Invalid role manager account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expecte_token_decimal_mapping, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expecte_token_decimal_mapping, token_decimal_mappings_acc)?;
 
-    if token_decimal_mappings_acc.owner != program_id {
-        msg!("Invalid token decimal mappings account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_role_manager, _) = derive_twine_chain_role_manager(&twine_chain_program_id);
+    verify_derived_address(expected_role_manager, twine_chain_role_manager_acc)?;
 
     if twine_chain_program.key != &twine_chain_program_id {
-        msg!("Invalid Twine chain program account");
         return Err(ProgramError::IncorrectProgramId);
     }
 

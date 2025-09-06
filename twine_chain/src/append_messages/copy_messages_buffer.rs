@@ -23,7 +23,7 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_messages_buffer, derive_messages_replicator, derive_role_manager,
+            derive_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
             derive_twine_chain_storage, verify_derived_address, verify_system_program,
         },
         constants::{MESSAGE_NONCE_GAP_SIZE,MEESSAGES_REPLICATOR_PREFIX, MESSAGE_NONCE_GAP},
@@ -172,7 +172,7 @@ fn validate_accounts(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_twine_chain_role_manager(program_id);
 
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 

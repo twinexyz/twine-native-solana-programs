@@ -12,7 +12,7 @@ use crate::{
     core::state::{MessageInfo, RoleType},
     utils::address_derivation::{
         derive_commitment_pda, derive_detailed_messages_buffer, derive_messages_buffer,
-        derive_messages_replicator, derive_role_manager, derive_twine_chain_storage,
+        derive_messages_replicator, derive_twine_chain_role_manager, derive_twine_chain_storage,
     },
     ID,
 };
@@ -120,7 +120,7 @@ pub fn initialize_twine_chain_role_manager(chain_admin: &Pubkey) -> Vec<Instruct
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*chain_admin, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -137,7 +137,7 @@ pub fn initialize_twine_chain_storage(chain_admin: &Pubkey) -> Vec<Instruction> 
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*chain_admin, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -155,7 +155,7 @@ pub fn initialize_message_buffer(chain_admin: &Pubkey) -> Vec<Instruction> {
     let accounts = vec![
         AccountMeta::new(derive_messages_buffer(&ID).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&ID).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*chain_admin, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -175,7 +175,7 @@ pub fn append_deposit_message(
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
         AccountMeta::new(derive_messages_buffer(&ID).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
     ];
 
@@ -195,7 +195,7 @@ pub fn append_forced_withdrawal_message(
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
         AccountMeta::new(derive_messages_buffer(&ID).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
     ];
 
@@ -217,7 +217,7 @@ pub fn initialize_genesis_batch(
     let accounts: Vec<AccountMeta> = vec![
         AccountMeta::new(derive_commitment_pda(&ID, 0).0, false),
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -242,7 +242,7 @@ pub fn commit_batch(
     let accounts = vec![
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
         AccountMeta::new(derive_commitment_pda(&ID, batch_number).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -269,7 +269,7 @@ pub fn finalize_batch(
     let accounts = vec![
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
         AccountMeta::new(derive_commitment_pda(&ID, batch_number).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -296,7 +296,7 @@ pub fn copy_messages_buffer(
             derive_messages_replicator(&ID, start_nonce, end_nonce).0,
             false,
         ),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -323,7 +323,7 @@ pub fn commit_and_finalize_batch(
     let accounts = vec![
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
         AccountMeta::new(derive_commitment_pda(&ID, batch_number).0, false),
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*twine_operation_handler, true),
         AccountMeta::new(system_program::id(), false),
     ];
@@ -348,7 +348,7 @@ pub fn add_role_in_twine_chain(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
         AccountMeta::new(*chain_admin, true),
     ];
     vec![Instruction {

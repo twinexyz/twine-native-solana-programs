@@ -17,6 +17,9 @@ use twine_chain::{
         instruction::TwineChainInstruction,
         state::{DetailedMessagesBuffer, MessageInfo, TransactionType},
     },
+    utils::address_derivation::{
+        derive_detailed_messages_buffer, derive_messages_buffer, derive_twine_chain_role_manager,
+    },
     ID as twine_chain_program_id,
 };
 
@@ -26,6 +29,10 @@ use crate::{
         state::{SignMessageInfo, TokenDecimalMappings},
     },
     utils::{
+        address_derivation::{
+            derive_native_token_vault_data, derive_spl_tokens_vault_data,
+            derive_token_decimal_mappings, verify_derived_address,
+        },
         constants::{CHAIN_ID, FORCED_WITHDRAW_TRANSACTION, SPL_TOKENS_VAULT_DATA_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
         recover_address::recover_address,
@@ -208,35 +215,32 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if spl_tokens_vault_data_acc.owner != program_id {
-        msg!("Invalid SPL tokens vault data account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_spl_tokens_vault_data_acc, _) = derive_spl_tokens_vault_data(program_id);
+    verify_derived_address(
+        expected_spl_tokens_vault_data_acc,
+        spl_tokens_vault_data_acc,
+    )?;
 
     if mint.owner != &TOKEN_PROGRAM_ID {
         msg!("Invalid mint account owner");
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if token_decimal_mappings_acc.owner != program_id {
-        msg!("Invalid token decimal mappings account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
 
-    if messages_buffer_acc.owner != &twine_chain_program_id {
-        msg!("Invalid forced withdrawal messages buffer account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_messages_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_messages_buffer, messages_buffer_acc)?;
 
-    if detailed_messages_buffer_acc.owner != &twine_chain_program_id {
-        msg!("Invalid detailed messages buffer account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_detailed_messages_buffer, _) =
+        derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(
+        expected_detailed_messages_buffer,
+        detailed_messages_buffer_acc,
+    )?;
 
-    if twine_chain_role_manager_acc.owner != &twine_chain_program_id {
-        msg!("Invalid role manager account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_role_manager, _) = derive_twine_chain_role_manager(&twine_chain_program_id);
+    verify_derived_address(expected_role_manager, twine_chain_role_manager_acc)?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         msg!("Invalid Twine chain program account");

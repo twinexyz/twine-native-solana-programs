@@ -6,8 +6,6 @@ use sha3::{Digest, Keccak256};
 use solana_sdk::{
     msg, signature::{Keypair, Signer}, transaction::Transaction
 };
-use solana_program::pubkey::Pubkey;
-use std::str::FromStr;
 use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };

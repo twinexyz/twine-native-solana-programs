@@ -12,7 +12,7 @@ use twine_chain::core::state::{
 use twine_chain::{
     id as twine_chain_program_id,
     utils::address_derivation::{
-        derive_messages_buffer, derive_messages_replicator, derive_role_manager,
+        derive_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
         derive_twine_chain_storage,
     },
 };
@@ -86,7 +86,7 @@ pub fn get_twine_chain_role_manager_data() -> Result<()> {
     let rpc_client = get_rpc_client();
 
     let twine_role_manager_account = rpc_client
-        .get_account(&derive_role_manager(&twine_chain_program_id()).0)
+        .get_account(&derive_twine_chain_role_manager(&twine_chain_program_id()).0)
         .context("Failed to fetch PDA account")?;
 
     let twine_role_manager_data: TwineChainRoleManager =

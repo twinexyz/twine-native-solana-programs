@@ -17,7 +17,7 @@ use twine_chain::{
         state::{MessageInfo, MessagesBuffer, TransactionType},
     },
     utils::{
-        address_derivation::{derive_messages_buffer, derive_role_manager,derive_detailed_messages_buffer, verify_system_program},
+        address_derivation::{derive_messages_buffer, derive_twine_chain_role_manager,derive_detailed_messages_buffer, verify_system_program},
         constants::{DEPOSIT_MESSAGE_TYPE, MESSAGES_BUFFER_PREFIX},
     },
     ID as twine_chain_program_id,
@@ -225,7 +225,7 @@ fn validate_accounts(
     let (expecte_token_decimal_mapping, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expecte_token_decimal_mapping, token_decimal_mappings_acc)?;
 
-    let (expected_role_manager, _) = derive_role_manager(&twine_chain_program_id);
+    let (expected_role_manager, _) = derive_twine_chain_role_manager(&twine_chain_program_id);
     verify_derived_address(expected_role_manager, role_manager_acc)?;
 
     verify_system_program(system_program)?;

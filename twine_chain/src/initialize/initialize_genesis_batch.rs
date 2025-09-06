@@ -20,7 +20,7 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_commitment_pda, derive_role_manager, verify_derived_address,
+            derive_commitment_pda, derive_twine_chain_role_manager, verify_derived_address,
             verify_system_program,derive_twine_chain_storage
         },
         constants::COMMITMENT_PDA_PREFIX,
@@ -125,7 +125,7 @@ fn validate_accounts(
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
     let (expected_commitment_pda, genesis_batch_bump) = derive_commitment_pda(&program_id, 0);
     verify_derived_address(expected_commitment_pda, first_batch_acc)?;
-    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
     // Deserialize Twine chain storage's data
     let twine_chain_storage_data =

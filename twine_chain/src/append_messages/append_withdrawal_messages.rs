@@ -18,7 +18,7 @@ use crate::{
         },
     },
     utils::{
-        address_derivation::{derive_messages_buffer, derive_role_manager, verify_derived_address},
+        address_derivation::{derive_messages_buffer, derive_twine_chain_role_manager, verify_derived_address},
         constants::FORCED_WITHDRAW_MESSAGE_TYPE,
     },
 };
@@ -105,7 +105,7 @@ fn validate_accounts(
     let (expected_messages_pda, _) = derive_messages_buffer(program_id);
     verify_derived_address(expected_messages_pda, messages_buffer_acc)?;
 
-    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     // Checks if signer has required role(MessageAppender)

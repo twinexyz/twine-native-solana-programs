@@ -9,7 +9,7 @@ use solana_program::{
 use twine_chain::{
     utils::address_derivation::{
         derive_detailed_messages_buffer, derive_execution_message_buffer, derive_messages_buffer,
-        derive_messages_replicator, derive_role_manager, derive_twine_chain_storage,
+        derive_messages_replicator, derive_twine_chain_role_manager, derive_twine_chain_storage,
     },
     ID as twine_chain_id,
 };
@@ -299,7 +299,7 @@ pub fn native_token_deposit(
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_id, false),
     ];
@@ -337,7 +337,7 @@ pub fn forced_native_token_withdrawal(
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(twine_chain_id, false),
     ];
@@ -379,7 +379,7 @@ pub fn spl_token_deposit(
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(twine_chain_id, false),
     ];
 
@@ -420,7 +420,7 @@ pub fn forced_spl_token_withdrawal(
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(twine_chain_id, false),
     ];
 
@@ -452,7 +452,7 @@ pub fn execute_l2_native_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_id, false),
@@ -492,7 +492,7 @@ pub fn execute_l2_spl_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(twine_chain_id, false),
     ];
@@ -525,7 +525,7 @@ pub fn process_native_refund(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
@@ -570,7 +570,7 @@ pub fn process_spl_refund(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
@@ -608,7 +608,7 @@ pub fn process_native_forced_withdrawal(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
@@ -653,7 +653,7 @@ pub fn process_spl_forced_withdrawal(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
@@ -679,7 +679,7 @@ pub fn set_gateway_role_chain_admin(new_admin: Pubkey, chain_admin: Pubkey) -> V
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(chain_admin, true),
     ];
     vec![Instruction {
@@ -703,7 +703,7 @@ pub fn add_role_in_gateway(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(chain_admin, true),
     ];
     vec![Instruction {
@@ -727,7 +727,7 @@ pub fn remove_role_in_gateway(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(chain_admin, true),
     ];
     vec![Instruction {

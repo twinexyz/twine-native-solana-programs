@@ -18,7 +18,7 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_detailed_messages_buffer, derive_messages_buffer, derive_role_manager,
+            derive_detailed_messages_buffer, derive_messages_buffer, derive_twine_chain_role_manager,
             verify_derived_address, verify_owner, verify_system_program,
         },
         constants::{CHAIN_ID, DETAILED_MESSAGES_BUFFER_PREFIX, MESSAGES_BUFFER_PREFIX},
@@ -168,7 +168,7 @@ fn validate_accounts(
     }
 
     // Validate Account key and owner
-    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
     verify_owner(role_manager_acc, program_id)?;
 
