@@ -78,7 +78,7 @@ pub fn initialize_genesis_batch(
 
     let mut account_data = BatchPdaAccount {
         is_initialized: true,
-        batch_hash: [0u8; 32],
+        batch_hash: genesis_batch_hash,
     };
     account_data.batch_hash = genesis_batch_hash;
 
