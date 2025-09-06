@@ -36,7 +36,6 @@ async fn l2_spl_withdrawal_finalized_succeed() {
 
     let l1_decimals = 9u8;
     let l2_decimals = 18u8;
-    let amount = 8000000000000000u64;
     let l1_amount = "8000000000000000";
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();

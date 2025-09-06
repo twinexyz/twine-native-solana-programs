@@ -192,18 +192,18 @@ async fn process_spl_forced_withdrawal() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
-    // let forced_withdraw_message_buffer_account = context
-    //     .banks_client
-    //     .get_account(derive_detailed_messages_buffer(&twine_chain_id()).0)
-    //     .await
-    //     .unwrap()
-    //     .expect("Forced Message Buffer Not Found");
+    let forced_withdraw_message_buffer_account = context
+        .banks_client
+        .get_account(derive_detailed_messages_buffer(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Forced Message Buffer Not Found");
 
-    // let forced_withdraw_message_buffer_data: DetailedMessagesBuffer =
-    //     DetailedMessagesBuffer::deserialize(&mut &forced_withdraw_message_buffer_account.data[..])
-    //         .expect("Failed to deserialize Native Token Vault Data");
-    // assert!(
-    //     forced_withdraw_message_buffer_data.message_nonce == 2,
-    //     "Forced Withdrawal Not successful"
-    // )
+    let forced_withdraw_message_buffer_data: DetailedMessagesBuffer =
+        DetailedMessagesBuffer::deserialize(&mut &forced_withdraw_message_buffer_account.data[..])
+            .expect("Failed to deserialize Native Token Vault Data");
+    assert!(
+        forced_withdraw_message_buffer_data.message_nonce == 2,
+        "Forced Withdrawal Not successful"
+    )
 }

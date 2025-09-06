@@ -1,5 +1,4 @@
 use borsh::BorshDeserialize;
-use sha3::{Digest, Keccak256};
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -176,23 +175,12 @@ async fn finalize_batch_test() {
     let error = context.banks_client.process_transaction(transaction).await;
     println!("Transaction1 Status: {:?}", error);
 
-    // Getting accounts
-    let current_batch_account = context
-        .banks_client
-        .get_account(derive_commitment_pda(&id(), batch_number).0)
-        .await
-        .unwrap()
-        .expect("Current batch account not found");
-
     let twine_chain_storage_account = context
         .banks_client
         .get_account(derive_twine_chain_storage(&id()).0)
         .await
         .unwrap()
         .expect("Twine chain storage account not found");
-
-    let current_batch_data = BatchPdaAccount::deserialize(&mut &current_batch_account.data[..])
-        .expect("Failed to deserialize Genesis Batch");
 
     let twine_chain_storage_data: TwineChainStorage =
         TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
@@ -268,31 +256,20 @@ async fn commit_finalize_batch_test() {
     let error = context.banks_client.process_transaction(transaction).await;
     println!("Transaction1 Status: {:?}", error);
 
-    // Getting accounts
-    // let current_batch_account = context
-    //     .banks_client
-    //     .get_account(derive_commitment_pda(&id(), batch_number).0)
-    //     .await
-    //     .unwrap()
-    //     .expect("Current batch account not found");
+    let twine_chain_storage_account = context
+        .banks_client
+        .get_account(derive_twine_chain_storage(&id()).0)
+        .await
+        .unwrap()
+        .expect("Twine chain storage account not found");
 
-    // let twine_chain_storage_account = context
-    //     .banks_client
-    //     .get_account(derive_twine_chain_storage(&id()).0)
-    //     .await
-    //     .unwrap()
-    //     .expect("Twine chain storage account not found");
+    let twine_chain_storage_data: TwineChainStorage =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .expect("Failed to deserialize RoleManager");
 
-    // let current_batch_data = BatchPdaAccount::deserialize(&mut &current_batch_account.data[..])
-    //     .expect("Failed to deserialize Genesis Batch");
-
-    // let twine_chain_storage_data: TwineChainStorage =
-    //     TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
-    //         .expect("Failed to deserialize RoleManager");
-
-    // assert_eq!(
-    //     twine_chain_storage_data.last_finalized_batch_number, 1,
-    //     "Last batch's start block should be 1"
-    // );
+    assert_eq!(
+        twine_chain_storage_data.last_finalized_batch_number, 1,
+        "Last batch's start block should be 1"
+    );
 
 }

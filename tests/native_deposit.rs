@@ -19,10 +19,10 @@ use tokens_gateway::{
 use twine_chain::{
     core::{
         instruction as twine_chain_instruction,
-        state::{DetailedMessagesBuffer, MessagesBuffer, RoleType},
+        state::{DetailedMessagesBuffer, RoleType},
     },
     id as twine_chain_id,
-    utils::address_derivation::{derive_detailed_messages_buffer, derive_messages_buffer},
+    utils::address_derivation::derive_detailed_messages_buffer,
 };
 
 #[tokio::test]
