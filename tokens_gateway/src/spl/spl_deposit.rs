@@ -154,7 +154,7 @@ pub fn spl_token_deposit(
     }
 
     let deposit_message_buffer =
-        DetailedMessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
+        DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = deposit_message_buffer.message_nonce + 1;
