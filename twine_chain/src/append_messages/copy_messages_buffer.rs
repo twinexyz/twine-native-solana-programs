@@ -23,7 +23,7 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
+            derive_detailed_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
             derive_twine_chain_storage, verify_derived_address, verify_system_program,
         },
         constants::{MESSAGE_NONCE_GAP_SIZE,MEESSAGES_REPLICATOR_PREFIX, MESSAGE_NONCE_GAP},
@@ -46,7 +46,7 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let (expected_detailed_meesages_pda, _) = derive_messages_buffer(program_id);
+    let (expected_detailed_meesages_pda, _) = derive_detailed_messages_buffer(program_id);
     verify_derived_address(expected_detailed_meesages_pda, detailed_messages_buffer_acc)?;
     
     // Deserialize account data

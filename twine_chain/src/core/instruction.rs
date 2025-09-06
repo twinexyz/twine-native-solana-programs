@@ -290,7 +290,7 @@ pub fn copy_messages_buffer(
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
     let accounts = vec![
-        AccountMeta::new(derive_messages_buffer(&ID).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&ID).0, false),
         AccountMeta::new(
             derive_messages_replicator(&ID, start_nonce, end_nonce).0,
