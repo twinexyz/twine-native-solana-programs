@@ -60,6 +60,7 @@ help:
 	@echo "=== TOKEN OPERATIONS ==="
 	@echo "  create-spl-token                  Create a new SPL token"
 	@echo "  update-token-mapping              Update token mapping"
+	@echo "  remove-token-mapping              Update token mapping"
 	@echo "  deposit-native-token              Deposit native tokens"
 	@echo "  deposit-spl-token                 Deposit SPL tokens"
 	@echo ""
@@ -73,7 +74,9 @@ help:
 	@echo ""
 	@echo "=== ROLE MANAGEMENT ==="
 	@echo "  add-role-in-twine-chain           Add role in twine chain"
+	@echo "  remove-role-in-twine-chain        Remove role in twine chain"
 	@echo "  add-role-in-tokens-gateway        Add role in tokens gateway"
+	@echo "  remove-role-in-tokens-gateway     Remove role in tokens gateway"
 	@echo ""
 	@echo "=== Copy MessageBuffer ==="
 	@echo "  copy-messages-buffer           Copy the message buffer"
@@ -197,6 +200,11 @@ update-token-mapping:
 	@echo "Updating token mapping..."
 	$(CARGO) run --bin interaction -- token-mapping "$(l1_token)" "$(l2_token)" "$(l1_decimals)" "$(l2_decimals)"
 
+# Usage: make remove-token-mapping l1_token=your_l1_token_here l2_token=your_l2_token_here
+remove-token-mapping:
+	@echo "Updating token mapping..."
+	$(CARGO) run --bin interaction -- remove-token-mapping "$(l1_token)" "$(l2_token)"
+
 # Usage: make deposit-native-token l2_token=l2_token_here receiver_address=receiver_address_here amount=amount_here data=data_here
 deposit-native-token:
 	@echo "Depositing native tokens..."
@@ -258,10 +266,20 @@ add-role-in-twine-chain:
 	@echo "Add Role in twineChain..."
 	$(CARGO) run --bin interaction -- add-role-in-twine-chain "$(role_type)" "$(user_pubkey)"
 
-# Usage: make add-role-in-tokens_gateway role_type=twine_operation_handler user_pubkey=your_pubkey
+# Usage: make remove-role-in-twine-chain role_type= message_appender/twine_operation_handler user_pubkey=your_pubkey
+remove-role-in-twine-chain:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- remove-role-in-twine-chain "$(role_type)" "$(user_pubkey)"
+
+# Usage: make add-role-in-tokens-gateway role_type=twine_operation_handler user_pubkey=your_pubkey
 add-role-in-tokens-gateway:
 	@echo "Add Role in twineChain..."
 	$(CARGO) run --bin interaction -- add-role-in-tokens-gateway "$(role_type)" "$(user_pubkey)"
+
+# Usage: make remove-role-in-tokens-gateway role_type=twine_operation_handler user_pubkey=your_pubkey
+remove-role-in-tokens-gateway:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- remove-role-in-tokens-gateway "$(role_type)" "$(user_pubkey)"
 # ==============================
 #        Data Retrieval Targets
 # ==============================
@@ -308,10 +326,11 @@ get-tokens-gateway-role-manager-data:
 	@echo "Getting tokens gateway role manager data..."
 	$(CARGO) run --bin interaction -- get-tokens-gateway-role-manager-data
 
-# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nonce
+
 # ==============================
 #     Copy Message Buffer
 # ==============================
+# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nonce
 copy-messages-buffer:
 	@echo "Copy Message Buffer..."
 	$(CARGO) run --bin interaction -- copy-messages-buffer "$(start_nonce)" "$(end_nonce)"
