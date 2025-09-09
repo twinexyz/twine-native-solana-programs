@@ -19,9 +19,9 @@ use crate::operations::{
     process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
     process_native_l1_refund::process_native_l1_refund,
     process_spl_l1_refund::process_spl_l1_refund,
-    token_mapping::update_token_mapping,
-    role_operations_twine_chain::add_role_in_twine_chain,
-    role_operations_tokens_gateway::add_role_in_tokens_gateway,
+    token_mapping::{update_token_mapping,remove_token_mapping},
+    role_operations_twine_chain::{add_role_in_twine_chain,remove_role_in_twine_chain},
+    role_operations_tokens_gateway::{add_role_in_tokens_gateway,remove_role_in_tokens_gateway},
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -38,8 +38,16 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = add_role_in_twine_chain(role_type,user_pubkey);
             println!("Result: {:?}", result);
         }
+         Commands::RemoveRoleInTwineChain {role_type,user_pubkey} => {
+            let result = remove_role_in_twine_chain(role_type,user_pubkey);
+            println!("Result: {:?}", result);
+        }
         Commands::AddRoleInTokensGateway {role_type,user_pubkey} => {
             let result = add_role_in_tokens_gateway(role_type,user_pubkey);
+            println!("Result: {:?}", result);
+        }
+        Commands::RemoveRoleInTokensGateway {role_type,user_pubkey} => {
+            let result = remove_role_in_tokens_gateway(role_type,user_pubkey);
             println!("Result: {:?}", result);
         }
         Commands::GetAssociatedTokenAccount {
@@ -96,6 +104,13 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             l2_decimals,
         } => {
             let result = update_token_mapping(l1_token, l2_token, l1_decimals, l2_decimals);
+            println!("Result: {:?}", result);
+        }
+        Commands::RemoveTokenMapping {
+            l1_token,
+            l2_token,
+        } => {
+            let result = remove_token_mapping(l1_token, l2_token);
             println!("Result: {:?}", result);
         }
 

@@ -3,29 +3,37 @@ use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program_test::*;
 use solana_sdk::{
-    signature::{Keypair, Signer},
-    transaction::Transaction,
+    instruction::Instruction, signature::{Keypair, Signer}, transaction::Transaction
 };
 use std::str::FromStr;
 
-use helpers::tokens_gateway_helper::{
-    fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
+
+use helpers::twine_chain_helper::{
+    fund_account_for_rent_exemption, program_test, TwineChainAccounts,
 };
 
 use tokens_gateway::{
-    core::{
-        instruction as tokens_gateway_instruction,
-        state::{RoleType, TokensGatewayRoleManager},
-    },
     id as tokens_gateway_id,
-    utils::address_derivation::derive_gateway_role_manager,
     utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
 };
 
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{RoleType, TwineChainRoleManager},
+    },
+    id as twine_chain_id,
+    utils::{
+        address_derivation::{
+             derive_twine_chain_role_manager
+        },
+    },
+};
+
 #[tokio::test]
-async fn add_roles_tokens_gateway() {
+async fn add_roles_twine_chain() {
     let mut context = program_test().start_with_context().await;
-    let accounts = TokensGatewayAccounts::default();
+    let accounts = TwineChainAccounts::default();
     let payer = Keypair::from_bytes(&context.payer.to_bytes()).unwrap();
     let user_pubkey = Pubkey::from_str("EdhpXtonNKnVKpEK7iSzZvVU1gKSWtMjUaTuQZ5rvJkT").unwrap();
     let expected_role = RoleType::TwineOperationHandler;
@@ -37,16 +45,11 @@ async fn add_roles_tokens_gateway() {
         844073716442015,
     )
     .await;
-    let chain_admin = &accounts.chain_admin.pubkey();
-    let mut instructions = vec![];
-    instructions
-        .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
-        &chain_admin,
-    ));
-    instructions.extend(tokens_gateway_instruction::add_role_in_gateway(
-        accounts.chain_admin.pubkey(),
-        user_pubkey, 
+    let mut instructions  = vec![];
+     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey()));
+    instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
+        &accounts.chain_admin.pubkey(),
+        &user_pubkey, 
         RoleType::TwineOperationHandler,
     ));
     let transaction = Transaction::new_signed_with_payer(
@@ -60,16 +63,16 @@ async fn add_roles_tokens_gateway() {
 
     println!("Transaction status: {:?}", error);
 
-    let tokens_gateway_role_manager_account = context
+    let twine_chain_role_manager_account = context
         .banks_client
-        .get_account(derive_gateway_role_manager(&tokens_gateway_id()).0)
+        .get_account(derive_twine_chain_role_manager(&twine_chain_id()).0)
         .await
         .unwrap()
         .expect("Role manager Account Not Found");
-    let tokens_gateway_role_manager_data: TokensGatewayRoleManager =
-        TokensGatewayRoleManager::deserialize(&mut &tokens_gateway_role_manager_account.data[..])
-            .expect("Failed to deserialize Tokens Gateway Rolemanager Data");
-    let has_role = tokens_gateway_role_manager_data
+    let twine_chain_role_manager_data: TwineChainRoleManager =
+        TwineChainRoleManager::deserialize(&mut &twine_chain_role_manager_account.data[..])
+            .expect("Failed to deserialize Rolemanager Data");
+    let has_role = twine_chain_role_manager_data
         .roles
         .iter()
         .any(|(pk, role)| pk == &user_pubkey && *role == expected_role);
@@ -77,9 +80,9 @@ async fn add_roles_tokens_gateway() {
 }
 
 #[tokio::test]
-async fn remove_roles_tokens_gateway() {
+async fn remove_roles_twine_chain() {
     let mut context = program_test().start_with_context().await;
-    let accounts = TokensGatewayAccounts::default();
+    let accounts = TwineChainAccounts::default();
     let payer = Keypair::from_bytes(&context.payer.to_bytes()).unwrap();
     let user_pubkey = Pubkey::from_str("EdhpXtonNKnVKpEK7iSzZvVU1gKSWtMjUaTuQZ5rvJkT").unwrap();
     let expected_role = RoleType::TwineOperationHandler;
@@ -91,21 +94,16 @@ async fn remove_roles_tokens_gateway() {
         844073716442015,
     )
     .await;
-    let chain_admin = &accounts.chain_admin.pubkey();
-    let mut instructions = vec![];
-    instructions
-        .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
-    instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
-        &chain_admin,
-    ));
-    instructions.extend(tokens_gateway_instruction::add_role_in_gateway(
-        accounts.chain_admin.pubkey(),
-        user_pubkey,  
+    let mut instructions  = vec![];
+     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey()));
+    instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
+        &accounts.chain_admin.pubkey(),
+        &user_pubkey, 
         RoleType::TwineOperationHandler,
     ));
-    instructions.extend(tokens_gateway_instruction::remove_role_in_gateway(
-        accounts.chain_admin.pubkey(),
-        user_pubkey,
+    instructions.extend(twine_chain_instruction::remove_role_in_twine_chain(
+        &accounts.chain_admin.pubkey(),
+        &user_pubkey,
         RoleType::TwineOperationHandler,
         
     ));
@@ -120,16 +118,16 @@ async fn remove_roles_tokens_gateway() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
-    let tokens_gateway_role_manager_account = context
+    let twine_chain_role_manager_account = context
         .banks_client
-        .get_account(derive_gateway_role_manager(&tokens_gateway_id()).0)
+        .get_account(derive_twine_chain_role_manager(&twine_chain_id()).0)
         .await
         .unwrap()
         .expect("Role manager Account Not Found");
-    let tokens_gateway_role_manager_data: TokensGatewayRoleManager =
-        TokensGatewayRoleManager::deserialize(&mut &tokens_gateway_role_manager_account.data[..])
-            .expect("Failed to deserialize Tokens Gateway Rolemanager Data");
-    let has_role = tokens_gateway_role_manager_data
+    let twine_chain_role_manager_data: TwineChainRoleManager =
+        TwineChainRoleManager::deserialize(&mut &twine_chain_role_manager_account.data[..])
+            .expect("Failed to deserialize Twine chain Rolemanager Data");
+    let has_role = twine_chain_role_manager_data
         .roles
         .iter()
         .any(|(pk, role)| pk == &user_pubkey && *role == expected_role);
