@@ -8,7 +8,7 @@ use crate::{
         initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
         initialize_twine_chain_storage,
     },
-    role::roles_manager::add_role,
+    role::roles_manager::{add_role, remove_role},
     setters::{set_token_gateway, set_v_keys},
 };
 
@@ -91,9 +91,14 @@ pub fn process_instruction(
             add_role(program_id, accounts, address, role)
         }
 
+        TwineChainInstruction::RemoveRoleInTwineChain { address, role } => {
+            remove_role(program_id, accounts, address, role)
+        }
+
         TwineChainInstruction::CopyMessagesBuffer => {
             copy_messages_buffer::copy_messages_buffer(program_id, accounts)
         }
+
         TwineChainInstruction::CommitAndFinalizeBatch {
             batch_number,
             public_values,

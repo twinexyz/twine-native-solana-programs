@@ -170,5 +170,8 @@ pub fn process_instruction(
             public_values,
             execution_proof,
         ),
+        GatewayInstruction::RemoveTokenMapping { l1_token, l2_token } => {
+            update_token_mapping::remove_token_mapping(program_id, accounts, l1_token, l2_token)
+        }
     }
 }

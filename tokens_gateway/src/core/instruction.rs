@@ -104,6 +104,10 @@ pub enum GatewayInstruction {
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
     },
+    RemoveTokenMapping {
+        l1_token: String,
+        l2_token: String,
+    },
 }
 #[derive(BorshSerialize, BorshDeserialize)]
 struct UpdateTokenMappingPayload {
@@ -111,6 +115,12 @@ struct UpdateTokenMappingPayload {
     l2_token: String,
     l1_decimals: u8,
     l2_decimals: u8,
+}
+
+#[derive(BorshSerialize, BorshDeserialize)]
+struct RemoveTokenMappingPayload {
+    l1_token: String,
+    l2_token: String,
 }
 #[derive(BorshSerialize, BorshDeserialize)]
 struct SetGatewayRoleChainAdminPayload {
@@ -255,6 +265,32 @@ pub fn update_gateway_token_mapping(
         l2_token,
         l1_decimals,
         l2_decimals,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_gateway_role_manager(&tokens_gateway_ID).0, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn remove_gateway_token_mapping(
+    l1_token: String,
+    l2_token: String,
+    chain_admin: &Pubkey,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::RemoveTokenMapping {
+        l1_token,
+        l2_token,
     };
 
     let mut data = vec![];
@@ -714,9 +750,9 @@ pub fn add_role_in_gateway(
 }
 
 pub fn remove_role_in_gateway(
+    chain_admin: Pubkey,
     account_address: Pubkey,
     role: RoleType,
-    chain_admin: Pubkey,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::RemoveRoleInGateway {
         address: account_address,
@@ -873,6 +909,14 @@ impl GatewayInstruction {
                 Ok(Self::ProcessSplForcedWithdrawal {
                     public_values: payload.public_values,
                     execution_proof: payload.execution_proof,
+                })
+            }
+            16 => {
+                let payload = RemoveTokenMappingPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::RemoveTokenMapping {
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),

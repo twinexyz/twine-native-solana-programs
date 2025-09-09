@@ -10,5 +10,5 @@ pub use solana_program;
 pub mod process_refund;
 pub mod execute_l2_withdrawal;
 pub mod process_forced_withdrawal;
-solana_program::declare_id!("Abo1R7vUWHbJkTjvesi83dR5Bs2nAUiyk3LjoCfHzV8P");
+solana_program::declare_id!("BDvDeCGm9BLyWPxmJVUMCed9xNgSPuQFXFajaFNF8JZH");
 

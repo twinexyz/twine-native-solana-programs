@@ -10,6 +10,7 @@ use solana_program::{
 use crate::{
     core::error::ProgramCustomError,
     core::state::{RoleType, TokensGatewayRoleManager},
+    utils::constants::INITIAL_CHAIN_ADMIN,
 };
 
 pub fn set_role_chain_admin(
@@ -19,20 +20,26 @@ pub fn set_role_chain_admin(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let role_manager_acc = next_account_info(account_info_iter)?;
-    let chain_admin_acc = next_account_info(account_info_iter)?;
+    let authority_acc = next_account_info(account_info_iter)?;
     let mut role_manager =
-        validate_accounts_and_deserialize(program_id, role_manager_acc, chain_admin_acc)?;
-    if role_manager.chain_admin != *chain_admin_acc.key {
+        validate_accounts_and_deserialize(program_id, role_manager_acc, authority_acc)?;
+    let initial_admin: Pubkey = INITIAL_CHAIN_ADMIN
+        .parse()
+        .map_err(|_| ProgramError::InvalidArgument)?;
+
+    if authority_acc.key != &initial_admin {
         return Err(ProgramCustomError::Unauthorized.into());
-    }
-    let old_man = role_manager.chain_admin;
+    };
+    let old_admin = role_manager.chain_admin;
     role_manager.chain_admin = new_admin;
-    role_manager.serialize(&mut &mut role_manager_acc.data.borrow_mut()[..])?;
+    role_manager
+        .serialize(&mut &mut role_manager_acc.data.borrow_mut()[..])
+        .map_err(|_| ProgramCustomError::SerializeFailed)?;
     msg!(
         "EVENT:ChainAdminUpdated: old_admin={}, new_admin={}, updated_by={}",
-        old_man,
+        old_admin,
         new_admin,
-        chain_admin_acc.key
+        authority_acc.key
     );
     Ok(())
 }
@@ -72,11 +79,11 @@ pub fn remove_role(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let role_manager_acc = next_account_info(account_info_iter)?;
-    let authority_acc = next_account_info(account_info_iter)?;
+    let chain_admin_acc = next_account_info(account_info_iter)?;
     let mut role_manager =
-        validate_accounts_and_deserialize(program_id, role_manager_acc, authority_acc)?;
+        validate_accounts_and_deserialize(program_id, role_manager_acc, chain_admin_acc)?;
 
-    if !role_manager.has_role(&authority_acc.key, RoleType::TwineOperationHandler) {
+    if role_manager.chain_admin != *chain_admin_acc.key {
         return Err(ProgramCustomError::Unauthorized.into());
     }
     if !role_manager.remove_role(&address, role) {
@@ -89,7 +96,7 @@ pub fn remove_role(
         "EVENT:RoleRemoved: address={}, role={:?}, removed_by={}",
         address,
         role,
-        authority_acc.key
+        chain_admin_acc.key
     );
 
     Ok(())

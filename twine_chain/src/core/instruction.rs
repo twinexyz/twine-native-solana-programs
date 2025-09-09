@@ -2,10 +2,7 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_program,
+    instruction::{AccountMeta, Instruction}, msg, program_error::ProgramError, pubkey::Pubkey, system_program
 };
 
 use crate::{
@@ -59,6 +56,10 @@ pub enum TwineChainInstruction {
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
     },
+     RemoveRoleInTwineChain {
+        address: Pubkey,
+        role: RoleType,
+    },
 }
 
 #[derive(BorshDeserialize)]
@@ -111,6 +112,12 @@ struct CommitAndFinalizeBatchPayload {
 
 #[derive(BorshDeserialize, BorshSerialize)]
 struct AddRoleInTwineChainPayload {
+    address: Pubkey,
+    role: RoleType,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+struct RemoveRoleInTwineChainPayload {
     address: Pubkey,
     role: RoleType,
 }
@@ -358,6 +365,30 @@ pub fn add_role_in_twine_chain(
     }]
 }
 
+pub fn remove_role_in_twine_chain(
+    chain_admin: &Pubkey,
+    address: &Pubkey,
+    role: RoleType,
+) -> Vec<Instruction> {
+    let payload = TwineChainInstruction::RemoveRoleInTwineChain {
+        address: *address,
+        role: role,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+    ];
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
 impl TwineChainInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (&discriminator, rest) = input
@@ -438,6 +469,15 @@ impl TwineChainInstruction {
                     batch_number: payload.batch_number,
                     public_values: payload.public_values,
                     execution_proof: payload.execution_proof,
+                })
+            }
+             13 => {
+                msg!("Here in remove role");
+                let payload = RemoveRoleInTwineChainPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::RemoveRoleInTwineChain {
+                    address: payload.address,
+                    role: payload.role,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),
