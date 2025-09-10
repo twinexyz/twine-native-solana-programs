@@ -2,7 +2,7 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 
 use crate::{
     append_messages::{append_deposit_messages, append_withdrawal_messages, copy_messages_buffer},
-    commit_finalize::{commit_and_finalize_batch, commit_batch, finalize_batch},
+    commit_finalize::commit_and_finalize_batch,
     core::instruction::TwineChainInstruction,
     initialize::{
         initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
@@ -69,24 +69,6 @@ pub fn process_instruction(
                 genesis_batch_hash,
             )
         }
-
-        TwineChainInstruction::CommitBatch {
-            batch_number,
-            batch_hash,
-        } => commit_batch::commit_batch(program_id, accounts, batch_number, batch_hash),
-
-        TwineChainInstruction::FinalizeBatch {
-            batch_number,
-            public_values,
-            execution_proof,
-        } => finalize_batch::finalize_batch(
-            program_id,
-            accounts,
-            batch_number,
-            public_values,
-            execution_proof,
-        ),
-
         TwineChainInstruction::AddRoleInTwineChain { address, role } => {
             add_role(program_id, accounts, address, role)
         }
