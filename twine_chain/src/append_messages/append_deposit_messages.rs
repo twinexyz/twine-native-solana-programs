@@ -81,7 +81,7 @@ pub fn append_deposit_message(
         amount: deposit_info.amount,
         data: deposit_info.data,
         message_type: DEPOSIT_MESSAGE_TYPE.to_string(),  
-        message_rolling_hash: previous_rolling_hash,
+        previous_rolling_hash: previous_rolling_hash,
     };
 
     let serialized_event =

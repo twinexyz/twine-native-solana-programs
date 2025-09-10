@@ -139,7 +139,7 @@ pub struct MessageTransactionEvent {
     pub amount: String,
     pub data: Vec<u8>,
     pub message_type: String,
-    pub message_rolling_hash: [u8;32],
+    pub previous_rolling_hash: [u8;32],
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]

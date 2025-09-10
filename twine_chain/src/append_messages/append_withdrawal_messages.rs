@@ -82,7 +82,7 @@ pub fn append_forced_withdrawal_message(
         data: withdraw_info.data,
         message_type: FORCED_WITHDRAW_MESSAGE_TYPE.to_string(),
         slot_number: withdraw_info.slot_number,
-        message_rolling_hash: previous_rolling_hash,
+        previous_rolling_hash: previous_rolling_hash,
     };
 
     let serialized_event =
