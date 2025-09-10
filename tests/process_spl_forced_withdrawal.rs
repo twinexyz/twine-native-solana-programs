@@ -9,14 +9,14 @@ use solana_sdk::{
 };
 
 use helpers::tokens_gateway_helper::{
-    create_spl_and_mint, fund_account_for_rent_exemption, get_ethereum_signature, program_test,get_or_create_ata,
-    TokensGatewayAccounts,
+    create_spl_and_mint, fund_account_for_rent_exemption, get_ethereum_signature,
+    get_or_create_ata, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
     core::{instruction as tokens_gateway_instruction, state::SignMessageInfo},
     id as tokens_gateway_id,
     utils::{
-        address_derivation::{derive_spl_tokens_vault_data,derive_spl_vault_authority},
+        address_derivation::{derive_spl_tokens_vault_data, derive_spl_vault_authority},
         constants::{CHAIN_ID, ROLE_MANAGER_ACCOUNT_SIZE},
     },
 };
@@ -135,7 +135,7 @@ async fn process_spl_forced_withdrawal() {
         amount,
         signature,
     ));
-     instructions.extend(tokens_gateway_instruction::spl_token_deposit(
+    instructions.extend(tokens_gateway_instruction::spl_token_deposit(
         &chain_admin,
         &user_token_account,
         &spl_token_pubkey,
@@ -146,19 +146,16 @@ async fn process_spl_forced_withdrawal() {
         amount,
         hex::decode(data.clone()).unwrap(),
     ));
+
     let genesis_block_hash = [0u8; 32];
     instructions.extend(twine_chain_instruction::initialize_genesis_batch(
         &accounts.chain_admin.pubkey(),
         genesis_block_hash,
     ));
+
     let batch_number = 1;
     let batch_hash = [5u8; 32];
 
-    instructions.extend(twine_chain_instruction::commit_batch(
-        &accounts.chain_admin.pubkey(),
-        batch_number,
-        batch_hash,
-    ));
     let total_msg_handled_on_twine: u64 = 2;
 
     let mut finalize_public_values = Vec::with_capacity(72);
@@ -167,7 +164,7 @@ async fn process_spl_forced_withdrawal() {
     finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
     finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
 
-    instructions.extend(twine_chain_instruction::finalize_batch(
+    instructions.extend(twine_chain_instruction::commit_and_finalize_batch(
         &accounts.chain_admin.pubkey(),
         batch_number,
         finalize_public_values.clone(),

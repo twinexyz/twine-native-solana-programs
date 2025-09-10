@@ -110,15 +110,11 @@ async fn process_native_refund() {
         &accounts.chain_admin.pubkey(),
         genesis_block_hash,
     ));
-     let batch_number = 1;
+
+    let batch_number = 1;
     let batch_hash = [5u8; 32];
 
-    instructions.extend(twine_chain_instruction::commit_batch(
-        &accounts.chain_admin.pubkey(),
-        batch_number,
-        batch_hash,
-    ));
-    let total_msg_handled_on_twine : u64 = 2;
+    let total_msg_handled_on_twine: u64 = 2;
 
     let mut finalize_public_values = Vec::with_capacity(72);
     finalize_public_values.extend_from_slice(&genesis_block_hash);
@@ -126,13 +122,12 @@ async fn process_native_refund() {
     finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
     finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
 
-    instructions.extend(twine_chain_instruction::finalize_batch(
+    instructions.extend(twine_chain_instruction::commit_and_finalize_batch(
         &accounts.chain_admin.pubkey(),
         batch_number,
         finalize_public_values.clone(),
         finalize_public_values,
     ));
-    
    
     instructions.extend(tokens_gateway_instruction::process_native_refund(
         l1_address,

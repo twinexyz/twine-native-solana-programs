@@ -11,7 +11,7 @@ use twine_chain::{
         state::{BatchPdaAccount, TwineChainStorage},
     },
     id,
-    utils::address_derivation::{derive_commitment_pda, derive_twine_chain_storage},
+    utils::address_derivation::derive_twine_chain_storage,
 };
 
 use helpers::twine_chain_helper::{
@@ -55,7 +55,6 @@ async fn commit_finalize_batch_test() {
     let batch_number = 1;
     let batch_hash = [5u8; 32];
 
-    // 5. Finalize a batch
     let total_msg_handled_on_twine : u64 = 2;
 
     let mut public_values = Vec::with_capacity(72);
