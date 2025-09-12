@@ -15,12 +15,22 @@ use solana_program::{
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use spl_token::instruction as token_instruction;
-use twine_chain::core::{
-    instruction::TwineChainInstruction,
-    state::{ExecutionMessageBuffer, TwineChainStorage},
+use twine_chain::{
+    core::{
+        instruction::TwineChainInstruction,
+        state::TwineChainStorage,
+    },
+    utils::{
+        address_derivation::{derive_twine_chain_storage, verify_derived_address},
+        constants::CHAIN_ID,
+    },
+    ID as twine_chain_program_id,
 };
-use twine_chain::utils::constants::CHAIN_ID;
 
+use crate::utils::address_derivation::{
+    derive_executed_withdrawals_buffer, derive_spl_tokens_vault_data, derive_spl_vault_authority,
+    derive_token_decimal_mappings,
+};
 use crate::{
     core::{
         error::ProgramCustomError,
@@ -54,6 +64,16 @@ pub fn execute_spl_l2_withdrawal(
     let role_manager_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    validate_accounts(
+        spl_tokens_vault_data_acc,
+        vault_authority_acc,
+        twine_chain_storage_acc,
+        executed_withdrawals_buffer_acc,
+        token_decimal_mappings_acc,
+        twine_chain_program,
+        program_id,
+    )?;
 
     let withdrawal_values = decode_l2_withdraw_values(
         &public_values,
@@ -117,7 +137,7 @@ pub fn execute_spl_l2_withdrawal(
     )?;
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
-
+    msg!("the actual amount output {}", actual_amount);
     let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::deserialize(
         &mut &executed_withdrawals_buffer_acc.data.borrow()[..],
     )
@@ -174,12 +194,49 @@ pub fn execute_spl_l2_withdrawal(
     Ok(())
 }
 
+fn validate_accounts(
+    spl_tokens_vault_data_acc: &AccountInfo,
+    vault_authority_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    executed_withdrawals_buffer_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let (expected_spl_tokens_vault_data_acc, _) = derive_spl_tokens_vault_data(program_id);
+    verify_derived_address(
+        expected_spl_tokens_vault_data_acc,
+        spl_tokens_vault_data_acc,
+    )?;
+
+    let (expected_vault_authority_acc, _) = derive_spl_vault_authority(program_id);
+    verify_derived_address(expected_vault_authority_acc, vault_authority_acc)?;
+
+    let (expected_twine_chain_Storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_Storage, twine_chain_storage_acc)?;
+
+    let (expected_executed_withdrawals_buffer, _) = derive_executed_withdrawals_buffer(program_id);
+    verify_derived_address(
+        expected_executed_withdrawals_buffer,
+        executed_withdrawals_buffer_acc,
+    )?;
+
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc);
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
 pub fn decode_l2_withdraw_values(
     bytes: &[u8],
     l1_receiver_address_length: usize,
     l1_token_address_length: usize,
 ) -> Result<L2WithdrawValues, ProgramError> {
-    const MIN_LEN: usize = 168;
+    const MIN_LEN: usize = 165;
     const PREFIX_LEN: usize = 48;
     const L2_TOKEN_ADDRESS_LEN: usize = 42;
 

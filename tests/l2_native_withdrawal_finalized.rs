@@ -2,14 +2,16 @@
 mod helpers;
 use solana_program_test::*;
 use solana_sdk::{
-    msg, signature::{Keypair, Signer}, transaction::Transaction
+    msg,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
 };
 
 use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::{instruction as tokens_gateway_instruction,},
+    core::instruction as tokens_gateway_instruction,
     id,
     utils::{
         address_derivation::derive_native_token_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
@@ -30,12 +32,11 @@ async fn l2_native_withdrawal_finalized_succeed() {
         844073716442015,
     )
     .await;
-    
 
     let l1_decimals = 9u8;
-    let l2_decimals = 18u8;
+    let l2_decimals = 9u8;
     let amount = 50000000000u64;
-    let l1_amount = "50000000000000000000";
+    let l1_amount = "50000000000";
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let batch_number = 1u64;
@@ -57,9 +58,8 @@ async fn l2_native_withdrawal_finalized_succeed() {
     public_values.extend_from_slice(&l2_token.as_bytes());
     public_values.extend_from_slice(&l1_amount.to_string().as_bytes());
 
-    println!("The public values{:?}",public_values);
-    msg!("The hex values {:?}",hex::encode(&public_values));
-
+    println!("The public values{:?}", public_values);
+    msg!("The hex values {:?}", hex::encode(&public_values));
 
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
@@ -94,6 +94,31 @@ async fn l2_native_withdrawal_finalized_succeed() {
         amount,
         hex::decode(data.clone()).unwrap(),
     ));
+
+    let genesis_block_hash = [0u8; 32];
+    instructions.extend(twine_chain_instruction::initialize_genesis_batch(
+        &accounts.chain_admin.pubkey(),
+        genesis_block_hash,
+    ));
+
+    let batch_number = 1;
+    let batch_hash = [5u8; 32];
+
+    let total_msg_handled_on_twine: u64 = 2;
+
+    let mut finalize_public_values = Vec::with_capacity(72);
+    finalize_public_values.extend_from_slice(&genesis_block_hash);
+    finalize_public_values.extend_from_slice(&batch_hash);
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+
+    instructions.extend(twine_chain_instruction::commit_and_finalize_batch(
+        &accounts.chain_admin.pubkey(),
+        batch_number,
+        finalize_public_values.clone(),
+        finalize_public_values,
+    ));
+
     instructions.extend(tokens_gateway_instruction::execute_l2_native_withdrawal(
         l1_receiver_address,
         public_values,

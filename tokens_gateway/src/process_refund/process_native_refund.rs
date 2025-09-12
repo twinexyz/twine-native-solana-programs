@@ -14,18 +14,20 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
+use twine_chain::utils::address_derivation::{derive_detailed_messages_buffer, derive_twine_chain_storage};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{
-            ExecutionMessageBuffer, MessagesBuffer, MessagesReplicator, TransactionType,
-            TwineChainStorage,
-        },
+        state::{DetailedMessagesBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
     },
     utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
     ID as twine_chain_program_id,
 };
 
+use crate::utils::address_derivation::{
+    derive_executed_payouts_buffer, derive_executed_withdrawals_buffer, derive_native_token_vault,
+    derive_token_decimal_mappings, verify_derived_address, verify_system_program,
+};
 use crate::{
     core::{
         error::ProgramCustomError,
@@ -57,9 +59,21 @@ pub fn process_native_refund(
     let role_manager = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
-    let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    validate_accounts(
+        native_token_vault_acc,
+        native_token_vault_data_acc,
+        twine_chain_storage_acc,
+        executed_payouts_buffer_acc,
+        token_decimal_mappings_acc,
+        system_program,
+        detailed_messages_buffer_acc,
+        twine_chain_program,
+        program_id,
+    )?;
 
     let refund_values = decode_refund_values(&public_values, receiver_acc.key.to_string().len())?;
 
@@ -131,12 +145,12 @@ pub fn process_native_refund(
         };
     } else {
         let messages_buffer_data =
-            MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])?;
+            DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])?;
         if !messages_buffer_data
             .messages
             .contains(&Keccak256::digest(&public_values[40..]).into())
         {
-            msg!("Error: Provided transaction not present in MessageBuffer.");
+            msg!("Error: Provided transaction not present in Detailed Messages Buffer.");
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     }
@@ -212,6 +226,7 @@ pub fn process_native_refund(
 
     Ok(())
 }
+
 pub fn decode_refund_values(
     bytes: &[u8],
     l1_address_length: usize,
@@ -293,6 +308,47 @@ pub fn decode_refund_values(
         l2_token_address,
         amount,
     })
+}
+
+fn validate_accounts(
+    native_token_vault_acc: &AccountInfo,
+    native_token_vault_data_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    executed_payouts_buffer_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    system_program: &AccountInfo,
+    detailed_messages_buffer_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let (expected_native_token_vault, _) = derive_native_token_vault(program_id);
+    verify_derived_address(expected_native_token_vault, native_token_vault_acc)?;
+
+    let (expected_native_token_vault_data, _) = derive_native_token_vault_data(program_id);
+    verify_derived_address(
+        expected_native_token_vault_data,
+        native_token_vault_data_acc,
+    )?;
+
+    let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
+
+    let (expected_executed_payout_buffer, _) = derive_executed_payouts_buffer(program_id);
+    verify_derived_address(expected_executed_payout_buffer, executed_payouts_buffer_acc)?;
+
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
+
+    verify_system_program(system_program)?;
+
+    let (expected_detailed_message_buffer, _) = derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_detailed_message_buffer, detailed_messages_buffer_acc)?;
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
 }
 
 // Helper function to decode string fields

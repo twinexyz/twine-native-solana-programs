@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
+    account_info::AccountInfo,
     instruction::{AccountMeta, Instruction},
     msg,
     program_error::ProgramError,
@@ -7,14 +8,19 @@ use solana_program::{
     system_program,
 };
 use twine_chain::{
-    utils::address_derivation::{
-        derive_execution_message_buffer, derive_messages_buffer, derive_messages_replicator,
-        derive_role_manager, derive_twine_chain_storage,
+    core::state::TwineChainStorage,
+    utils::{
+        address_derivation::{
+            derive_detailed_messages_buffer, derive_execution_message_buffer,
+            derive_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
+            derive_twine_chain_storage,
+        },
+        constants::MESSAGE_NONCE_GAP,
     },
     ID as twine_chain_id,
 };
 
-use super::state::{RoleType};
+use super::state::RoleType;
 
 use crate::{
     utils::{
@@ -50,14 +56,14 @@ pub enum GatewayInstruction {
         address: Pubkey,
         role: RoleType,
     },
-    NativeTokenDepoist {
+    NativeTokenDeposit {
         receiver_twine_address: String,
         l1_token: String,
         l2_token: String,
         amount: u64,
         data: Vec<u8>,
     },
-    SplTokenDepoist {
+    SplTokenDeposit {
         receiver_twine_address: String,
         l1_token: String,
         l2_token: String,
@@ -104,6 +110,10 @@ pub enum GatewayInstruction {
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
     },
+    RemoveTokenMapping {
+        l1_token: String,
+        l2_token: String,
+    },
 }
 #[derive(BorshSerialize, BorshDeserialize)]
 struct UpdateTokenMappingPayload {
@@ -111,6 +121,12 @@ struct UpdateTokenMappingPayload {
     l2_token: String,
     l1_decimals: u8,
     l2_decimals: u8,
+}
+
+#[derive(BorshSerialize, BorshDeserialize)]
+struct RemoveTokenMappingPayload {
+    l1_token: String,
+    l2_token: String,
 }
 #[derive(BorshSerialize, BorshDeserialize)]
 struct SetGatewayRoleChainAdminPayload {
@@ -129,7 +145,7 @@ struct RemoveRoleInGatewayPayload {
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
-struct NativeTokenDepoistPayload {
+struct NativeTokenDepositPayload {
     receiver_twine_address: String,
     l1_token: String,
     l2_token: String,
@@ -138,7 +154,7 @@ struct NativeTokenDepoistPayload {
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
-struct SplTokenDepoistPayload {
+struct SplTokenDepositPayload {
     receiver_twine_address: String,
     l1_token: String,
     l2_token: String,
@@ -165,7 +181,6 @@ struct SplTokenForcedWithdrawalPayload {
     amount: u64,
     signature: Vec<u8>,
 }
-
 
 #[derive(BorshSerialize, BorshDeserialize)]
 struct ExecuteL2NativeWithdrawalPayload {
@@ -274,15 +289,40 @@ pub fn update_gateway_token_mapping(
     }]
 }
 
+pub fn remove_gateway_token_mapping(
+    l1_token: String,
+    l2_token: String,
+    chain_admin: &Pubkey,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::RemoveTokenMapping { l1_token, l2_token };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_gateway_role_manager(&tokens_gateway_ID).0, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
 pub fn native_token_deposit(
     user: &Pubkey,
     receiver_twine_address: String,
     l1_token: String,
     l2_token: String,
     amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
     data: Vec<u8>,
 ) -> Vec<Instruction> {
-    let payload = GatewayInstruction::NativeTokenDepoist {
+    let payload = GatewayInstruction::NativeTokenDeposit {
         receiver_twine_address,
         l1_token,
         l2_token,
@@ -294,14 +334,20 @@ pub fn native_token_deposit(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(*user, false),
+        AccountMeta::new(*user, true),
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
-        AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -318,6 +364,8 @@ pub fn forced_native_token_withdrawal(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
     signature: Vec<u8>,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::NativeTokenForcedWithdrawal {
@@ -336,9 +384,16 @@ pub fn forced_native_token_withdrawal(
         AccountMeta::new(*user, true),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -356,9 +411,11 @@ pub fn spl_token_deposit(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
     data: Vec<u8>,
 ) -> Vec<Instruction> {
-    let payload = GatewayInstruction::SplTokenDepoist {
+    let payload = GatewayInstruction::SplTokenDeposit {
         receiver_twine_address,
         l1_token,
         l2_token,
@@ -369,7 +426,7 @@ pub fn spl_token_deposit(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(*user, false),
+        AccountMeta::new(*user, true),
         AccountMeta::new(*user_token_account, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
@@ -377,8 +434,15 @@ pub fn spl_token_deposit(
         AccountMeta::new(spl_token::id(), false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -396,6 +460,8 @@ pub fn forced_spl_token_withdrawal(
     l1_token: String,
     l2_token: String,
     amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
     signature: Vec<u8>,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::SplTokenForcedWithdrawal {
@@ -411,14 +477,21 @@ pub fn forced_spl_token_withdrawal(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(*user, false),
+        AccountMeta::new(*user, true),
         AccountMeta::new(*to_token_account, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -427,7 +500,6 @@ pub fn forced_spl_token_withdrawal(
         data,
     }]
 }
-
 
 pub fn execute_l2_native_withdrawal(
     l1_receiver_address: Pubkey,
@@ -450,7 +522,7 @@ pub fn execute_l2_native_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_id, false),
@@ -490,7 +562,7 @@ pub fn execute_l2_spl_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(twine_chain_id, false),
     ];
@@ -523,10 +595,10 @@ pub fn process_native_refund(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
@@ -568,9 +640,9 @@ pub fn process_spl_refund(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
@@ -606,10 +678,10 @@ pub fn process_native_forced_withdrawal(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
@@ -651,9 +723,9 @@ pub fn process_spl_forced_withdrawal(
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
@@ -677,7 +749,7 @@ pub fn set_gateway_role_chain_admin(new_admin: Pubkey, chain_admin: Pubkey) -> V
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(chain_admin, true),
     ];
     vec![Instruction {
@@ -691,7 +763,6 @@ pub fn add_role_in_gateway(
     chain_admin: Pubkey,
     account_address: Pubkey,
     role: RoleType,
-    
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::AddRoleInGateway {
         address: account_address,
@@ -702,7 +773,7 @@ pub fn add_role_in_gateway(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(chain_admin, true),
     ];
     vec![Instruction {
@@ -713,9 +784,9 @@ pub fn add_role_in_gateway(
 }
 
 pub fn remove_role_in_gateway(
+    chain_admin: Pubkey,
     account_address: Pubkey,
     role: RoleType,
-    chain_admin: Pubkey,
 ) -> Vec<Instruction> {
     let payload = GatewayInstruction::RemoveRoleInGateway {
         address: account_address,
@@ -726,7 +797,7 @@ pub fn remove_role_in_gateway(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(derive_role_manager(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(chain_admin, true),
     ];
     vec![Instruction {
@@ -779,9 +850,9 @@ impl GatewayInstruction {
                 })
             }
             6 => {
-                let payload = NativeTokenDepoistPayload::try_from_slice(rest)
+                let payload = NativeTokenDepositPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::NativeTokenDepoist {
+                Ok(Self::NativeTokenDeposit {
                     receiver_twine_address: payload.receiver_twine_address,
                     l1_token: payload.l1_token,
                     l2_token: payload.l2_token,
@@ -791,9 +862,9 @@ impl GatewayInstruction {
             }
 
             7 => {
-                let payload = SplTokenDepoistPayload::try_from_slice(rest)
+                let payload = SplTokenDepositPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::SplTokenDepoist {
+                Ok(Self::SplTokenDeposit {
                     receiver_twine_address: payload.receiver_twine_address,
                     l1_token: payload.l1_token,
                     l2_token: payload.l2_token,
@@ -872,6 +943,14 @@ impl GatewayInstruction {
                 Ok(Self::ProcessSplForcedWithdrawal {
                     public_values: payload.public_values,
                     execution_proof: payload.execution_proof,
+                })
+            }
+            16 => {
+                let payload = RemoveTokenMappingPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::RemoveTokenMapping {
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),

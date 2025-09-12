@@ -20,7 +20,7 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_role_manager, derive_twine_chain_storage, verify_derived_address,
+            derive_twine_chain_role_manager, derive_twine_chain_storage, verify_derived_address,
             verify_system_program,
         },
         constants::TWINE_CHAIN_STORAGE_PREFIX,
@@ -117,7 +117,7 @@ fn validate_accounts(
         derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
 
-    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     verify_system_program(system_program)?;

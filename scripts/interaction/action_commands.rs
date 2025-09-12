@@ -18,6 +18,10 @@ pub enum Commands {
         l1_decimals: u8,
         l2_decimals: u8,
     },
+    RemoveTokenMapping {
+        l1_token: String,
+        l2_token: String,
+    },
     DepositNativeToken {
         l1_token: String,
         l2_token: String,
@@ -97,6 +101,8 @@ pub enum Commands {
     CreateSplToken {},
     GetAllPdas {},
     GetMessagesBufferData {},
+    GetDetailedMessagesBufferData {},
+    GetTokensMappingData {},
     GetExecutedPayoutsBufferData {},
     GetTwineChainStorageData {},
     GetTwineChainRoleManagerData {},
@@ -109,7 +115,15 @@ pub enum Commands {
         role_type: String,
         user_pubkey: Pubkey,
     },
+    RemoveRoleInTwineChain {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
     AddRoleInTokensGateway {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
+    RemoveRoleInTokensGateway {
         role_type: String,
         user_pubkey: Pubkey,
     },

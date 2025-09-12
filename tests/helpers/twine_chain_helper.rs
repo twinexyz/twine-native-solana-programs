@@ -9,7 +9,7 @@ use {
         system_instruction,
         transaction::Transaction,
     },
-    twine_chain::{core::processor, id, utils::address_derivation::derive_role_manager},
+    twine_chain::{core::processor, id, utils::address_derivation::derive_twine_chain_role_manager},
 };
 
 pub fn program_test() -> ProgramTest {
@@ -64,7 +64,7 @@ impl Default for TwineChainAccounts {
     fn default() -> Self {
         let chain_admin = get_default_keypair();
         Self {
-            role_manager: derive_role_manager(&id()).0,
+            role_manager: derive_twine_chain_role_manager(&id()).0,
             chain_admin,
             system_program: system_program::id(),
         }

@@ -18,7 +18,7 @@ use crate::{
         state::{RoleType, TwineChainRoleManager},
     },
     utils::{
-        address_derivation::{derive_role_manager, verify_derived_address, verify_system_program},
+        address_derivation::{derive_twine_chain_role_manager, verify_derived_address, verify_system_program},
         constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES, ROLE_MANAGER_PREFIX},
     },
 };
@@ -90,7 +90,7 @@ fn validate_accounts(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (expected_role_manager_pda, role_manager_bump) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, role_manager_bump) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     verify_system_program(system_program)?;

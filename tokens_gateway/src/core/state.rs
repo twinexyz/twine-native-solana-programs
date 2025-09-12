@@ -117,8 +117,8 @@ pub struct SignMessageInfo {
     pub nonce: u64,
     pub chain_id: u64,
     pub amount: u64,
-    pub from_twine_address: String,
-    pub to_l1_pubkey: String,
+    pub l1_pubkey: String,
+    pub twine_address: String,
     pub l1_token: String,
     pub l2_token: String,
 }
@@ -180,8 +180,8 @@ impl SignMessageInfo {
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.amount.to_be_bytes());
-        encoded.extend(self.from_twine_address.as_bytes());
-        encoded.extend(self.to_l1_pubkey.as_bytes());
+        encoded.extend(self.l1_pubkey.as_bytes());
+        encoded.extend(self.twine_address.as_bytes());
         encoded.extend(self.l1_token.as_bytes());
         encoded.extend(self.l2_token.as_bytes());
 

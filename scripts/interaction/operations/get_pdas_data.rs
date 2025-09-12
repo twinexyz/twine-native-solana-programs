@@ -2,17 +2,17 @@ use crate::utils::get_rpc_client;
 use anyhow::{Context, Result};
 use borsh::BorshDeserialize;
 use tokens_gateway::{
-    core::state::{ExecutedPayoutsBuffer, TokensGatewayRoleManager},
+    core::state::{ExecutedPayoutsBuffer, TokensGatewayRoleManager,TokenDecimalMappings},
     id as tokens_gateway_program_id,
-    utils::address_derivation::{derive_executed_payouts_buffer, derive_gateway_role_manager},
+    utils::address_derivation::{derive_executed_payouts_buffer, derive_gateway_role_manager,derive_token_decimal_mappings},
 };
 use twine_chain::core::state::{
-    MessagesBuffer, MessagesReplicator, TwineChainRoleManager, TwineChainStorage,
+    MessagesBuffer, MessagesReplicator, DetailedMessagesBuffer,TwineChainRoleManager, TwineChainStorage,
 };
 use twine_chain::{
     id as twine_chain_program_id,
     utils::address_derivation::{
-        derive_messages_buffer, derive_messages_replicator, derive_role_manager,
+        derive_messages_buffer,derive_detailed_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
         derive_twine_chain_storage,
     },
 };
@@ -32,6 +32,20 @@ pub fn get_messages_buffer_data() -> Result<()> {
     Ok(())
 }
 
+pub fn get_detailed_messages_buffer_data() -> Result<()> {
+    let rpc_client = get_rpc_client();
+
+    let detailed_messages_buffer_account = rpc_client
+        .get_account(&derive_detailed_messages_buffer(&twine_chain_program_id()).0)
+        .context("Failed to fetch PDA account")?;
+
+    let messages_buffer_data = DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_account.data[..])
+        .context("Failed to deserialize Detailed Message Buffer")?;
+
+    println!("Detailed Message Buffer Data: {:?}", messages_buffer_data);
+
+    Ok(())
+}
 pub fn get_payouts_buffer_data() -> Result<()> {
     let rpc_client = get_rpc_client();
 
@@ -86,7 +100,7 @@ pub fn get_twine_chain_role_manager_data() -> Result<()> {
     let rpc_client = get_rpc_client();
 
     let twine_role_manager_account = rpc_client
-        .get_account(&derive_role_manager(&twine_chain_program_id()).0)
+        .get_account(&derive_twine_chain_role_manager(&twine_chain_program_id()).0)
         .context("Failed to fetch PDA account")?;
 
     let twine_role_manager_data: TwineChainRoleManager =
@@ -115,6 +129,25 @@ pub fn get_tokens_gateway_role_manager_data() -> Result<()> {
     println!(
         "Tokens Gateway RoleManager Data: {:?}",
         tokens_gateway_role_manager_data
+    );
+
+    Ok(())
+}
+
+pub fn get_tokens_mapping_data() -> Result<()> {
+    let rpc_client = get_rpc_client();
+
+    let tokens_mapping_account = rpc_client
+        .get_account(&derive_token_decimal_mappings(&tokens_gateway_program_id()).0)
+        .context("Failed to fetch PDA account")?;
+
+    let tokens_mapping_account_data: TokenDecimalMappings =
+        TokenDecimalMappings::deserialize(&mut &tokens_mapping_account.data[..])
+            .expect("Failed to deserialize Twine Chain Rolemanager Data");
+
+    println!(
+        "Tokens Mapping Data: {:?}",
+        tokens_mapping_account_data
     );
 
     Ok(())

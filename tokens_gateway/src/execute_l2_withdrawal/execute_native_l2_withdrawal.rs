@@ -13,11 +13,14 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
-use twine_chain::core::{
-    instruction::TwineChainInstruction,
-    state::{ExecutionMessageBuffer, TwineChainStorage},
+use twine_chain::{
+    core::{
+        instruction::TwineChainInstruction,
+        state::TwineChainStorage,
+    },
+    utils::address_derivation::derive_twine_chain_storage,
 };
-use twine_chain::utils::constants::CHAIN_ID;
+use twine_chain::{utils::constants::CHAIN_ID, ID as twine_chain_program_id};
 
 use crate::{
     core::{
@@ -28,7 +31,11 @@ use crate::{
         },
     },
     utils::{
-        address_derivation::derive_native_token_vault_data,
+        address_derivation::{
+            derive_executed_withdrawals_buffer, derive_native_token_vault,
+            derive_native_token_vault_data, derive_token_decimal_mappings, verify_derived_address,
+            verify_system_program,
+        },
         constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
     },
@@ -51,6 +58,17 @@ pub fn execute_native_l2_withdrawal(
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    validate_accounts(
+        native_token_vault_acc,
+        native_token_vault_data_acc,
+        twine_chain_storage_acc,
+        executed_withdrawals_buffer_acc,
+        token_decimal_mappings_acc,
+        system_program,
+        twine_chain_program,
+        program_id,
+    )?;
 
     let withdrawal_values =
         decode_l2_withdraw_values(&public_values, receiver_acc.key.to_string().len())?;
@@ -168,11 +186,51 @@ pub fn execute_native_l2_withdrawal(
     Ok(())
 }
 
+fn validate_accounts(
+    native_token_vault_acc: &AccountInfo,
+    native_token_vault_data_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    executed_withdrawals_buffer_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    system_program: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let (expected_native_token_vault, _) = derive_native_token_vault(program_id);
+    verify_derived_address(expected_native_token_vault, native_token_vault_acc)?;
+
+    let (expected_native_token_vault_data, _) = derive_native_token_vault_data(program_id);
+    verify_derived_address(
+        expected_native_token_vault_data,
+        native_token_vault_data_acc,
+    )?;
+
+    let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
+
+    let (expected_executed_withdrawals_buffer, _) = derive_executed_withdrawals_buffer(program_id);
+    verify_derived_address(
+        expected_executed_withdrawals_buffer,
+        executed_withdrawals_buffer_acc,
+    )?;
+
+    let (expected_token_decimal_mapping, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mapping, token_decimal_mappings_acc)?;
+
+    verify_system_program(system_program);
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
 pub fn decode_l2_withdraw_values(
     bytes: &[u8],
     l1_receiver_address_length: usize,
 ) -> Result<L2WithdrawValues, ProgramError> {
-    const MIN_LEN: usize = 168;
+    const MIN_LEN: usize = 165;
     const PREFIX_LEN: usize = 48;
     const L1_TOKEN_ADDRESS_LEN: usize = 32;
     const L2_TOKEN_ADDRESS_LEN: usize = 42;

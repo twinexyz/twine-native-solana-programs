@@ -53,6 +53,11 @@ pub fn initialize_twine_solana_programs() -> Result<()> {
         &account.pubkey(),
     ));
 
+     twine_chain_instructions.extend(twine_chain_instruction::initialize_genesis_batch(
+        &account.pubkey(),
+        [0u8; 32]
+    ));
+
     twine_chain_instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
         &account.pubkey(),
         &native_token_valut_data_account,
@@ -76,6 +81,7 @@ pub fn initialize_twine_solana_programs() -> Result<()> {
     let twine_chain_initialize_signature = rpc_client
         .send_and_confirm_transaction(&twine_chain_initialize_transaction)
         .context("Failed to send and confirm transaction")?;
+    println!();
     println!(
         "Transaction signature: {}",
         twine_chain_initialize_signature

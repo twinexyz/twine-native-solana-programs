@@ -179,8 +179,8 @@ pub fn abi_encode_sign_message(info: &SignMessageInfo) -> Vec<u8> {
         Token::Uint(info.nonce.into()),
         Token::Uint(info.chain_id.into()),
         Token::Uint(info.amount.into()),
-        Token::String(info.from_twine_address.clone()),
-        Token::String(info.to_l1_pubkey.clone()),
+        Token::String(info.l1_pubkey.clone()),
+        Token::String(info.twine_address.clone()),
         Token::String(info.l1_token.clone()),
         Token::String(info.l2_token.clone()),
     ];

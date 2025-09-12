@@ -20,7 +20,7 @@ SOL_PUBKEY = 11111111111111111111111111111111
         deposit-native-token deposit-spl-token \
         forced-native-token-withdrawal forced-spl-withdrawal \
         forced-native-withdrawal execute-native-l2-withdrawal execute-spl-l2-withdrawal \
-        get-all-pdas get-batch-pda get-messages-buffer-data \
+        get-all-pdas get-batch-pda get-messages-buffer-data get-detailed-messages-buffer-data get-tokens-mapping-data\
         get-associated-token-account get-twine-chain-storage-data \
         get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund \
 		add-role-in-twine-chain add-role-in-tokens-gateway\
@@ -60,6 +60,7 @@ help:
 	@echo "=== TOKEN OPERATIONS ==="
 	@echo "  create-spl-token                  Create a new SPL token"
 	@echo "  update-token-mapping              Update token mapping"
+	@echo "  remove-token-mapping              Update token mapping"
 	@echo "  deposit-native-token              Deposit native tokens"
 	@echo "  deposit-spl-token                 Deposit SPL tokens"
 	@echo ""
@@ -73,15 +74,19 @@ help:
 	@echo ""
 	@echo "=== ROLE MANAGEMENT ==="
 	@echo "  add-role-in-twine-chain           Add role in twine chain"
+	@echo "  remove-role-in-twine-chain        Remove role in twine chain"
 	@echo "  add-role-in-tokens-gateway        Add role in tokens gateway"
+	@echo "  remove-role-in-tokens-gateway     Remove role in tokens gateway"
 	@echo ""
 	@echo "=== Copy MessageBuffer ==="
-	@echo "  copy-message-buffer           Copy the message buffer"
+	@echo "  copy-messages-buffer           Copy the message buffer"
 	@echo ""
 	@echo "=== DATA RETRIEVAL TARGETS ==="
 	@echo "  get-all-pdas                      Get all pdas"
 	@echo "  get-batch-pda                     Get batch pda id"
 	@echo "  get-messages-buffer-data          Get messages buffer data"
+	@echo "  get-detailed-messages-buffer-data Get detailed messages buffer data"
+	@echo "  get-tokens-mapping-data           Get tokens mapping data"
 	@echo "  get-executed-payouts-buffer-data  Get executed payouts buffer data"
 	@echo "  get-associated-token-account      Get associated token account of a wallet"
 	@echo "  get-twine-chain-storage-data      Get twine chain storage data"
@@ -196,6 +201,11 @@ update-token-mapping:
 	@echo "Updating token mapping..."
 	$(CARGO) run --bin interaction -- token-mapping "$(l1_token)" "$(l2_token)" "$(l1_decimals)" "$(l2_decimals)"
 
+# Usage: make remove-token-mapping l1_token=your_l1_token_here l2_token=your_l2_token_here
+remove-token-mapping:
+	@echo "Updating token mapping..."
+	$(CARGO) run --bin interaction -- remove-token-mapping "$(l1_token)" "$(l2_token)"
+
 # Usage: make deposit-native-token l2_token=l2_token_here receiver_address=receiver_address_here amount=amount_here data=data_here
 deposit-native-token:
 	@echo "Depositing native tokens..."
@@ -257,10 +267,20 @@ add-role-in-twine-chain:
 	@echo "Add Role in twineChain..."
 	$(CARGO) run --bin interaction -- add-role-in-twine-chain "$(role_type)" "$(user_pubkey)"
 
-# Usage: make add-role-in-tokens_gateway role_type=twine_operation_handler user_pubkey=your_pubkey
+# Usage: make remove-role-in-twine-chain role_type= message_appender/twine_operation_handler user_pubkey=your_pubkey
+remove-role-in-twine-chain:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- remove-role-in-twine-chain "$(role_type)" "$(user_pubkey)"
+
+# Usage: make add-role-in-tokens-gateway role_type=twine_operation_handler user_pubkey=your_pubkey
 add-role-in-tokens-gateway:
 	@echo "Add Role in twineChain..."
 	$(CARGO) run --bin interaction -- add-role-in-tokens-gateway "$(role_type)" "$(user_pubkey)"
+
+# Usage: make remove-role-in-tokens-gateway role_type=twine_operation_handler user_pubkey=your_pubkey
+remove-role-in-tokens-gateway:
+	@echo "Add Role in twineChain..."
+	$(CARGO) run --bin interaction -- remove-role-in-tokens-gateway "$(role_type)" "$(user_pubkey)"
 # ==============================
 #        Data Retrieval Targets
 # ==============================
@@ -276,6 +296,14 @@ get-batch-pda:
 get-messages-buffer-data:
 	@echo "Getting messages buffer data..."
 	$(CARGO) run --bin interaction -- get-messages-buffer-data
+
+get-detailed-messages-buffer-data:
+	@echo "Getting messages buffer data..."
+	$(CARGO) run --bin interaction -- get-detailed-messages-buffer-data
+
+get-tokens-mapping-data:
+	@echo "Getting messages buffer data..."
+	$(CARGO) run --bin interaction -- get-tokens-mapping-data
 
 get-executed-payouts-buffer-data:
 	@echo "Getting executed payouts buffer data..."
@@ -303,10 +331,11 @@ get-tokens-gateway-role-manager-data:
 	@echo "Getting tokens gateway role manager data..."
 	$(CARGO) run --bin interaction -- get-tokens-gateway-role-manager-data
 
-# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nocne
+
 # ==============================
 #     Copy Message Buffer
 # ==============================
+# Usage: make copy-messages-buffer start_nonce=the_start_nonce end_nonce=the_end_nonce
 copy-messages-buffer:
 	@echo "Copy Message Buffer..."
 	$(CARGO) run --bin interaction -- copy-messages-buffer "$(start_nonce)" "$(end_nonce)"

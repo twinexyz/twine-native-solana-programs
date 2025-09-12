@@ -5,7 +5,7 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_commitment_pda, derive_role_manager, derive_twine_chain_storage,
+            derive_commitment_pda, derive_twine_chain_role_manager, derive_twine_chain_storage,
             verify_derived_address, verify_system_program,
         },
         constants::{CHAIN_ID, COMMITMENT_PDA_PREFIX},
@@ -144,8 +144,9 @@ pub fn commit_and_finalize_batch(
         batch_number: batch_number,
         messages_handled_on_twine: executed_message_count,
         chain_id: CHAIN_ID,
-        batch_hash: current_batch_hash,
         slot_number: clock.slot,
+        batch_hash: current_batch_hash,
+        
     };
     let serialized_event =
         serde_json::to_string(&event).map_err(|_| ProgramCustomError::FailedToSerializeEvent)?;
@@ -189,7 +190,7 @@ fn validate_accounts(
     let (expected_twine_chain_storage_pda, _) = derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
 
-    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     let (expected_current_pda, current_pda_bump) = derive_commitment_pda(program_id, batch_number);

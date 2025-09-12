@@ -14,11 +14,14 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
+use twine_chain::utils::address_derivation::{
+    derive_detailed_messages_buffer, derive_twine_chain_storage, verify_system_program,
+};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
         state::{
-            ExecutionMessageBuffer, MessagesBuffer, MessagesReplicator, TransactionType,
+           DetailedMessagesBuffer, MessagesReplicator, TransactionType,
             TwineChainStorage,
         },
     },
@@ -26,6 +29,9 @@ use twine_chain::{
     ID as twine_chain_program_id,
 };
 
+use crate::utils::address_derivation::{
+    derive_executed_payouts_buffer, derive_token_decimal_mappings, verify_derived_address,
+};
 use crate::{
     core::{
         error::ProgramCustomError,
@@ -57,9 +63,20 @@ pub fn process_native_forced_withdrawal(
     let role_manager = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
-    let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    validate_accounts(
+        native_token_vault_data_acc,
+        twine_chain_storage_acc,
+        executed_payouts_buffer_acc,
+        token_decimal_mappings_acc,
+        system_program,
+        detailed_messages_buffer_acc,
+        twine_chain_program,
+        program_id,
+    )?;
 
     let withdraw_values =
         decode_withdraw_values(&public_values, receiver_acc.key.to_string().len())?;
@@ -119,12 +136,12 @@ pub fn process_native_forced_withdrawal(
         };
     } else {
         let messages_buffer_data =
-            MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])?;
+            DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])?;
         if !messages_buffer_data
             .messages
             .contains(&Keccak256::digest(&public_values[40..]).into())
         {
-            msg!("Error: Provided transaction not present in MessageBuffer.");
+            msg!("Error: Provided transaction not present in Detailed Message Buffer.");
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     }
@@ -216,15 +233,62 @@ pub fn process_native_forced_withdrawal(
     Ok(())
 }
 
+fn validate_accounts(
+    native_token_vault_data_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    executed_payouts_buffer_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    system_program: &AccountInfo,
+    detailed_messages_buffer_acc: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let (expected_native_token_vault_data, _) = derive_native_token_vault_data(program_id);
+    verify_derived_address(
+        expected_native_token_vault_data,
+        native_token_vault_data_acc,
+    )?;
+
+    let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
+
+    let (expected_executed_payouts_buffer, _) = derive_executed_payouts_buffer(program_id);
+    verify_derived_address(
+        expected_executed_payouts_buffer,
+        executed_payouts_buffer_acc,
+    )?;
+
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
+
+    verify_system_program(system_program);
+
+    let (expected_detailed_message_buffer, _) = derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_detailed_message_buffer, detailed_messages_buffer_acc)?;
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    Ok(())
+}
+
 pub fn decode_withdraw_values(
     bytes: &[u8],
     l1_address_length: usize,
 ) -> Result<L1OriginTxPublicValues, ProgramError> {
-    const PREFIX_LEN: usize = 97;
+    const FIXED_PREFIX_LEN: usize = 97;
     const L1_TOKEN_ADDRESS_LEN: usize = 32;
     const L2_ADDRESS_LEN: usize = 42;
+    const MIN_AMOUNT_FIELD_SIZE: usize = 1;
 
-    let min_len = 233;
+    let min_len = FIXED_PREFIX_LEN
+        .checked_add(l1_address_length)
+        .and_then(|v| v.checked_add(L2_ADDRESS_LEN))
+        .and_then(|v| v.checked_add(L1_TOKEN_ADDRESS_LEN))
+        .and_then(|v| v.checked_add(L2_ADDRESS_LEN))
+        .and_then(|v| v.checked_add(MIN_AMOUNT_FIELD_SIZE))
+        .ok_or(ProgramCustomError::PublicValueDecodeFailed)?;
 
     if bytes.len() < min_len {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
@@ -269,7 +333,7 @@ pub fn decode_withdraw_values(
     let message = take(32, &mut offset)?
         .try_into()
         .map_err(|_| ProgramCustomError::PublicValueDecodeFailed)?;
-    if offset != PREFIX_LEN {
+    if offset != FIXED_PREFIX_LEN {
         return Err(ProgramCustomError::PublicValueDecodeFailed.into());
     }
 

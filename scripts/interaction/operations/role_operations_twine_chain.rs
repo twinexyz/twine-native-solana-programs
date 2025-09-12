@@ -43,3 +43,31 @@ pub fn add_role_in_twine_chain(role_type: String, user_pubkey: Pubkey) -> Result
     println!("👤 User {} now has role: {:?}", user_pubkey, role_type);
     Ok(())
 }
+
+pub fn remove_role_in_twine_chain(role_type: String, user_pubkey: Pubkey) -> Result<()> {
+    let account = get_default_keypair();
+    let rpc_client = get_rpc_client();
+    let blockhash = rpc_client.get_latest_blockhash()?;
+    let role_type = parse_role_type(&role_type).context("Failed to parse role type")?;
+
+    let instructions = twine_chain_instruction::remove_role_in_twine_chain(
+        &account.pubkey(),
+        &user_pubkey,
+        role_type,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&account.pubkey()),
+        &[&account],
+        blockhash,
+    );
+
+    let signature = rpc_client
+        .send_and_confirm_transaction(&transaction)
+        .context("Failed to send and confirm transaction")?;
+
+    println!("🎉 Role successfully removed!");
+    println!("📋 Transaction signature: {}", signature);
+    Ok(())
+}

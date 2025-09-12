@@ -2,13 +2,13 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 
 use crate::{
     append_messages::{append_deposit_messages, append_withdrawal_messages, copy_messages_buffer},
-    commit_finalize::{commit_and_finalize_batch, commit_batch, finalize_batch},
+    commit_finalize::commit_and_finalize_batch,
     core::instruction::TwineChainInstruction,
     initialize::{
         initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
         initialize_twine_chain_storage,
     },
-    role::roles_manager::add_role,
+    role::roles_manager::{add_role, remove_role},
     setters::{set_token_gateway, set_v_keys},
 };
 
@@ -69,31 +69,18 @@ pub fn process_instruction(
                 genesis_batch_hash,
             )
         }
-
-        TwineChainInstruction::CommitBatch {
-            batch_number,
-            batch_hash,
-        } => commit_batch::commit_batch(program_id, accounts, batch_number, batch_hash),
-
-        TwineChainInstruction::FinalizeBatch {
-            batch_number,
-            public_values,
-            execution_proof,
-        } => finalize_batch::finalize_batch(
-            program_id,
-            accounts,
-            batch_number,
-            public_values,
-            execution_proof,
-        ),
-
         TwineChainInstruction::AddRoleInTwineChain { address, role } => {
             add_role(program_id, accounts, address, role)
+        }
+
+        TwineChainInstruction::RemoveRoleInTwineChain { address, role } => {
+            remove_role(program_id, accounts, address, role)
         }
 
         TwineChainInstruction::CopyMessagesBuffer => {
             copy_messages_buffer::copy_messages_buffer(program_id, accounts)
         }
+
         TwineChainInstruction::CommitAndFinalizeBatch {
             batch_number,
             public_values,

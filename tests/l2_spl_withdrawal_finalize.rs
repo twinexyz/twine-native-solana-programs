@@ -36,7 +36,6 @@ async fn l2_spl_withdrawal_finalized_succeed() {
 
     let l1_decimals = 9u8;
     let l2_decimals = 18u8;
-    let amount = 8000000000000000u64;
     let l1_amount = "8000000000000000";
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
@@ -49,7 +48,7 @@ async fn l2_spl_withdrawal_finalized_succeed() {
 
     let (spl_token_pubkey, user_token_account) =
         create_spl_and_mint(&mut context, &accounts.chain_admin, 9, 9000000000).await;
-        
+
     let spl_token_vault = get_or_create_ata(
         &mut context,
         &accounts.chain_admin,
@@ -106,6 +105,22 @@ async fn l2_spl_withdrawal_finalized_succeed() {
         4000000000,
         hex::decode(data.clone()).unwrap(),
     ));
+    let genesis_block_hash = [0u8; 32];
+    instructions.extend(twine_chain_instruction::initialize_genesis_batch(
+        &accounts.chain_admin.pubkey(),
+        genesis_block_hash,
+    ));
+
+    let batch_hash = [5u8; 32];
+
+    let total_msg_handled_on_twine: u64 = 2;
+
+    let mut finalize_public_values = Vec::with_capacity(72);
+    finalize_public_values.extend_from_slice(&genesis_block_hash);
+    finalize_public_values.extend_from_slice(&batch_hash);
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+
     instructions.extend(tokens_gateway_instruction::execute_l2_spl_withdrawal(
         &spl_token_pubkey,
         &spl_token_vault,

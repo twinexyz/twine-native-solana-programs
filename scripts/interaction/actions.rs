@@ -12,16 +12,16 @@ use crate::operations::{
     get_associated_token_account::get_associated_token_account,
     get_pdas_data::{
         get_messages_buffer_data, get_payouts_buffer_data, get_twine_chain_storage_data,get_message_replicator_data,
-        get_tokens_gateway_role_manager_data,get_twine_chain_role_manager_data
+        get_tokens_gateway_role_manager_data,get_twine_chain_role_manager_data,get_tokens_mapping_data,get_detailed_messages_buffer_data
     },
     initialize_programs::initialize_twine_solana_programs,
     process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal,
     process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
     process_native_l1_refund::process_native_l1_refund,
     process_spl_l1_refund::process_spl_l1_refund,
-    token_mapping::update_token_mapping,
-    role_operations_twine_chain::add_role_in_twine_chain,
-    role_operations_tokens_gateway::add_role_in_tokens_gateway,
+    token_mapping::{update_token_mapping,remove_token_mapping},
+    role_operations_twine_chain::{add_role_in_twine_chain,remove_role_in_twine_chain},
+    role_operations_tokens_gateway::{add_role_in_tokens_gateway,remove_role_in_tokens_gateway},
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -38,8 +38,16 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = add_role_in_twine_chain(role_type,user_pubkey);
             println!("Result: {:?}", result);
         }
+         Commands::RemoveRoleInTwineChain {role_type,user_pubkey} => {
+            let result = remove_role_in_twine_chain(role_type,user_pubkey);
+            println!("Result: {:?}", result);
+        }
         Commands::AddRoleInTokensGateway {role_type,user_pubkey} => {
             let result = add_role_in_tokens_gateway(role_type,user_pubkey);
+            println!("Result: {:?}", result);
+        }
+        Commands::RemoveRoleInTokensGateway {role_type,user_pubkey} => {
+            let result = remove_role_in_tokens_gateway(role_type,user_pubkey);
             println!("Result: {:?}", result);
         }
         Commands::GetAssociatedTokenAccount {
@@ -59,6 +67,14 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::GetMessagesBufferData {} => {
             let result = get_messages_buffer_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetDetailedMessagesBufferData {} => {
+            let result = get_detailed_messages_buffer_data();
+            println!("Result: {:?}", result);
+        }
+        Commands::GetTokensMappingData {} => {
+            let result = get_tokens_mapping_data();
             println!("Result: {:?}", result);
         }
         Commands::GetExecutedPayoutsBufferData {} => {
@@ -92,6 +108,13 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             l2_decimals,
         } => {
             let result = update_token_mapping(l1_token, l2_token, l1_decimals, l2_decimals);
+            println!("Result: {:?}", result);
+        }
+        Commands::RemoveTokenMapping {
+            l1_token,
+            l2_token,
+        } => {
+            let result = remove_token_mapping(l1_token, l2_token);
             println!("Result: {:?}", result);
         }
 

@@ -11,7 +11,7 @@ use tokens_gateway::{
 use twine_chain::{
     id as twine_chain_id,
     utils::address_derivation::{
-        derive_messages_buffer, derive_execution_message_buffer,derive_role_manager, derive_twine_chain_storage,derive_commitment_pda
+        derive_messages_buffer, derive_execution_message_buffer,derive_twine_chain_role_manager, derive_twine_chain_storage,derive_commitment_pda
     },
 };
 
@@ -24,7 +24,7 @@ pub fn get_all_pdas() -> Result<()> {
     let token_decimal_mappings_pda = derive_token_decimal_mappings(&tokens_gateway_id()).0;
     let executed_withdrawals_buffer = derive_executed_withdrawals_buffer(&tokens_gateway_id()).0;
     let messages_buffer_pda = derive_messages_buffer(&twine_chain_id()).0;
-    let twine_chain_gateway_role_manager = derive_role_manager(&twine_chain_id()).0;
+    let twine_chain_gateway_role_manager = derive_twine_chain_role_manager(&twine_chain_id()).0;
     let twine_chain_storage = derive_twine_chain_storage(&twine_chain_id()).0;
     let execution_message_buffer = derive_execution_message_buffer(&twine_chain_id()).0;
 

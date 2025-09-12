@@ -20,10 +20,10 @@ use tokens_gateway::{
 use twine_chain::{
     core::{
         instruction as twine_chain_instruction,
-        state::{MessagesBuffer, MessagesReplicator, RoleType, TwineChainStorage},
+        state::{DetailedMessagesBuffer, MessagesReplicator, RoleType, TwineChainStorage},
     },
     id as twine_chain_id,
-    utils::address_derivation::{derive_messages_buffer,derive_messages_replicator, derive_twine_chain_storage},
+    utils::address_derivation::{derive_detailed_messages_buffer,derive_messages_replicator, derive_twine_chain_storage},
 };
 
 #[tokio::test]
@@ -107,12 +107,12 @@ async fn copy_messages_buffer() {
     println!("Transaction status: {:?}", error);
    let deposit_message_buffer_account = context
         .banks_client
-        .get_account(derive_messages_buffer(&twine_chain_id()).0)
+        .get_account(derive_detailed_messages_buffer(&twine_chain_id()).0)
         .await
         .unwrap()
         .expect("Deposit Message Account Not Found");
-    let deposit_message_buffer_data: MessagesBuffer =
-        MessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
+    let deposit_message_buffer_data: DetailedMessagesBuffer =
+        DetailedMessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
             .expect("Failed to deserialize Deposit Message Buffer Data");
 
     println!("Message Buffer Data: {:?}", deposit_message_buffer_data);

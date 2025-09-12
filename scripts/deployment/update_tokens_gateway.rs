@@ -1,4 +1,4 @@
-use std::process::{Command, ExitStatus};
+use std::process::Command;
 use std::io::{self, Write};
 
 const TOKENS_GATEWAY_PROGRAM_SO_PATH: &str = "./target/deploy/tokens_gateway.so";
@@ -38,19 +38,4 @@ fn deploy_program(so_path: &str, program_name: &str, program_id: &str) -> io::Re
 
     println!("{}", String::from_utf8_lossy(&output.stdout));
     Ok(())
-}
-
-fn run_cmd(cmd: &str, args: &[&str], msg: &str) -> io::Result<ExitStatus> {
-    println!("{}: {} {}", msg, cmd, args.join(" "));
-
-    let status = Command::new(cmd)
-        .args(args)
-        .status()?;
-
-    if !status.success() {
-        eprintln!("❌ Command failed: {} {}", cmd, args.join(" "));
-        return Err(io::Error::new(io::ErrorKind::Other, "Command execution failed"));
-    }
-
-    Ok(status)
 }
