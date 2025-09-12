@@ -426,7 +426,7 @@ pub fn spl_token_deposit(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(*user, false),
+        AccountMeta::new(*user, true),
         AccountMeta::new(*user_token_account, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
@@ -442,7 +442,7 @@ pub fn spl_token_deposit(
             false,
         ),
         AccountMeta::new_readonly(system_program::id(), false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -477,7 +477,7 @@ pub fn forced_spl_token_withdrawal(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(*user, false),
+        AccountMeta::new(*user, true),
         AccountMeta::new(*to_token_account, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*token_mint_pubkey, false),
@@ -491,7 +491,7 @@ pub fn forced_spl_token_withdrawal(
             false,
         ),
         AccountMeta::new_readonly(system_program::id(), false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
