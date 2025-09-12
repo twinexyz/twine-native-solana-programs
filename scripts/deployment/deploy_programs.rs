@@ -34,7 +34,7 @@ fn main() -> io::Result<()> {
     let tc_id = deploy(TWINE_CHAIN_SO, "twine_chain", &url, &keypair_path)?;
 
     println!("🎉 Deployment finished.\n🚪 Tokens Gateway: {tg_id}");
-    println!("🔗 Twine Chain: {tc_id}");
+    println!("🎉 Deployment finished.\n🔗 Twine Chain: {tc_id}");
 
     Ok(())
 }

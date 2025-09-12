@@ -5,7 +5,7 @@ use solana_program::{
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
-    program::invoke_signed,
+    program::{invoke,invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::Sysvar,
@@ -139,7 +139,7 @@ pub fn forced_spl_token_withdrawal(
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
     let forced_withdrawal_messages_buffer =
-        DetailedMessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
+        DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = forced_withdrawal_messages_buffer.message_nonce + 1;
@@ -176,7 +176,7 @@ pub fn forced_spl_token_withdrawal(
 
     // Check nonce gap
     if forced_withdrawal_messages_buffer.message_nonce
-        > twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
+        >= twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
     {
         let payload = TwineChainInstruction::CopyMessagesBuffer;
         let mut copy_instruction_data = vec![];
@@ -191,7 +191,6 @@ pub fn forced_spl_token_withdrawal(
             AccountMeta::new(*detailed_messages_buffer_acc.key, false),
             AccountMeta::new(*twine_chain_storage_acc.key, false),
             AccountMeta::new(*messages_replicator_acc.key, false),
-            AccountMeta::new_readonly(*twine_chain_role_manager_acc.key, false),
             AccountMeta::new(*user_account.key, true),
             AccountMeta::new_readonly(*system_program.key, false),
         ];
@@ -202,20 +201,17 @@ pub fn forced_spl_token_withdrawal(
             data: copy_instruction_data,
         };
 
-        invoke_signed(
+        invoke(
             &copy_instruction,
             &[
                 detailed_messages_buffer_acc.clone(),
                 twine_chain_storage_acc.clone(),
                 messages_replicator_acc.clone(),
-                twine_chain_role_manager_acc.clone(),
                 user_account.clone(),
                 system_program.clone(),
             ],
-            signer_seeds,
         )?;
     }
-
     let payload = TwineChainInstruction::AppendForcedWithdrawalMessage {
         withdraw_info: withdraw_info,
     };
