@@ -101,6 +101,7 @@ pub enum Commands {
     CreateSplToken {},
     GetAllPdas {},
     GetMessagesBufferData {},
+    GetDetailedMessagesBufferData {},
     GetTokensMappingData {},
     GetExecutedPayoutsBufferData {},
     GetTwineChainStorageData {},

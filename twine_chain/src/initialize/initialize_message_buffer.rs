@@ -18,38 +18,13 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_detailed_messages_buffer, derive_messages_buffer, derive_twine_chain_role_manager,
-            verify_derived_address, verify_owner, verify_system_program,
+            derive_detailed_messages_buffer, derive_messages_buffer,
+            derive_twine_chain_role_manager, verify_derived_address, verify_owner,
+            verify_system_program,
         },
         constants::{CHAIN_ID, DETAILED_MESSAGES_BUFFER_PREFIX, MESSAGES_BUFFER_PREFIX},
     },
 };
-
-/// Initializes a new on-chain message buffer account.
-///
-///
-/// # Parameters
-/// - `program_id`: The public key of the current program, used for PDA checks.
-/// - `accounts`: A list of accounts expected in the following order:
-///
-///     0. `[writable]` messages buffer account (PDA-owned)
-///         - Holed rolling hash of messages
-///
-///     1. `[writable]` Detailed messages buffer account (PDA-owned)
-///         - Hold trandaction messages in detailed.
-///
-///     3. `[writable]` Execution messages buffer account (PDA-owned)
-///         - Hold withdrawal messages that are ready for execution.
-///
-///     4. `[]` Role manager account
-///         - Used to check that the caller has sufficient privileges.
-///
-///     5. `[signer]` Chain admin account
-///         - The admin invoking the initialization; must be authorized via the role manager.
-///
-///     6. `[]` System program
-///         - Required for allocating and assigning accounts on Solana.
-///
 
 pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
@@ -112,7 +87,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
      *  Detailed Message Buffer *
      *************************/
     if detailed_messages_buffer_acc.data_is_empty() {
-        let detailed_messages_buffer_space = 10240;
+        let detailed_messages_buffer_space = 10 * 1024;
         let required_lamports = rent.minimum_balance(detailed_messages_buffer_space);
         let create_ix = system_instruction::create_account(
             chain_admin_acc.key,

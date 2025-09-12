@@ -1,13 +1,17 @@
 use crate::utils::{get_default_keypair, get_ethereum_signature, get_rpc_client};
 use anyhow::{Context, Result};
 use borsh::BorshDeserialize;
-use solana_sdk::{signature::Signer, transaction::Transaction,msg};
+use solana_sdk::{msg, signature::Signer, transaction::Transaction};
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction, core::state::SignMessageInfo,
 };
 use twine_chain::{
-    core::state::MessagesBuffer, id as twine_chain_program_id,
-    utils::address_derivation::derive_messages_buffer,
+    core::state::{MessagesBuffer, TwineChainStorage},
+    id as twine_chain_program_id,
+    utils::{
+        address_derivation::{derive_messages_buffer, derive_twine_chain_storage},
+        constants::MESSAGE_NONCE_GAP,
+    },
 };
 
 pub fn forced_native_withdrawal(
@@ -29,6 +33,14 @@ pub fn forced_native_withdrawal(
         .context("Failed to deserialize Message Buffer")?;
     msg!("nonce here {:?}", messages_buffer_data.message_nonce + 1);
 
+    let twine_chain_storage_account = rpc_client
+        .get_account(&derive_twine_chain_storage(&twine_chain_program_id()).0)
+        .context("Failed to fetch PDA account")?;
+
+    let twine_chain_storage_data =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .context("Failed to deserialize TwineChainStorage")?;
+
     let sign_info = SignMessageInfo {
         nonce: messages_buffer_data.message_nonce + 1,
         chain_id: 900,
@@ -41,6 +53,9 @@ pub fn forced_native_withdrawal(
 
     let signature = get_ethereum_signature(&sign_info, &privkey);
 
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+
     let instructions = tokens_gateway_instruction::forced_native_token_withdrawal(
         &account.pubkey(),
         from_twine_address.clone(),
@@ -48,6 +63,8 @@ pub fn forced_native_withdrawal(
         l1_token.clone(),
         l2_token.clone(),
         amount,
+        start_nonce,
+        end_nonce,
         signature,
     );
 

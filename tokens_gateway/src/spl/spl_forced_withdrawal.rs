@@ -15,10 +15,14 @@ use std::str::FromStr;
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{DetailedMessagesBuffer, MessageInfo, TransactionType},
+        state::{DetailedMessagesBuffer, MessageInfo, TransactionType, TwineChainStorage},
     },
-    utils::address_derivation::{
-        derive_detailed_messages_buffer, derive_messages_buffer, derive_twine_chain_role_manager,
+     utils::{
+        address_derivation::{
+            derive_detailed_messages_buffer, derive_messages_buffer, derive_messages_replicator,
+            derive_twine_chain_role_manager, derive_twine_chain_storage, verify_system_program,
+        },
+        constants:: MESSAGE_NONCE_GAP,
     },
     ID as twine_chain_program_id,
 };
@@ -74,12 +78,15 @@ pub fn forced_spl_token_withdrawal(
     let messages_buffer_acc = next_account_info(account_info_iter)?;
     let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let twine_chain_role_manager_acc = next_account_info(account_info_iter)?;
+    let twine_chain_storage_acc = next_account_info(account_info_iter)?;
+    let messages_replicator_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     if l1_token != mint.key.to_string() {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
-    validate_accounts(
+    let (twine_chain_storage_data, start_nonce, end_nonce) = validate_accounts(
         user_account,
         to_token_account,
         spl_tokens_vault_data_acc,
@@ -89,8 +96,11 @@ pub fn forced_spl_token_withdrawal(
         detailed_messages_buffer_acc,
         twine_chain_role_manager_acc,
         twine_chain_program,
+        twine_chain_storage_acc,
+        messages_replicator_acc,
+        system_program,
         program_id,
-    );
+    )?;
 
     let parsed_to_pubkey =
         Pubkey::from_str(&to_l1_pubkey).map_err(|_| ProgramError::InvalidArgument)?;
@@ -106,6 +116,9 @@ pub fn forced_spl_token_withdrawal(
     if spl_data_key != *spl_tokens_vault_data_acc.key {
         return Err(ProgramError::InvalidAccountData.into());
     }
+
+    let seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]];
+    let signer_seeds = &[&seeds[..]];
 
     let token_decimal_mapping =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])?;
@@ -161,6 +174,48 @@ pub fn forced_spl_token_withdrawal(
         return Err(ProgramCustomError::PublicKeyMismatch.into());
     };
 
+    // Check nonce gap
+    if forced_withdrawal_messages_buffer.message_nonce
+        > twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
+    {
+        let payload = TwineChainInstruction::CopyMessagesBuffer;
+        let mut copy_instruction_data = vec![];
+        copy_instruction_data.extend(payload.try_to_vec().unwrap());
+
+        if !messages_replicator_acc.is_writable {
+            msg!("BUG: messages_replicator_acc not writable at outer level");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let copy_instruction_accounts = vec![
+            AccountMeta::new(*detailed_messages_buffer_acc.key, false),
+            AccountMeta::new(*twine_chain_storage_acc.key, false),
+            AccountMeta::new(*messages_replicator_acc.key, false),
+            AccountMeta::new_readonly(*twine_chain_role_manager_acc.key, false),
+            AccountMeta::new(*user_account.key, true),
+            AccountMeta::new_readonly(*system_program.key, false),
+        ];
+
+        let copy_instruction = Instruction {
+            program_id: *twine_chain_program.key,
+            accounts: copy_instruction_accounts,
+            data: copy_instruction_data,
+        };
+
+        invoke_signed(
+            &copy_instruction,
+            &[
+                detailed_messages_buffer_acc.clone(),
+                twine_chain_storage_acc.clone(),
+                messages_replicator_acc.clone(),
+                twine_chain_role_manager_acc.clone(),
+                user_account.clone(),
+                system_program.clone(),
+            ],
+            signer_seeds,
+        )?;
+    }
+
     let payload = TwineChainInstruction::AppendForcedWithdrawalMessage {
         withdraw_info: withdraw_info,
     };
@@ -188,7 +243,7 @@ pub fn forced_spl_token_withdrawal(
             twine_chain_role_manager_acc.clone(),
             spl_tokens_vault_data_acc.clone(),
         ],
-        &[&[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]]],
+        signer_seeds,
     )?;
     Ok(())
 }
@@ -203,8 +258,11 @@ fn validate_accounts(
     detailed_messages_buffer_acc: &AccountInfo,
     twine_chain_role_manager_acc: &AccountInfo,
     twine_chain_program: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    messages_replicator_acc: &AccountInfo,
+    system_program: &AccountInfo,
     program_id: &Pubkey,
-) -> ProgramResult {
+) -> Result<(TwineChainStorage, u64, u64), ProgramError> {
     if !user_account.is_signer {
         msg!("User must be signer");
         return Err(ProgramError::MissingRequiredSignature);
@@ -242,10 +300,25 @@ fn validate_accounts(
     let (expected_role_manager, _) = derive_twine_chain_role_manager(&twine_chain_program_id);
     verify_derived_address(expected_role_manager, twine_chain_role_manager_acc)?;
 
+    let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
+
+    verify_system_program(system_program)?;
+
     if twine_chain_program.key != &twine_chain_program_id {
-        msg!("Invalid Twine chain program account");
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    Ok(())
+    let mut twine_chain_storage_data =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+
+    let (expected_messages_replicator_pda, _) =
+        derive_messages_replicator(&twine_chain_program_id, start_nonce, end_nonce);
+    verify_derived_address(expected_messages_replicator_pda, messages_replicator_acc)?;
+
+    Ok((twine_chain_storage_data, start_nonce, end_nonce))
 }

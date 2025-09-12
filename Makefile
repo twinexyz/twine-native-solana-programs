@@ -20,7 +20,7 @@ SOL_PUBKEY = 11111111111111111111111111111111
         deposit-native-token deposit-spl-token \
         forced-native-token-withdrawal forced-spl-withdrawal \
         forced-native-withdrawal execute-native-l2-withdrawal execute-spl-l2-withdrawal \
-        get-all-pdas get-batch-pda get-messages-buffer-data  get-tokens-mapping-data\
+        get-all-pdas get-batch-pda get-messages-buffer-data get-detailed-messages-buffer-data get-tokens-mapping-data\
         get-associated-token-account get-twine-chain-storage-data \
         get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund \
 		add-role-in-twine-chain add-role-in-tokens-gateway\
@@ -85,6 +85,7 @@ help:
 	@echo "  get-all-pdas                      Get all pdas"
 	@echo "  get-batch-pda                     Get batch pda id"
 	@echo "  get-messages-buffer-data          Get messages buffer data"
+	@echo "  get-detailed-messages-buffer-data Get detailed messages buffer data"
 	@echo "  get-tokens-mapping-data           Get tokens mapping data"
 	@echo "  get-executed-payouts-buffer-data  Get executed payouts buffer data"
 	@echo "  get-associated-token-account      Get associated token account of a wallet"
@@ -295,6 +296,10 @@ get-batch-pda:
 get-messages-buffer-data:
 	@echo "Getting messages buffer data..."
 	$(CARGO) run --bin interaction -- get-messages-buffer-data
+
+get-detailed-messages-buffer-data:
+	@echo "Getting messages buffer data..."
+	$(CARGO) run --bin interaction -- get-detailed-messages-buffer-data
 
 get-tokens-mapping-data:
 	@echo "Getting messages buffer data..."
