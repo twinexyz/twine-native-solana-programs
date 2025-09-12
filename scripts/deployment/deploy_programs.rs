@@ -16,9 +16,9 @@ fn main() -> io::Result<()> {
     println!("🚀 Starting deployment...");
 
     // Optional env overrides
-    // SOLANA_RPC_URL (e.g., "devnet" or "https://api.devnet.solana.com")
+    // SOLANA_RPC_URL (e.g., "http://127.0.0.1:8899" or "https://api.devnet.solana.com")
     // SOLANA_KEYPAIR (e.g., "/home/me/.config/solana/id.json")
-    let url = env::var("SOLANA_RPC_URL").unwrap_or_else(|_| "devnet".to_string());
+    let url = env::var("SOLANA_RPC_URL").unwrap_or_else(|_| "http://127.0.0.1:8899".to_string());
 
     // Use environment variable if provided, otherwise fall back to default path
     let keypair_path = env::var("SOLANA_KEYPAIR")
