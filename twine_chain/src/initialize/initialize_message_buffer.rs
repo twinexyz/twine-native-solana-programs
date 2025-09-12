@@ -22,7 +22,7 @@ use crate::{
             derive_twine_chain_role_manager, verify_derived_address, verify_owner,
             verify_system_program,
         },
-        constants::{CHAIN_ID, DETAILED_MESSAGES_BUFFER_PREFIX, MESSAGES_BUFFER_PREFIX},
+        constants::{CHAIN_ID, DETAILED_MESSAGES_BUFFER_PREFIX,MESSAGE_NONCE_GAP_SIZE, MESSAGES_BUFFER_PREFIX},
     },
 };
 
@@ -87,7 +87,7 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
      *  Detailed Message Buffer *
      *************************/
     if detailed_messages_buffer_acc.data_is_empty() {
-        let detailed_messages_buffer_space = 10 * 1024;
+        let detailed_messages_buffer_space = 1 + 8 + 8 + 8 + 4 + (MESSAGE_NONCE_GAP_SIZE * 32);
         let required_lamports = rent.minimum_balance(detailed_messages_buffer_space);
         let create_ix = system_instruction::create_account(
             chain_admin_acc.key,
