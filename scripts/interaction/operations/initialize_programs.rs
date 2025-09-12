@@ -1,5 +1,6 @@
 use crate::utils::{get_default_keypair, get_rpc_client};
 use anyhow::{Context, Result};
+use sha3::{Digest, Keccak256};
 use solana_sdk::{signature::Signer, transaction::Transaction};
 use tokens_gateway::{
     core::{instruction as tokens_gateway_instruction},
@@ -9,6 +10,12 @@ use tokens_gateway::{
 },
 };
 use twine_chain::core::{instruction as twine_chain_instruction,state::RoleType};
+
+pub fn empty_keccak256() -> [u8; 32] {
+    let mut hasher = Keccak256::new();
+    hasher.update("");
+    hasher.finalize().into()
+}
 
 pub fn initialize_twine_solana_programs() -> Result<()> {
     let account = get_default_keypair();
@@ -55,7 +62,8 @@ pub fn initialize_twine_solana_programs() -> Result<()> {
 
      twine_chain_instructions.extend(twine_chain_instruction::initialize_genesis_batch(
         &account.pubkey(),
-        [0u8; 32]
+                empty_keccak256()
+
     ));
 
     twine_chain_instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
