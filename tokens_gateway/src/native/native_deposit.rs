@@ -171,7 +171,7 @@ pub fn native_token_deposit(
 
     // Check nonce gap
     if deposit_message_buffer.message_nonce
-        > twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
+        >= twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
     {
         let payload = TwineChainInstruction::CopyMessagesBuffer;
         let mut copy_instruction_data = vec![];
@@ -186,7 +186,6 @@ pub fn native_token_deposit(
             AccountMeta::new(*detailed_messages_buffer_acc.key, false),
             AccountMeta::new(*twine_chain_storage_acc.key, false),
             AccountMeta::new(*messages_replicator_acc.key, false),
-            AccountMeta::new_readonly(*twine_chain_role_manager_acc.key, false),
             AccountMeta::new(*user_account.key, true),
             AccountMeta::new_readonly(*system_program.key, false),
         ];
@@ -197,18 +196,15 @@ pub fn native_token_deposit(
             data: copy_instruction_data,
         };
 
-        invoke_signed(
+        invoke(
             &copy_instruction,
             &[
                 detailed_messages_buffer_acc.clone(),
                 twine_chain_storage_acc.clone(),
                 messages_replicator_acc.clone(),
-                twine_chain_role_manager_acc.clone(),
-                native_token_vault_data_acc.clone(),
                 user_account.clone(),
                 system_program.clone(),
             ],
-            signer_seeds,
         )?;
     }
 
