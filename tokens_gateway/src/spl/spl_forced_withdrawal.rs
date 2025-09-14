@@ -5,7 +5,7 @@ use solana_program::{
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
-    program::{invoke,invoke_signed},
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::Sysvar,
@@ -17,12 +17,12 @@ use twine_chain::{
         instruction::TwineChainInstruction,
         state::{DetailedMessagesBuffer, MessageInfo, TransactionType, TwineChainStorage},
     },
-     utils::{
+    utils::{
         address_derivation::{
             derive_detailed_messages_buffer, derive_messages_buffer, derive_messages_replicator,
             derive_twine_chain_role_manager, derive_twine_chain_storage, verify_system_program,
         },
-        constants:: MESSAGE_NONCE_GAP,
+        constants::MESSAGE_NONCE_GAP,
     },
     ID as twine_chain_program_id,
 };
@@ -83,10 +83,11 @@ pub fn forced_spl_token_withdrawal(
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
-    if l1_token != mint.key.to_string() {
+    let l1_mint_pk = Pubkey::from_str(&l1_token).map_err(|_| ProgramError::InvalidArgument)?;
+    if l1_mint_pk != *mint.key {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
-    let (twine_chain_storage_data, start_nonce, end_nonce) = validate_accounts(
+    let (twine_chain_storage_data, start_nonce, end_nonce,spl_data_bump) = validate_accounts(
         user_account,
         to_token_account,
         spl_tokens_vault_data_acc,
@@ -107,14 +108,6 @@ pub fn forced_spl_token_withdrawal(
 
     if parsed_to_pubkey != *to_token_account.key {
         return Err(ProgramCustomError::InvalidReceiver.into());
-    }
-
-    let spl_data_seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes()];
-
-    let (spl_data_key, spl_data_bump) = Pubkey::find_program_address(spl_data_seeds, program_id);
-
-    if spl_data_key != *spl_tokens_vault_data_acc.key {
-        return Err(ProgramError::InvalidAccountData.into());
     }
 
     let seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]];
@@ -258,7 +251,7 @@ fn validate_accounts(
     messages_replicator_acc: &AccountInfo,
     system_program: &AccountInfo,
     program_id: &Pubkey,
-) -> Result<(TwineChainStorage, u64, u64), ProgramError> {
+) -> Result<(TwineChainStorage, u64, u64,u8), ProgramError> {
     if !user_account.is_signer {
         msg!("User must be signer");
         return Err(ProgramError::MissingRequiredSignature);
@@ -269,7 +262,7 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let (expected_spl_tokens_vault_data_acc, _) = derive_spl_tokens_vault_data(program_id);
+    let (expected_spl_tokens_vault_data_acc, spl_data_bump) = derive_spl_tokens_vault_data(program_id);
     verify_derived_address(
         expected_spl_tokens_vault_data_acc,
         spl_tokens_vault_data_acc,
@@ -316,5 +309,5 @@ fn validate_accounts(
         derive_messages_replicator(&twine_chain_program_id, start_nonce, end_nonce);
     verify_derived_address(expected_messages_replicator_pda, messages_replicator_acc)?;
 
-    Ok((twine_chain_storage_data, start_nonce, end_nonce))
+    Ok((twine_chain_storage_data, start_nonce, end_nonce,spl_data_bump))
 }

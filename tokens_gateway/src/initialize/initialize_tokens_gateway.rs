@@ -14,8 +14,8 @@ use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, NativeTokenVaultData,
-            SplTokensVaultData, TokenDecimalMappings, TokenDepositData,
+            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, NativeTokenVaultData, RoleType,
+            SplTokensVaultData, TokenDecimalMappings, TokenDepositData, TokensGatewayRoleManager,
         },
     },
     utils::{
@@ -171,7 +171,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
     /****************************
      * Executed Payouts Buffer  *
      ****************************/
-    let (_, executed_withdrawals_buffer_bump) = derive_executed_payouts_buffer(&program_id);
+    let (_, executed_payouts_buffer_bump) = derive_executed_payouts_buffer(&program_id);
 
     let space = 8 + ExecutedPayoutsBuffer::SPACE;
     let lamports = rent.minimum_balance(space);
@@ -190,7 +190,7 @@ pub fn initialize_tokens_gateway(program_id: &Pubkey, accounts: &[AccountInfo]) 
         ],
         &[&[
             EXECUTED_PAYOUTS_BUFFER_PREFIX.as_bytes(),
-            &[executed_withdrawals_buffer_bump],
+            &[executed_payouts_buffer_bump],
         ]],
     )?;
     /****************************
@@ -331,57 +331,30 @@ fn validate_accounts(
         return Err(ProgramCustomError::InvalidPDA.into());
     }
 
-    let data = native_token_vault_data_acc.data.borrow();
-    if !data.is_empty() {
-        let mut data_slice = &data[..];
-        if let Ok(native_token_vault_data) = NativeTokenVaultData::deserialize(&mut data_slice) {
-            if native_token_vault_data.is_initialized {
-                return Err(ProgramError::AccountAlreadyInitialized);
-            }
-        }
-    }
-    let data = spl_tokens_vault_data_acc.data.borrow();
-    if !data.is_empty() {
-        let mut data_slice = &data[..];
-        if let Ok(spl_tokens_vault_data) = SplTokensVaultData::deserialize(&mut data_slice) {
-            if spl_tokens_vault_data.is_initialized {
-                return Err(ProgramError::AccountAlreadyInitialized);
-            }
-        }
+    let role_manager_data =
+        TokensGatewayRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if role_manager_data.chain_admin != *chain_admin_acc.key {
+        return Err(ProgramCustomError::Unauthorized.into());
     }
 
-    let data = executed_withdrawals_buffer_acc.data.borrow();
-    if !data.is_empty() {
-        let mut data_slice = &data[..];
-        if let Ok(executed_withdrawals_buffer_data) =
-            ExecutedWithdrawalsBuffer::deserialize(&mut data_slice)
-        {
-            if executed_withdrawals_buffer_data.is_initialized {
-                return Err(ProgramError::AccountAlreadyInitialized);
-            }
-        }
+    if !native_token_vault_data_acc.data.borrow().is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
     }
-    let data = executed_payouts_buffer_acc.data.borrow();
-    if !data.is_empty() {
-        let mut data_slice = &data[..];
-        if let Ok(executed_payouts_buffer_data) =
-            ExecutedPayoutsBuffer::deserialize(&mut data_slice)
-        {
-            if executed_payouts_buffer_data.is_initialized {
-                return Err(ProgramError::AccountAlreadyInitialized);
-            }
-        }
+    if !spl_tokens_vault_data_acc.data.borrow().is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
     }
 
-    let data = token_decimal_mappings_acc.data.borrow();
-    if !data.is_empty() {
-        let mut data_slice = &data[..];
-        if let Ok(token_decimal_mappings_data) = TokenDecimalMappings::deserialize(&mut data_slice)
-        {
-            if token_decimal_mappings_data.is_initialized {
-                return Err(ProgramError::AccountAlreadyInitialized);
-            }
-        }
+    if !executed_withdrawals_buffer_acc.data.borrow().is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    if !executed_payouts_buffer_acc.data.borrow().is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+    if !token_decimal_mappings_acc.data.borrow().is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
     }
 
     Ok(())

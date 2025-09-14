@@ -14,7 +14,9 @@ use solana_program::{
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
-use twine_chain::utils::address_derivation::{derive_detailed_messages_buffer, derive_twine_chain_storage};
+use twine_chain::utils::address_derivation::{
+    derive_detailed_messages_buffer, derive_twine_chain_storage,
+};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
@@ -111,10 +113,11 @@ pub fn process_native_refund(
 
     if executed_payouts_buffer
         .executed_payout_nonces
-        .contains(&refund_values.nonce)
+        .binary_search(&refund_values.nonce)
+        .is_ok()
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
+    }
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
@@ -144,8 +147,9 @@ pub fn process_native_refund(
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     } else {
-        let messages_buffer_data =
-            DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])?;
+        let messages_buffer_data = DetailedMessagesBuffer::deserialize(
+            &mut &detailed_messages_buffer_acc.data.borrow()[..],
+        )?;
         if !messages_buffer_data
             .messages
             .contains(&Keccak256::digest(&public_values[40..]).into())
@@ -341,8 +345,12 @@ fn validate_accounts(
 
     verify_system_program(system_program)?;
 
-    let (expected_detailed_message_buffer, _) = derive_detailed_messages_buffer(&twine_chain_program_id);
-    verify_derived_address(expected_detailed_message_buffer, detailed_messages_buffer_acc)?;
+    let (expected_detailed_message_buffer, _) =
+        derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(
+        expected_detailed_message_buffer,
+        detailed_messages_buffer_acc,
+    )?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);

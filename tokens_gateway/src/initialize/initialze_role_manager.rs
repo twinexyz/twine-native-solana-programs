@@ -87,16 +87,8 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
     // Check if account is already initialized
-    {
-        let data = role_manager_acc.data.borrow();
-        if !data.is_empty() {
-            let mut data_slice = &data[..];
-            if let Ok(role_manager) = TokensGatewayRoleManager::deserialize(&mut data_slice) {
-                if role_manager.is_initialized {
-                    return Err(ProgramError::AccountAlreadyInitialized);
-                }
-            }
-        }
+    if !role_manager_acc.data.borrow().is_empty() {
+        return Err(ProgramError::AccountAlreadyInitialized);
     }
 
     let (expected_role_manager_key, _) = derive_gateway_role_manager(&program_id);

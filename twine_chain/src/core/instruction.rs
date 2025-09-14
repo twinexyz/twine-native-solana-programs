@@ -151,45 +151,6 @@ pub fn initialize_message_buffer(chain_admin: &Pubkey) -> Vec<Instruction> {
     }]
 }
 
-pub fn append_deposit_message(
-    twine_operation_handler: &Pubkey,
-    deposit_info: MessageInfo,
-) -> Vec<Instruction> {
-    let payload = TwineChainInstruction::AppendDepositMessage { deposit_info };
-    let mut data = vec![];
-    data.extend(payload.try_to_vec().unwrap());
-    let accounts = vec![
-        AccountMeta::new(derive_messages_buffer(&ID).0, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
-        AccountMeta::new(*twine_operation_handler, true),
-    ];
-
-    vec![Instruction {
-        program_id: ID,
-        accounts,
-        data,
-    }]
-}
-
-pub fn append_forced_withdrawal_message(
-    twine_operation_handler: &Pubkey,
-    withdraw_info: MessageInfo,
-) -> Vec<Instruction> {
-    let payload = TwineChainInstruction::AppendForcedWithdrawalMessage { withdraw_info };
-    let mut data = vec![];
-    data.extend(payload.try_to_vec().unwrap());
-    let accounts = vec![
-        AccountMeta::new(derive_messages_buffer(&ID).0, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
-        AccountMeta::new(*twine_operation_handler, true),
-    ];
-
-    vec![Instruction {
-        program_id: ID,
-        accounts,
-        data,
-    }]
-}
 
 pub fn initialize_genesis_batch(
     twine_operation_handler: &Pubkey,

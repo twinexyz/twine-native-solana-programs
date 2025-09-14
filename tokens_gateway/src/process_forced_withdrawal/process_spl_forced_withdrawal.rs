@@ -114,10 +114,11 @@ pub fn process_spl_forced_withdrawal(
 
     if executed_payouts_buffer
         .executed_payout_nonces
-        .contains(&withdraw_values.nonce)
+        .binary_search(&withdraw_values.nonce)
+        .is_ok()
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
+    }
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
@@ -178,13 +179,6 @@ pub fn process_spl_forced_withdrawal(
     )?;
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
-
-    if executed_payouts_buffer
-        .executed_payout_nonces
-        .contains(&withdraw_values.nonce)
-    {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
 
     // Spl Token withdrawal
     process_spl_token_withdrawal(

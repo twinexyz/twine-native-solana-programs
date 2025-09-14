@@ -502,6 +502,7 @@ pub fn forced_spl_token_withdrawal(
 }
 
 pub fn execute_l2_native_withdrawal(
+    initializer: &Pubkey,
     l1_receiver_address: Pubkey,
     public_values: Vec<u8>,
     execution_proof: Vec<u8>,
@@ -514,6 +515,7 @@ pub fn execute_l2_native_withdrawal(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
+        AccountMeta::new(*initializer, true),
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
@@ -522,10 +524,10 @@ pub fn execute_l2_native_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
-        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new_readonly(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -536,6 +538,7 @@ pub fn execute_l2_native_withdrawal(
 }
 
 pub fn execute_l2_spl_withdrawal(
+    initializer: &Pubkey,
     token_mint_pubkey: &Pubkey,
     spl_tokens_vault: &Pubkey,
     l1_receiver_address: Pubkey,
@@ -551,6 +554,7 @@ pub fn execute_l2_spl_withdrawal(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
+        AccountMeta::new(*initializer, true),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
         AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
@@ -562,9 +566,9 @@ pub fn execute_l2_spl_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new_readonly(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {

@@ -116,10 +116,11 @@ pub fn process_spl_refund(
 
     if executed_payouts_buffer
         .executed_payout_nonces
-        .contains(&refund_values.nonce)
+        .binary_search(&refund_values.nonce)
+        .is_ok()
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
+    }
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {

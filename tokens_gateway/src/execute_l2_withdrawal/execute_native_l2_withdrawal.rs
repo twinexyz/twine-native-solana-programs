@@ -16,11 +16,14 @@ use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::TwineChainStorage,
+        state::{RoleType, TwineChainRoleManager, TwineChainStorage},
     },
-    utils::address_derivation::derive_twine_chain_storage,
+    utils::{
+        address_derivation::{derive_twine_chain_role_manager, derive_twine_chain_storage},
+        constants::CHAIN_ID,
+    },
+    ID as twine_chain_program_id,
 };
-use twine_chain::{utils::constants::CHAIN_ID, ID as twine_chain_program_id};
 
 use crate::{
     core::{
@@ -49,22 +52,25 @@ pub fn execute_native_l2_withdrawal(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
 
+    let initializer_acc = next_account_info(account_info_iter)?;
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
     let executed_withdrawals_buffer_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
-    let role_manager = next_account_info(account_info_iter)?;
+    let role_manager_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     validate_accounts(
+        initializer_acc,
         native_token_vault_acc,
         native_token_vault_data_acc,
         twine_chain_storage_acc,
         executed_withdrawals_buffer_acc,
         token_decimal_mappings_acc,
+        role_manager_acc,
         system_program,
         twine_chain_program,
         program_id,
@@ -91,6 +97,7 @@ pub fn execute_native_l2_withdrawal(
     if withdrawal_values.l1_receiver_address != receiver_acc.key.to_string() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+    
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
@@ -132,23 +139,6 @@ pub fn execute_native_l2_withdrawal(
         return Err(ProgramCustomError::InsufficientFunds.into());
     }
 
-    let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::deserialize(
-        &mut &executed_withdrawals_buffer_acc.data.borrow()[..],
-    )
-    .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // For L2 initiated withdrawals
-    if withdrawal_values.nonce < executed_withdrawal_buffer.withdrawal_nonce_lower_bound {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
-    if executed_withdrawal_buffer
-        .executed_withdrawal_nonces
-        .contains(&withdrawal_values.nonce)
-    {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
     // Native token (SOL) withdrawal
     process_native_token_withdrawal(
         &program_id,
@@ -187,15 +177,21 @@ pub fn execute_native_l2_withdrawal(
 }
 
 fn validate_accounts(
+    initializer_acc: &AccountInfo,
     native_token_vault_acc: &AccountInfo,
     native_token_vault_data_acc: &AccountInfo,
     twine_chain_storage_acc: &AccountInfo,
     executed_withdrawals_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
+    role_manager_acc: &AccountInfo,
     system_program: &AccountInfo,
     twine_chain_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
+    if !initializer_acc.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     let (expected_native_token_vault, _) = derive_native_token_vault(program_id);
     verify_derived_address(expected_native_token_vault, native_token_vault_acc)?;
 
@@ -214,6 +210,9 @@ fn validate_accounts(
         executed_withdrawals_buffer_acc,
     )?;
 
+    let (expected_role_manager, _) = derive_twine_chain_role_manager(&twine_chain_program_id);
+    verify_derived_address(expected_role_manager, role_manager_acc)?;
+
     let (expected_token_decimal_mapping, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expected_token_decimal_mapping, token_decimal_mappings_acc)?;
 
@@ -221,6 +220,14 @@ fn validate_accounts(
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
+    }
+
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if !role_manager_data.has_role(initializer_acc.key, RoleType::TwineOperationHandler) {
+        return Err(ProgramCustomError::Unauthorized.into());
     }
 
     Ok(())

@@ -20,10 +20,7 @@ use twine_chain::utils::address_derivation::{
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{
-           DetailedMessagesBuffer, MessagesReplicator, TransactionType,
-            TwineChainStorage,
-        },
+        state::{DetailedMessagesBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
     },
     utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
     ID as twine_chain_program_id,
@@ -135,8 +132,9 @@ pub fn process_native_forced_withdrawal(
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     } else {
-        let messages_buffer_data =
-            DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])?;
+        let messages_buffer_data = DetailedMessagesBuffer::deserialize(
+            &mut &detailed_messages_buffer_acc.data.borrow()[..],
+        )?;
         if !messages_buffer_data
             .messages
             .contains(&Keccak256::digest(&public_values[40..]).into())
@@ -191,10 +189,11 @@ pub fn process_native_forced_withdrawal(
 
     if executed_payouts_buffer
         .executed_payout_nonces
-        .contains(&withdraw_values.nonce)
+        .binary_search(&withdraw_values.nonce)
+        .is_ok()
     {
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
+    }
 
     // Native token (SOL) withdrawal
     process_native_token_withdrawal(
@@ -263,8 +262,12 @@ fn validate_accounts(
 
     verify_system_program(system_program);
 
-    let (expected_detailed_message_buffer, _) = derive_detailed_messages_buffer(&twine_chain_program_id);
-    verify_derived_address(expected_detailed_message_buffer, detailed_messages_buffer_acc)?;
+    let (expected_detailed_message_buffer, _) =
+        derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(
+        expected_detailed_message_buffer,
+        detailed_messages_buffer_acc,
+    )?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);

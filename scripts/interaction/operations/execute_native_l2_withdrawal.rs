@@ -14,6 +14,7 @@ pub fn execute_native_l2_withdrawal(
     let rpc_client = get_rpc_client();
     let blockhash = rpc_client.get_latest_blockhash()?;
     let instructions = tokens_gateway_instruction::execute_l2_native_withdrawal(
+        &account.pubkey(),
         l1_receiver_address,
         public_values,
         execution_proof,

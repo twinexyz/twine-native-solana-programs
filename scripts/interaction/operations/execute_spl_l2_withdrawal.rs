@@ -37,6 +37,7 @@ pub fn execute_spl_l2_withdrawal(
     )?;
 
     let instructions = tokens_gateway_instruction::execute_l2_spl_withdrawal(
+        &account.pubkey(),
         &spl_token_pubkey,
         &spl_tokens_vault,
         l1_receiver_address,
