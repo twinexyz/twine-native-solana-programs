@@ -175,6 +175,7 @@ async fn l2_native_withdrawal_finalized_succeed() {
     third_instructions.extend(tokens_gateway_instruction::execute_l2_native_withdrawal(
         &accounts.chain_admin.pubkey(),
         l1_receiver_address,
+        nonce,
         public_values,
         execution_proof,
     ));

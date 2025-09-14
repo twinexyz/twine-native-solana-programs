@@ -2,7 +2,11 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    instruction::{AccountMeta, Instruction}, msg, program_error::ProgramError, pubkey::Pubkey, system_program
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    system_program,
 };
 
 use crate::{
@@ -24,9 +28,10 @@ pub enum TwineChainInstruction {
     },
     SetVkeys {
         groth16_vk: Vec<u8>,
-        execution_vkey: String,
-        inclusion_vkey: String,
-        withdrawal_vkey: String,
+        finalize_vkey: String,
+        refund_vkey: String,
+        forced_withdrawal_vkey: String,
+        l2_withdrawal_vkey: String,
     },
     AppendDepositMessage {
         deposit_info: MessageInfo,
@@ -47,7 +52,7 @@ pub enum TwineChainInstruction {
         public_values: Vec<u8>,
         execution_proof: Vec<u8>,
     },
-     RemoveRoleInTwineChain {
+    RemoveRoleInTwineChain {
         address: Pubkey,
         role: RoleType,
     },
@@ -61,9 +66,10 @@ struct SetTokenGatewayPayload {
 #[derive(BorshDeserialize)]
 struct SetVkeysPayload {
     groth16_vk: Vec<u8>,
-    execution_vkey: String,
-    inclusion_vkey: String,
-    withdrawal_vkey: String,
+    finalize_vkey: String,
+    refund_vkey: String,
+    forced_withdrawal_vkey: String,
+    l2_withdrawal_vkey: String,
 }
 
 #[derive(BorshDeserialize)]
@@ -150,7 +156,6 @@ pub fn initialize_message_buffer(chain_admin: &Pubkey) -> Vec<Instruction> {
         data,
     }]
 }
-
 
 pub fn initialize_genesis_batch(
     twine_operation_handler: &Pubkey,
@@ -296,9 +301,10 @@ impl TwineChainInstruction {
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SetVkeys {
                     groth16_vk: payload.groth16_vk,
-                    execution_vkey: payload.execution_vkey,
-                    inclusion_vkey: payload.inclusion_vkey,
-                    withdrawal_vkey: payload.withdrawal_vkey,
+                    finalize_vkey: payload.finalize_vkey,
+                    refund_vkey: payload.refund_vkey,
+                    forced_withdrawal_vkey: payload.forced_withdrawal_vkey,
+                    l2_withdrawal_vkey: payload.l2_withdrawal_vkey,
                 })
             }
             5 => {
@@ -340,7 +346,7 @@ impl TwineChainInstruction {
                     execution_proof: payload.execution_proof,
                 })
             }
-             11 => {
+            11 => {
                 msg!("Here in remove role");
                 let payload = RemoveRoleInTwineChainPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;

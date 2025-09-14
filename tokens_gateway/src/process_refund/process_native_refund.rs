@@ -11,6 +11,8 @@ use solana_program::{
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
@@ -27,21 +29,23 @@ use twine_chain::{
 };
 
 use crate::utils::address_derivation::{
-    derive_executed_payouts_buffer, derive_executed_withdrawals_buffer, derive_native_token_vault,
+    derive_executed_payouts_pda, derive_executed_withdrawals_pda, derive_native_token_vault,
     derive_token_decimal_mappings, verify_derived_address, verify_system_program,
 };
 use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, L1OriginTxPublicValues,
-            NativeTokenVaultData, RefundSuccessfulEvent, TokenDecimalMappings,
+            L1OriginTxPublicValues, NativeTokenVaultData, RefundSuccessfulEvent,
+            TokenDecimalMappings,
         },
     },
     utils::{
         address_derivation::derive_native_token_vault_data,
         batch_range_provider::batch_range_provider,
-        constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX},
+        constants::{
+            EXECUTED_PAYOUTS_PREFIX, NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX,
+        },
         ethereum_checks::is_valid_ethereum_address,
     },
 };
@@ -53,12 +57,13 @@ pub fn process_native_refund(
     execution_proof: Vec<u8>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
+
+    let initializer_acc = next_account_info(account_info_iter)?;
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
-    let executed_payouts_buffer_acc = next_account_info(account_info_iter)?;
+    let executed_payouts_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
-    let role_manager = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
@@ -69,7 +74,6 @@ pub fn process_native_refund(
         native_token_vault_acc,
         native_token_vault_data_acc,
         twine_chain_storage_acc,
-        executed_payouts_buffer_acc,
         token_decimal_mappings_acc,
         system_program,
         detailed_messages_buffer_acc,
@@ -102,22 +106,36 @@ pub fn process_native_refund(
     if refund_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
-    let mut executed_payouts_buffer =
-        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+    let (expected_executed_payouts_pda, executed_payouts_bump) =
+        derive_executed_payouts_pda(program_id, refund_values.nonce);
 
-    // For refunds
-    if refund_values.nonce < executed_payouts_buffer.payout_nonce_lower_bound {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
-    if executed_payouts_buffer
-        .executed_payout_nonces
-        .binary_search(&refund_values.nonce)
-        .is_ok()
-    {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    if expected_executed_payouts_pda != *executed_payouts_acc.key {
+        return Err(ProgramCustomError::InvalidPDA.into());
     }
+
+    let space: usize = 0;
+    let rent = Rent::get()?.minimum_balance(space);
+    let create_account_ix = system_instruction::create_account(
+        initializer_acc.key,
+        executed_payouts_acc.key,
+        rent,
+        space as u64,
+        program_id,
+    );
+
+    invoke_signed(
+        &create_account_ix,
+        &[
+            initializer_acc.clone(),
+            executed_payouts_acc.clone(),
+            system_program.clone(),
+        ],
+        &[&[
+            EXECUTED_PAYOUTS_PREFIX.as_bytes(),
+            &refund_values.nonce.to_le_bytes(),
+            &[executed_payouts_bump],
+        ]],
+    )?;
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
@@ -163,12 +181,11 @@ pub fn process_native_refund(
         return Err(ProgramCustomError::BatchNotFinalized.into());
     };
 
-    // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
         verify_proof(
             &execution_proof,
             &public_values,
-            &twine_chain_storage.execution_vkey,
+            &twine_chain_storage.refund_vkey,
             GROTH16_VK_4_0_0_RC3_BYTES,
         )
         .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -204,14 +221,6 @@ pub fn process_native_refund(
         actual_amount,
     )?;
 
-    executed_payouts_buffer
-        .executed_payout_nonces
-        .push(refund_values.nonce);
-
-    executed_payouts_buffer.post_withdrawal_processing();
-    executed_payouts_buffer
-        .serialize(&mut &mut executed_payouts_buffer_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
     let clock = Clock::get()?;
 
     let event = RefundSuccessfulEvent {
@@ -318,7 +327,6 @@ fn validate_accounts(
     native_token_vault_acc: &AccountInfo,
     native_token_vault_data_acc: &AccountInfo,
     twine_chain_storage_acc: &AccountInfo,
-    executed_payouts_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
     system_program: &AccountInfo,
     detailed_messages_buffer_acc: &AccountInfo,
@@ -336,9 +344,6 @@ fn validate_accounts(
 
     let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
     verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
-
-    let (expected_executed_payout_buffer, _) = derive_executed_payouts_buffer(program_id);
-    verify_derived_address(expected_executed_payout_buffer, executed_payouts_buffer_acc)?;
 
     let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;

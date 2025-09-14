@@ -22,7 +22,7 @@ SOL_PUBKEY = 11111111111111111111111111111111
         forced-native-withdrawal execute-native-l2-withdrawal execute-spl-l2-withdrawal \
         get-all-pdas get-batch-pda get-messages-buffer-data get-detailed-messages-buffer-data get-tokens-mapping-data\
         get-associated-token-account get-twine-chain-storage-data \
-        get-executed-payouts-buffer-data process-native-forced-withdrawal process-native-refund \
+        process-native-forced-withdrawal process-native-refund \
 		add-role-in-twine-chain add-role-in-tokens-gateway\
 
 # ==============================
@@ -304,10 +304,6 @@ get-detailed-messages-buffer-data:
 get-tokens-mapping-data:
 	@echo "Getting messages buffer data..."
 	$(CARGO) run --bin interaction -- get-tokens-mapping-data
-
-get-executed-payouts-buffer-data:
-	@echo "Getting executed payouts buffer data..."
-	$(CARGO) run --bin interaction -- get-executed-payouts-buffer-data
 
 # Usage: make get-associated-token-account wallet_address=your_wallet_address spl_token=your_spl_token
 get-associated-token-account:

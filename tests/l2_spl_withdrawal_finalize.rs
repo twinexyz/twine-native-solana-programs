@@ -183,6 +183,7 @@ async fn l2_spl_withdrawal_finalized_succeed() {
         &spl_token_pubkey,
         &spl_token_vault,
         user_token_account,
+        nonce,
         public_values,
         execution_proof,
     ));

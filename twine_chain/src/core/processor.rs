@@ -38,16 +38,18 @@ pub fn process_instruction(
 
         TwineChainInstruction::SetVkeys {
             groth16_vk,
-            execution_vkey,
-            inclusion_vkey,
-            withdrawal_vkey,
+            finalize_vkey,
+            refund_vkey,
+            forced_withdrawal_vkey,
+            l2_withdrawal_vkey,
         } => set_v_keys::set_v_keys(
             program_id,
             accounts,
             groth16_vk,
-            execution_vkey,
-            inclusion_vkey,
-            withdrawal_vkey,
+            finalize_vkey,
+            refund_vkey,
+            forced_withdrawal_vkey,
+            l2_withdrawal_vkey,
         ),
 
         TwineChainInstruction::AppendDepositMessage { deposit_info } => {

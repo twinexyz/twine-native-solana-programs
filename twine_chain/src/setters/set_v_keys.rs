@@ -20,9 +20,10 @@ pub fn set_v_keys(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     groth16_vk: Vec<u8>,
-    execution_vkey: String,
-    inclusion_vkey: String,
-    withdrawal_vkey: String,
+    finalize_vkey: String,
+    refund_vkey: String,
+    forced_withdrawal_vkey: String,
+    l2_withdrawal_vkey: String,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
@@ -37,7 +38,7 @@ pub fn set_v_keys(
     )?;
 
     // Validate data length [2(0x) + 32Bytes(64 hex char) = 66 hex characters]
-    if execution_vkey.len() > 66 || inclusion_vkey.len() > 66 || withdrawal_vkey.len() > 66 {
+    if finalize_vkey.len() > 66 || refund_vkey.len() > 66 || forced_withdrawal_vkey.len() > 66 || l2_withdrawal_vkey.len() > 66 {
         return Err(ProgramCustomError::InvalidDataLength.into());
     }
 
@@ -47,9 +48,10 @@ pub fn set_v_keys(
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     twine_chain_storage_data.groth16_vk = groth16_vk;
-    twine_chain_storage_data.execution_vkey = execution_vkey;
-    twine_chain_storage_data.inclusion_vkey = inclusion_vkey;
-    twine_chain_storage_data.withdrawal_vkey = withdrawal_vkey;
+    twine_chain_storage_data.finalize_vkey = finalize_vkey;
+    twine_chain_storage_data.refund_vkey = refund_vkey;
+    twine_chain_storage_data.forced_withdrawal_vkey = forced_withdrawal_vkey;
+    twine_chain_storage_data.l2_withdrawal_vkey = l2_withdrawal_vkey;
 
     twine_chain_storage_data
         .serialize(&mut &mut twine_chain_storage_acc.data.borrow_mut()[..])

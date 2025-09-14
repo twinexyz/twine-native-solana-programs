@@ -39,11 +39,7 @@ pub fn derive_messages_replicator(
     )
 }
 
-
-pub fn derive_commitment_pda(
-    program_id: &Pubkey,
-    batch_number: u64,
-) -> (Pubkey, u8) {
+pub fn derive_commitment_pda(program_id: &Pubkey, batch_number: u64) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             COMMITMENT_PDA_PREFIX.as_bytes(),

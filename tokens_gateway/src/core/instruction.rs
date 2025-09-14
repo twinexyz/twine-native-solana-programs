@@ -25,7 +25,7 @@ use super::state::RoleType;
 use crate::{
     utils::{
         address_derivation::{
-            derive_executed_payouts_buffer, derive_executed_withdrawals_buffer,
+            derive_executed_payouts_pda, derive_executed_withdrawals_pda,
             derive_gateway_role_manager, derive_native_token_vault, derive_native_token_vault_data,
             derive_spl_tokens_vault_data, derive_spl_vault_authority,
             derive_token_decimal_mappings,
@@ -241,11 +241,6 @@ pub fn initialize_tokens_gateway(chain_admin: &Pubkey) -> Vec<Instruction> {
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
-        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
-        AccountMeta::new(
-            derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
-            false,
-        ),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_gateway_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(*chain_admin, true),
@@ -504,6 +499,7 @@ pub fn forced_spl_token_withdrawal(
 pub fn execute_l2_native_withdrawal(
     initializer: &Pubkey,
     l1_receiver_address: Pubkey,
+    message_nonce: u64,
     public_values: Vec<u8>,
     execution_proof: Vec<u8>,
 ) -> Vec<Instruction> {
@@ -520,7 +516,7 @@ pub fn execute_l2_native_withdrawal(
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(
-            derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
+            derive_executed_withdrawals_pda(&tokens_gateway_ID, message_nonce).0,
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
@@ -542,6 +538,7 @@ pub fn execute_l2_spl_withdrawal(
     token_mint_pubkey: &Pubkey,
     spl_tokens_vault: &Pubkey,
     l1_receiver_address: Pubkey,
+    message_nonce: u64,
     public_values: Vec<u8>,
     execution_proof: Vec<u8>,
 ) -> Vec<Instruction> {
@@ -562,7 +559,7 @@ pub fn execute_l2_spl_withdrawal(
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
         AccountMeta::new(
-            derive_executed_withdrawals_buffer(&tokens_gateway_ID).0,
+            derive_executed_withdrawals_pda(&tokens_gateway_ID, message_nonce).0,
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
@@ -579,6 +576,7 @@ pub fn execute_l2_spl_withdrawal(
 }
 
 pub fn process_native_refund(
+    initializer: &Pubkey,
     l1_receiver_address: Pubkey,
     message_nonce: u64,
     public_values: Vec<u8>,
@@ -594,10 +592,14 @@ pub fn process_native_refund(
     let (start_nonce, end_nonce) =
         batch_range_provider(message_nonce).expect("Failed to calculate batch range");
     let accounts = vec![
+        AccountMeta::new(*initializer, true),
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
-        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(
+            derive_executed_payouts_pda(&tokens_gateway_ID, message_nonce).0,
+            false,
+        ),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
@@ -618,6 +620,7 @@ pub fn process_native_refund(
 }
 
 pub fn process_spl_refund(
+    initializer: &Pubkey,
     token_mint_pubkey: &Pubkey,
     spl_tokens_vault: &Pubkey,
     l1_receiver_address: Pubkey,
@@ -636,13 +639,17 @@ pub fn process_spl_refund(
     let (start_nonce, end_nonce) =
         batch_range_provider(message_nonce).expect("Failed to calculate batch range");
     let accounts = vec![
+        AccountMeta::new(*initializer, true),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
         AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
         AccountMeta::new(spl_token::id(), false),
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
-        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(
+            derive_executed_payouts_pda(&tokens_gateway_ID, message_nonce).0,
+            false,
+        ),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
@@ -651,6 +658,7 @@ pub fn process_spl_refund(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
         ),
+        AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_id, false),
     ];
 
@@ -662,6 +670,7 @@ pub fn process_spl_refund(
 }
 
 pub fn process_native_forced_withdrawal(
+    initializer: &Pubkey,
     l1_receiver_address: Pubkey,
     message_nonce: u64,
     public_values: Vec<u8>,
@@ -677,10 +686,14 @@ pub fn process_native_forced_withdrawal(
     let (start_nonce, end_nonce) =
         batch_range_provider(message_nonce).expect("Failed to calculate batch range");
     let accounts = vec![
+        AccountMeta::new(*initializer, true),
         AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
-        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(
+            derive_executed_payouts_pda(&tokens_gateway_ID, message_nonce).0,
+            false,
+        ),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
@@ -701,6 +714,7 @@ pub fn process_native_forced_withdrawal(
 }
 
 pub fn process_spl_forced_withdrawal(
+    initializer: &Pubkey,
     token_mint_pubkey: &Pubkey,
     spl_tokens_vault: &Pubkey,
     l1_receiver_address: Pubkey,
@@ -719,13 +733,17 @@ pub fn process_spl_forced_withdrawal(
     let (start_nonce, end_nonce) =
         batch_range_provider(message_nonce).expect("Failed to calculate batch range");
     let accounts = vec![
+        AccountMeta::new(*initializer, true),
         AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
         AccountMeta::new(*spl_tokens_vault, false),
         AccountMeta::new(derive_spl_vault_authority(&tokens_gateway_ID).0, false),
         AccountMeta::new(spl_token::id(), false),
         AccountMeta::new(*token_mint_pubkey, false),
         AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
-        AccountMeta::new(derive_executed_payouts_buffer(&tokens_gateway_ID).0, false),
+        AccountMeta::new(
+            derive_executed_payouts_pda(&tokens_gateway_ID, message_nonce).0,
+            false,
+        ),
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
@@ -734,6 +752,7 @@ pub fn process_spl_forced_withdrawal(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
         ),
+        AccountMeta::new(system_program::id(), false),
         AccountMeta::new(twine_chain_id, false),
     ];
 
