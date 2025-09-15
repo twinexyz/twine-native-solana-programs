@@ -3,7 +3,7 @@ use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program_test::*;
 use solana_sdk::{
-    instruction::Instruction, signature::{Keypair, Signer}, transaction::Transaction
+    signature::{Keypair, Signer}, transaction::Transaction
 };
 use std::str::FromStr;
 
@@ -13,7 +13,6 @@ use helpers::twine_chain_helper::{
 };
 
 use tokens_gateway::{
-    id as tokens_gateway_id,
     utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
 };
 
