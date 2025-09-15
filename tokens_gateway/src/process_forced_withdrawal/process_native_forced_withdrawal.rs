@@ -19,53 +19,38 @@ use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{
-            DetailedMessagesBuffer,
-            MessagesReplicator,
-            TransactionType,
-            TwineChainStorage,
-        },
+        state::{DetailedMessagesBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
     },
     utils::{
         address_derivation::{
-            derive_detailed_messages_buffer,
-            derive_messages_replicator,
-            derive_twine_chain_storage,
-            verify_system_program,
+            derive_detailed_messages_buffer, derive_messages_replicator,
+            derive_twine_chain_storage, verify_system_program,
         },
         constants::CHAIN_ID,
     },
     ID as twine_chain_program_id,
 };
 
-
 use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ForcedWithdrawalSuccessfulEvent,
-            L1OriginTxPublicValues,
-            NativeTokenVaultData,
+            ForcedWithdrawalSuccessfulEvent, L1OriginTxPublicValues, NativeTokenVaultData,
             TokenDecimalMappings,
         },
     },
     utils::{
         address_derivation::{
-            derive_executed_payouts_pda,
-            derive_native_token_vault_data,
-            derive_token_decimal_mappings,
-            verify_derived_address,
+            derive_executed_payouts_pda, derive_native_token_vault_data,
+            derive_token_decimal_mappings, verify_derived_address,
         },
         batch_range_provider::batch_range_provider,
         constants::{
-            EXECUTED_PAYOUTS_PREFIX,
-            NATIVE_TOKEN_VAULT_DATA_PREFIX,
-            NATIVE_TOKEN_VAULT_PREFIX,
+            EXECUTED_PAYOUTS_PREFIX, NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX,
         },
         ethereum_checks::is_valid_ethereum_address,
     },
 };
-
 
 pub fn process_native_forced_withdrawal(
     program_id: &Pubkey,
@@ -82,9 +67,9 @@ pub fn process_native_forced_withdrawal(
     let executed_payouts_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
     let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     validate_accounts(
@@ -132,6 +117,11 @@ pub fn process_native_forced_withdrawal(
     if expected_executed_payouts_pda != *executed_payouts_acc.key {
         return Err(ProgramCustomError::InvalidPDA.into());
     }
+    
+    if executed_payouts_acc.lamports() > 0 {
+        msg!("Payout with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
 
     let space: usize = 0;
     let rent = Rent::get()?.minimum_balance(space);
@@ -152,7 +142,7 @@ pub fn process_native_forced_withdrawal(
         ],
         &[&[
             EXECUTED_PAYOUTS_PREFIX.as_bytes(),
-            &withdrawal_values.nonce.to_le_bytes(),
+            &withdrawal_values.nonce.to_be_bytes(),
             &[executed_payouts_bump],
         ]],
     )?;

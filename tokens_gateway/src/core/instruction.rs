@@ -565,6 +565,7 @@ pub fn execute_l2_spl_withdrawal(
         AccountMeta::new(l1_receiver_address, false),
         AccountMeta::new_readonly(derive_twine_chain_role_manager(&twine_chain_id).0, false),
         AccountMeta::new_readonly(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new_readonly(system_program::id(), false),
         AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
@@ -601,15 +602,14 @@ pub fn process_native_refund(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
-        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(system_program::id(), false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false), 
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
         ),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -651,15 +651,14 @@ pub fn process_spl_refund(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
         ),
-        AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -695,15 +694,14 @@ pub fn process_native_forced_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
-        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
-        AccountMeta::new(system_program::id(), false),
+        AccountMeta::new_readonly(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
         ),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {
@@ -745,15 +743,14 @@ pub fn process_spl_forced_withdrawal(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_twine_chain_role_manager(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
             false,
         ),
-        AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(twine_chain_id, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
     ];
 
     vec![Instruction {

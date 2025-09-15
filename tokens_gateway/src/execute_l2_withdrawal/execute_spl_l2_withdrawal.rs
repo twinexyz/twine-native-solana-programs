@@ -1,4 +1,19 @@
-
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{
+            L2WithdrawExecutedEvent, L2WithdrawValues, SplTokensVaultData, TokenDecimalMappings,
+        },
+    },
+    utils::{
+        address_derivation::{
+            derive_executed_withdrawals_pda, derive_spl_tokens_vault_data,
+            derive_spl_vault_authority, derive_token_decimal_mappings,
+        },
+        constants::{EXECUTED_WITHDRAWALS_PREFIX, SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
 use serde_json;
@@ -31,22 +46,6 @@ use twine_chain::{
         constants::CHAIN_ID,
     },
     ID as twine_chain_program_id,
-};
-use crate::{
-    core::{
-        error::ProgramCustomError,
-        state::{
-            L2WithdrawExecutedEvent, L2WithdrawValues, SplTokensVaultData, TokenDecimalMappings,
-        },
-    },
-    utils::{
-        address_derivation::{
-            derive_executed_withdrawals_pda, derive_spl_tokens_vault_data,
-            derive_spl_vault_authority, derive_token_decimal_mappings,
-        },
-        constants::{EXECUTED_WITHDRAWALS_PREFIX, SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX},
-        ethereum_checks::is_valid_ethereum_address,
-    },
 };
 
 pub fn execute_spl_l2_withdrawal(
@@ -115,6 +114,11 @@ pub fn execute_spl_l2_withdrawal(
         return Err(ProgramCustomError::InvalidPDA.into());
     }
 
+    if executed_withdrawals_acc.lamports() > 0 {
+        msg!("Withdrawal with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
+
     let space: usize = 0;
     let rent = Rent::get()?.minimum_balance(space);
     let create_account_ix = system_instruction::create_account(
@@ -134,7 +138,7 @@ pub fn execute_spl_l2_withdrawal(
         ],
         &[&[
             EXECUTED_WITHDRAWALS_PREFIX.as_bytes(),
-            &withdrawal_values.nonce.to_le_bytes(),
+            &withdrawal_values.nonce.to_be_bytes(),
             &[executed_withdrawals_bump],
         ]],
     )?;

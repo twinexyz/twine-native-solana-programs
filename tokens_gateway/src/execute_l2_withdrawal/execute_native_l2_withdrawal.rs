@@ -66,7 +66,6 @@ pub fn execute_native_l2_withdrawal(
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
-
     validate_accounts(
         initializer_acc,
         native_token_vault_acc,
@@ -109,6 +108,11 @@ pub fn execute_native_l2_withdrawal(
         return Err(ProgramCustomError::InvalidPDA.into());
     }
 
+    if executed_withdrawals_acc.lamports() > 0 {
+        msg!("Withdrawal with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
+
     let space: usize = 0;
     let rent = Rent::get()?.minimum_balance(space);
     let create_account_ix = system_instruction::create_account(
@@ -116,9 +120,8 @@ pub fn execute_native_l2_withdrawal(
         executed_withdrawals_acc.key,
         rent,
         space as u64,
-        program_id, 
+        program_id,
     );
-
     invoke_signed(
         &create_account_ix,
         &[
@@ -128,11 +131,10 @@ pub fn execute_native_l2_withdrawal(
         ],
         &[&[
             EXECUTED_WITHDRAWALS_PREFIX.as_bytes(),
-            &withdrawal_values.nonce.to_le_bytes(),
+            &withdrawal_values.nonce.to_be_bytes(),
             &[executed_withdrawals_bump],
         ]],
     )?;
-
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
         TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])

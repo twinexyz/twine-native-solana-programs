@@ -117,6 +117,11 @@ pub fn process_spl_forced_withdrawal(
         return Err(ProgramCustomError::InvalidPDA.into());
     }
 
+    if executed_payouts_acc.lamports() > 0 {
+        msg!("Payout with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
+
     let space: usize = 0;
     let rent = Rent::get()?.minimum_balance(space);
     let create_account_ix = system_instruction::create_account(
@@ -136,7 +141,7 @@ pub fn process_spl_forced_withdrawal(
         ],
         &[&[
             EXECUTED_PAYOUTS_PREFIX.as_bytes(),
-            &withdrawal_values.nonce.to_le_bytes(),
+            &withdrawal_values.nonce.to_be_bytes(),
             &[executed_payouts_bump],
         ]],
     )?;
@@ -194,7 +199,6 @@ pub fn process_spl_forced_withdrawal(
         )
         .map_err(|_| ProgramError::InvalidInstructionData)?;
     }
-
 
     let token_decimal_mappings =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])

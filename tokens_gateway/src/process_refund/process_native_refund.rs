@@ -65,9 +65,9 @@ pub fn process_native_refund(
     let executed_payouts_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
     let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     validate_accounts(
@@ -113,6 +113,11 @@ pub fn process_native_refund(
         return Err(ProgramCustomError::InvalidPDA.into());
     }
 
+    if executed_payouts_acc.lamports() > 0 {
+        msg!("Payout with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
+
     let space: usize = 0;
     let rent = Rent::get()?.minimum_balance(space);
     let create_account_ix = system_instruction::create_account(
@@ -132,7 +137,7 @@ pub fn process_native_refund(
         ],
         &[&[
             EXECUTED_PAYOUTS_PREFIX.as_bytes(),
-            &refund_values.nonce.to_le_bytes(),
+            &refund_values.nonce.to_be_bytes(),
             &[executed_payouts_bump],
         ]],
     )?;

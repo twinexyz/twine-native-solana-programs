@@ -1,23 +1,33 @@
 #[cfg(test)]
 mod helpers;
 use borsh::BorshDeserialize;
-use solana_program_test::*;
-use sha3::{Digest, Keccak256};
-use solana_sdk::{
-    msg, signature::{Keypair, Signer}, transaction::Transaction
-};
 use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
+use sha3::{Digest, Keccak256};
+use solana_program_test::*;
+use solana_sdk::{
+    msg,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
 use tokens_gateway::{
-    core::{instruction as tokens_gateway_instruction,state::ExecutedPayoutsBuffer},
+    core::instruction as tokens_gateway_instruction,
     id as tokens_gateway_id,
     utils::{
-        address_derivation::{derive_executed_payouts_buffer, derive_native_token_vault_data}, constants::{CHAIN_ID, ROLE_MANAGER_ACCOUNT_SIZE}
+        address_derivation::derive_native_token_vault_data,
+        constants::{CHAIN_ID, ROLE_MANAGER_ACCOUNT_SIZE},
     },
 };
-use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
-use twine_chain::core::state::TransactionType;
+
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{RoleType, TransactionType, TwineChainStorage},
+    },
+    id as twine_chain_id,
+    utils::{address_derivation::derive_twine_chain_storage, constants::MESSAGE_NONCE_GAP},
+};
 
 #[tokio::test]
 async fn process_native_refund() {
@@ -32,7 +42,7 @@ async fn process_native_refund() {
         844073716442015,
     )
     .await;
-    
+
     let txn_type: TransactionType = TransactionType::Deposit;
     let l1_decimals = 9u8;
     let l2_decimals = 18u8;
@@ -66,10 +76,9 @@ async fn process_native_refund() {
     public_values.extend_from_slice(&l2_token.to_lowercase().as_bytes());
     public_values.extend_from_slice(&l2_amount.to_string().as_bytes());
 
+    println!("The public values{:?}", public_values);
+    msg!("The hex values {:?}", hex::encode(&public_values));
 
-    println!("The public values{:?}",public_values);
-    msg!("The hex values {:?}",hex::encode(&public_values));
-    
     let mut instructions = vec![];
     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&chain_admin));
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
@@ -96,15 +105,6 @@ async fn process_native_refund() {
         &chain_admin,
     ));
 
-    instructions.extend(tokens_gateway_instruction::native_token_deposit(
-        &chain_admin,
-        receiver_twine_address.clone(),
-        l1_token.clone(),
-        l2_token.clone(),
-        amount,
-        hex::decode(data.clone()).unwrap(),
-    ));
-
     let genesis_block_hash = [0u8; 32];
     instructions.extend(twine_chain_instruction::initialize_genesis_batch(
         &accounts.chain_admin.pubkey(),
@@ -128,13 +128,6 @@ async fn process_native_refund() {
         finalize_public_values.clone(),
         finalize_public_values,
     ));
-   
-    instructions.extend(tokens_gateway_instruction::process_native_refund(
-        l1_address,
-        nonce,
-        public_values,
-        execution_proof,
-    ));
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
@@ -147,16 +140,48 @@ async fn process_native_refund() {
 
     println!("Transaction status: {:?}", error);
 
-    let executed_payouts_buffer_account = context
+    let mut other_instructions = vec![];
+    let twine_chain_storage_account = context
         .banks_client
-        .get_account(derive_executed_payouts_buffer(&tokens_gateway_id()).0)
+        .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
         .await
         .unwrap()
-        .expect("Executed Payouts Buffer Not Found");
+        .expect("Twine Storage Account Not Found");
 
-      let executed_payouts_buffer_data: ExecutedPayoutsBuffer =
-        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_account.data[..])
-            .expect("Failed to Executed Payouts Buffer");
-    print!("Executed Payouts Buffer {:?}",executed_payouts_buffer_data);
+    let twine_chain_storage_data: TwineChainStorage =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .expect("Failed to deserialize TwineChainStorage");
 
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+    other_instructions.extend(tokens_gateway_instruction::native_token_deposit(
+        &chain_admin,
+        receiver_twine_address,
+        l1_token.clone(),
+        l2_token.clone(),
+        amount,
+        start_nonce,
+        end_nonce,
+        hex::decode(data.clone()).unwrap(),
+    ));
+    other_instructions.extend(tokens_gateway_instruction::process_native_refund(
+        &chain_admin,
+        l1_address,
+        nonce,
+        public_values,
+        execution_proof,
+    ));
+
+    let other_transaction = Transaction::new_signed_with_payer(
+        &other_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
+    println!("Second Transaction status: {:?}", second_error);
 }

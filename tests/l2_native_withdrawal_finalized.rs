@@ -18,7 +18,6 @@ use tokens_gateway::{
         address_derivation::derive_native_token_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
 };
-// use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
 
 use twine_chain::{
     core::{
@@ -176,8 +175,8 @@ async fn l2_native_withdrawal_finalized_succeed() {
         &accounts.chain_admin.pubkey(),
         l1_receiver_address,
         nonce,
-        public_values,
-        execution_proof,
+        public_values.clone(),
+        execution_proof.clone(),
     ));
 
     let third_instruction = Transaction::new_signed_with_payer(

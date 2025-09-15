@@ -116,6 +116,11 @@ pub fn process_spl_refund(
         return Err(ProgramCustomError::InvalidPDA.into());
     }
 
+    if executed_payouts_acc.lamports() > 0 {
+        msg!("Payout with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
+
     let space: usize = 0;
     let rent = Rent::get()?.minimum_balance(space);
     let create_account_ix = system_instruction::create_account(
@@ -135,7 +140,7 @@ pub fn process_spl_refund(
         ],
         &[&[
             EXECUTED_PAYOUTS_PREFIX.as_bytes(),
-            &refund_values.nonce.to_le_bytes(),
+            &refund_values.nonce.to_be_bytes(),
             &[executed_payouts_bump],
         ]],
     )?;
