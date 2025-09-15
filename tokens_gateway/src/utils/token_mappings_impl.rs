@@ -81,4 +81,16 @@ impl TokenDecimalMappings {
             .parse::<BigUint>()
             .map_err(|_| ProgramCustomError::InvalidAmount.into())
     }
+    pub(crate) fn remove_mapping(&mut self, l1_token: &str, l2_token: &str) -> bool {
+        if let Some(index) = self
+            .mappings
+            .iter()
+            .position(|m| m.l1_token == l1_token && m.l2_token == l2_token)
+        {
+            self.mappings.swap_remove(index);
+            true
+        } else {
+            false
+        }
+    }
 }

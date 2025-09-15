@@ -1,3 +1,19 @@
+use crate::{
+    core::{
+        error::ProgramCustomError,
+        state::{
+            L2WithdrawExecutedEvent, L2WithdrawValues, SplTokensVaultData, TokenDecimalMappings,
+        },
+    },
+    utils::{
+        address_derivation::{
+            derive_executed_withdrawals_pda, derive_spl_tokens_vault_data,
+            derive_spl_vault_authority, derive_token_decimal_mappings,
+        },
+        constants::{EXECUTED_WITHDRAWALS_PREFIX, SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX},
+        ethereum_checks::is_valid_ethereum_address,
+    },
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_bigint::BigUint;
 use serde_json;
@@ -11,28 +27,25 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
 use spl_token::instruction as token_instruction;
-use twine_chain::core::{
-    instruction::TwineChainInstruction,
-    state::{ExecutionMessageBuffer, TwineChainStorage},
-};
-use twine_chain::utils::constants::CHAIN_ID;
-
-use crate::{
+use twine_chain::{
     core::{
-        error::ProgramCustomError,
-        state::{
-            ExecutedWithdrawalsBuffer, L2WithdrawExecutedEvent, L2WithdrawValues,
-            SplTokensVaultData, TokenDecimalMappings,
-        },
+        instruction::TwineChainInstruction,
+        state::{RoleType, TwineChainRoleManager, TwineChainStorage},
     },
     utils::{
-        constants::{SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX},
-        ethereum_checks::is_valid_ethereum_address,
+        address_derivation::{
+            derive_twine_chain_role_manager, derive_twine_chain_storage, verify_derived_address,
+            verify_system_program,
+        },
+        constants::CHAIN_ID,
     },
+    ID as twine_chain_program_id,
 };
 
 pub fn execute_spl_l2_withdrawal(
@@ -43,17 +56,31 @@ pub fn execute_spl_l2_withdrawal(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
 
+    let initializer_acc = next_account_info(account_info_iter)?;
     let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
     let spl_tokens_vault_acc = next_account_info(account_info_iter)?;
     let vault_authority_acc = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let mint = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
-    let executed_withdrawals_buffer_acc = next_account_info(account_info_iter)?;
+    let executed_withdrawals_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
+
+    validate_accounts(
+        initializer_acc,
+        spl_tokens_vault_data_acc,
+        vault_authority_acc,
+        twine_chain_storage_acc,
+        token_decimal_mappings_acc,
+        role_manager_acc,
+        system_program,
+        twine_chain_program,
+        program_id,
+    )?;
 
     let withdrawal_values = decode_l2_withdraw_values(
         &public_values,
@@ -80,6 +107,41 @@ pub fn execute_spl_l2_withdrawal(
     if withdrawal_values.l1_receiver_address != receiver_acc.key.to_string() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+    let (expected_executed_withdrawals_pda, executed_withdrawals_bump) =
+        derive_executed_withdrawals_pda(program_id, withdrawal_values.nonce);
+
+    if expected_executed_withdrawals_pda != *executed_withdrawals_acc.key {
+        return Err(ProgramCustomError::InvalidPDA.into());
+    }
+
+    if executed_withdrawals_acc.lamports() > 0 {
+        msg!("Withdrawal with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
+
+    let space: usize = 0;
+    let rent = Rent::get()?.minimum_balance(space);
+    let create_account_ix = system_instruction::create_account(
+        initializer_acc.key,
+        executed_withdrawals_acc.key,
+        rent,
+        space as u64,
+        program_id,
+    );
+
+    invoke_signed(
+        &create_account_ix,
+        &[
+            initializer_acc.clone(),
+            executed_withdrawals_acc.clone(),
+            system_program.clone(),
+        ],
+        &[&[
+            EXECUTED_WITHDRAWALS_PREFIX.as_bytes(),
+            &withdrawal_values.nonce.to_be_bytes(),
+            &[executed_withdrawals_bump],
+        ]],
+    )?;
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
@@ -91,12 +153,11 @@ pub fn execute_spl_l2_withdrawal(
         return Err(ProgramCustomError::BatchNotFinalized.into());
     };
 
-    // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
         verify_proof(
             &execution_proof,
             &public_values,
-            &twine_chain_storage.execution_vkey,
+            &twine_chain_storage.l2_withdrawal_vkey,
             GROTH16_VK_4_0_0_RC3_BYTES,
         )
         .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -118,41 +179,17 @@ pub fn execute_spl_l2_withdrawal(
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
 
-    let mut executed_withdrawal_buffer = ExecutedWithdrawalsBuffer::deserialize(
-        &mut &executed_withdrawals_buffer_acc.data.borrow()[..],
-    )
-    .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    if withdrawal_values.nonce < executed_withdrawal_buffer.withdrawal_nonce_lower_bound {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
-    if executed_withdrawal_buffer
-        .executed_withdrawal_nonces
-        .contains(&withdrawal_values.nonce)
-    {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
     // Spl Token withdrawal
     process_spl_token_withdrawal(
-        &program_id,
-        &spl_tokens_vault_acc,
-        &spl_tokens_vault_data_acc,
-        &vault_authority_acc,
-        &mint,
-        &token_program,
-        &receiver_acc,
+        program_id,
+        spl_tokens_vault_acc,
+        spl_tokens_vault_data_acc,
+        vault_authority_acc,
+        mint,
+        token_program,
+        receiver_acc,
         actual_amount,
     )?;
-    executed_withdrawal_buffer
-        .executed_withdrawal_nonces
-        .push(withdrawal_values.nonce);
-    executed_withdrawal_buffer.post_withdrawal_processing();
-
-    executed_withdrawal_buffer
-        .serialize(&mut &mut executed_withdrawals_buffer_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     let clock = Clock::get()?;
 
@@ -174,12 +211,62 @@ pub fn execute_spl_l2_withdrawal(
     Ok(())
 }
 
+fn validate_accounts(
+    initializer_acc: &AccountInfo,
+    spl_tokens_vault_data_acc: &AccountInfo,
+    vault_authority_acc: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    token_decimal_mappings_acc: &AccountInfo,
+    role_manager_acc: &AccountInfo,
+    system_program: &AccountInfo,
+    twine_chain_program: &AccountInfo,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    if !initializer_acc.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    let (expected_spl_tokens_vault_data_acc, _) = derive_spl_tokens_vault_data(program_id);
+    verify_derived_address(
+        expected_spl_tokens_vault_data_acc,
+        spl_tokens_vault_data_acc,
+    )?;
+
+    let (expected_vault_authority_acc, _) = derive_spl_vault_authority(program_id);
+    verify_derived_address(expected_vault_authority_acc, vault_authority_acc)?;
+
+    let (expected_twine_chain_Storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_Storage, twine_chain_storage_acc)?;
+
+    let (expected_role_manager, _) = derive_twine_chain_role_manager(&twine_chain_program_id);
+
+    verify_derived_address(expected_role_manager, role_manager_acc)?;
+
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
+
+    if twine_chain_program.key != &twine_chain_program_id {
+        return Err(ProgramError::IncorrectProgramId);
+    }
+
+    verify_system_program(system_program);
+
+    let role_manager_data =
+        TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if !role_manager_data.has_role(initializer_acc.key, RoleType::TwineOperationHandler) {
+        return Err(ProgramCustomError::Unauthorized.into());
+    }
+
+    Ok(())
+}
+
 pub fn decode_l2_withdraw_values(
     bytes: &[u8],
     l1_receiver_address_length: usize,
     l1_token_address_length: usize,
 ) -> Result<L2WithdrawValues, ProgramError> {
-    const MIN_LEN: usize = 168;
+    const MIN_LEN: usize = 165;
     const PREFIX_LEN: usize = 48;
     const L2_TOKEN_ADDRESS_LEN: usize = 42;
 
@@ -264,9 +351,9 @@ fn process_spl_token_withdrawal<'info>(
 
     let transfer_instruction = token_instruction::transfer(
         &spl_token::id(),
-        &spl_tokens_vault.key,
-        &receiver.key,
-        &vault_authority.key,
+        spl_tokens_vault.key,
+        receiver.key,
+        vault_authority.key,
         &[],
         amount,
     )?;

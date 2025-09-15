@@ -13,23 +13,16 @@ use helpers::twine_chain_helper::{
 use twine_chain::{
     core::{
         instruction::{self},
-        state::{
-            BatchPdaAccount,MessagesBuffer,
-            ExecutionMessageBuffer,LayerZeroMessagesBuffer,
-            TwineChainRoleManager, TwineChainStorage,
-        },
+        state::{BatchPdaAccount, MessagesBuffer, TwineChainRoleManager, TwineChainStorage},
     },
     id,
     utils::{
         address_derivation::{
-            derive_commitment_pda, derive_messages_buffer,
-            derive_execution_message_buffer,
-            derive_layer_zero_message_buffer, derive_twine_chain_storage,
+            derive_commitment_pda, derive_messages_buffer, derive_twine_chain_storage,
         },
         constants::MAX_ROLES,
     },
 };
-
 
 #[tokio::test]
 
@@ -46,7 +39,8 @@ async fn twine_chain_rolemanager_init() {
     )
     .await;
 
-    let instructions = instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey());
+    let instructions =
+        instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey());
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&context.payer.pubkey()),
@@ -165,53 +159,19 @@ async fn message_buffers_init() {
     let error = context.banks_client.process_transaction(transaction).await;
     println!("Transaction Status: {:?}", error);
 
-
     let messages_buffer_account = context
         .banks_client
         .get_account(derive_messages_buffer(&id()).0)
         .await
         .unwrap()
-        .expect("Twine chain storage account not found");
+        .expect("Derived Messages Buffer account not found");
 
-    let layer_zero_buffer_account = context
-        .banks_client
-        .get_account(derive_layer_zero_message_buffer(&id()).0)
-        .await
-        .unwrap()
-        .expect("Twine chain storage account not found");
-
-    let execution_buffer_account = context
-        .banks_client
-        .get_account(derive_execution_message_buffer(&id()).0)
-        .await
-        .unwrap()
-        .expect("Twine chain storage account not found");
-
-    let messages_buffer_data =
-        MessagesBuffer::deserialize(&mut &messages_buffer_account.data[..])
-            .expect("Failed to deserialize Deposit Buffer");
-
-    let layer_zero_buffer_data =
-        LayerZeroMessagesBuffer::deserialize(&mut &layer_zero_buffer_account.data[..])
-            .expect("Failed to deserialize Execution Buffer");
-
-    let execution_buffer_data =
-        ExecutionMessageBuffer::deserialize(&mut &execution_buffer_account.data[..])
-            .expect("Failed to deserialize Execution Buffer");
+    let messages_buffer_data = MessagesBuffer::deserialize(&mut &messages_buffer_account.data[..])
+        .expect("Failed to deserialize Deposit Buffer");
 
     assert!(
         messages_buffer_data.is_initialized,
         "Deposit Buffer should be initialized"
-    );
-
-    assert!(
-        layer_zero_buffer_data.is_initialized,
-        "LZ Buffer should be initialized"
-    );
-
-    assert!(
-        execution_buffer_data.is_initialized,
-        "Execution Buffer should be initialized"
     );
 }
 
@@ -255,7 +215,7 @@ async fn genesis_batch_init() {
 
     let genesis_batch_account = context
         .banks_client
-        .get_account(derive_commitment_pda(&id(),0u64).0)
+        .get_account(derive_commitment_pda(&id(), 0u64).0)
         .await
         .unwrap()
         .expect("Genesis Batch storage account not found");

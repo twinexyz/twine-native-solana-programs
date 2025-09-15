@@ -20,10 +20,10 @@ use crate::utils::{get_default_keypair, get_rpc_client};
 pub fn execute_spl_l2_withdrawal(
     spl_token_pubkey: Pubkey,
     l1_receiver_address: Pubkey,
-    public_values: String,
+    public_value: String,
     execution_proof: String,
 ) -> Result<()> {
-    let public_values = hex::decode(public_values.trim_start_matches("0x"))?;
+    let public_values = hex::decode(public_value.trim_start_matches("0x"))?;
     let execution_proof = hex::decode(execution_proof.trim_start_matches("0x"))?;
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
@@ -36,10 +36,14 @@ pub fn execute_spl_l2_withdrawal(
         &spl_token_pubkey,
     )?;
 
+     let message_nonce =  u64::from_be_bytes(public_values[8..16].try_into().unwrap());
+
     let instructions = tokens_gateway_instruction::execute_l2_spl_withdrawal(
+        &account.pubkey(),
         &spl_token_pubkey,
         &spl_tokens_vault,
         l1_receiver_address,
+        message_nonce,
         public_values,
         execution_proof,
     );

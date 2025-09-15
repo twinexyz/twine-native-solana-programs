@@ -12,7 +12,7 @@ use crate::{
         error::ProgramCustomError,
         state::{RoleType, TwineChainRoleManager},
     },
-    utils::address_derivation::{derive_role_manager, verify_derived_address},
+    utils::address_derivation::{derive_twine_chain_role_manager, verify_derived_address},
 };
 
 pub fn set_token_gateway(
@@ -50,7 +50,7 @@ fn validate_accounts(
     }
 
     // Validate key
-    let (expected_role_manager_pda, _role_manager_bump_seed) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _role_manager_bump_seed) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     // Deserialize account data
@@ -102,7 +102,7 @@ mod test {
         let program_id = Pubkey::new_unique();
 
         // Get the required accounts
-        let (role_manager_key, _) = derive_role_manager(&program_id);
+        let (role_manager_key, _) = derive_twine_chain_role_manager(&program_id);
         let twine_operation_handler_key = Pubkey::from_str(INITIAL_CHAIN_ADMIN)?;
         let system_program_id = system_program::id();
 

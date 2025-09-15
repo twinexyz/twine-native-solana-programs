@@ -13,8 +13,11 @@ pub fn execute_native_l2_withdrawal(
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
     let blockhash = rpc_client.get_latest_blockhash()?;
+    let message_nonce =  u64::from_be_bytes(public_values[8..16].try_into().unwrap());
     let instructions = tokens_gateway_instruction::execute_l2_native_withdrawal(
+        &account.pubkey(),
         l1_receiver_address,
+        message_nonce,
         public_values,
         execution_proof,
     );

@@ -20,7 +20,7 @@ use crate::{
     },
     utils::{
         address_derivation::{
-            derive_role_manager, derive_twine_chain_storage, verify_derived_address,
+            derive_twine_chain_role_manager, derive_twine_chain_storage, verify_derived_address,
             verify_system_program,
         },
         constants::TWINE_CHAIN_STORAGE_PREFIX,
@@ -84,9 +84,10 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         last_finalized_batch_number: 0,
         total_msg_handled_on_twine: 0,
         groth16_vk: Vec::new(),
-        execution_vkey: String::from(""),
-        inclusion_vkey: String::from(""),
-        withdrawal_vkey: String::from(""),
+        finalize_vkey: String::from(""),
+        refund_vkey: String::from(""),
+        forced_withdrawal_vkey: String::from(""),
+        l2_withdrawal_vkey: String::from(""),
         skip_verification: true,
         last_committed_batch_hash: empty_keccak256(),
         last_finalized_batch_hash: empty_keccak256(),
@@ -117,7 +118,7 @@ fn validate_accounts(
         derive_twine_chain_storage(program_id);
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
 
-    let (expected_role_manager_pda, _) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     verify_system_program(system_program)?;

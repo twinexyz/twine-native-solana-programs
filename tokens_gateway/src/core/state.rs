@@ -98,18 +98,6 @@ pub struct L2WithdrawValues {
     pub amount: String,
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct ExecutedWithdrawalsBuffer {
-    pub is_initialized: bool,
-    pub withdrawal_nonce_lower_bound: u64,
-    pub executed_withdrawal_nonces: Vec<u64>,
-}
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
-pub struct ExecutedPayoutsBuffer {
-    pub is_initialized: bool,
-    pub payout_nonce_lower_bound: u64,
-    pub executed_payout_nonces: Vec<u64>,
-}
 
 /// Struct for signed messageAdd commentMore actions
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
@@ -117,8 +105,8 @@ pub struct SignMessageInfo {
     pub nonce: u64,
     pub chain_id: u64,
     pub amount: u64,
-    pub from_twine_address: String,
-    pub to_l1_pubkey: String,
+    pub l1_pubkey: String,
+    pub twine_address: String,
     pub l1_token: String,
     pub l2_token: String,
 }
@@ -180,57 +168,12 @@ impl SignMessageInfo {
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
         encoded.extend(self.amount.to_be_bytes());
-        encoded.extend(self.from_twine_address.as_bytes());
-        encoded.extend(self.to_l1_pubkey.as_bytes());
+        encoded.extend(self.l1_pubkey.as_bytes());
+        encoded.extend(self.twine_address.as_bytes());
         encoded.extend(self.l1_token.as_bytes());
         encoded.extend(self.l2_token.as_bytes());
 
         encoded
-    }
-}
-
-impl ExecutedWithdrawalsBuffer {
-    pub const SPACE: usize = 10000;
-    pub fn post_withdrawal_processing(&mut self) {
-        if self.executed_withdrawal_nonces.len() > 100 {
-            // Sort the vector in ascending order
-            self.executed_withdrawal_nonces.sort();
-
-            let mut last_removed_nonce = self.withdrawal_nonce_lower_bound;
-            let mut consecutive_nonce_count = 0;
-
-            for nonces in self.executed_withdrawal_nonces.clone() {
-                if nonces == last_removed_nonce + 1 {
-                    last_removed_nonce = nonces;
-                    self.withdrawal_nonce_lower_bound = nonces;
-                    consecutive_nonce_count += 1;
-                }
-            }
-            self.executed_withdrawal_nonces
-                .drain(0..consecutive_nonce_count);
-        }
-    }
-}
-impl ExecutedPayoutsBuffer {
-    pub const SPACE: usize = 10000;
-    pub fn post_withdrawal_processing(&mut self) {
-        if self.executed_payout_nonces.len() > 100 {
-            // Sort the vector in ascending order
-            self.executed_payout_nonces.sort();
-
-            let mut last_removed_nonce = self.payout_nonce_lower_bound;
-            let mut consecutive_nonce_count = 0;
-
-            for nonces in self.executed_payout_nonces.clone() {
-                if nonces == last_removed_nonce + 1 {
-                    last_removed_nonce = nonces;
-                    self.payout_nonce_lower_bound = nonces;
-                    consecutive_nonce_count += 1;
-                }
-            }
-            self.executed_payout_nonces
-                .drain(0..consecutive_nonce_count);
-        }
     }
 }
 
@@ -303,8 +246,3 @@ impl IsInitialized for TokenDecimalMappings {
     }
 }
 
-impl IsInitialized for ExecutedWithdrawalsBuffer {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}

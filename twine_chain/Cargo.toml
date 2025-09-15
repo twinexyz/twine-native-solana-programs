@@ -10,6 +10,8 @@ name = "twine_chain"
 
 [features]
 no-entrypoint = []
+custom-heap = []
+custom-panic = []
 
 
 [dependencies]

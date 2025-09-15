@@ -18,6 +18,10 @@ pub enum Commands {
         l1_decimals: u8,
         l2_decimals: u8,
     },
+    RemoveTokenMapping {
+        l1_token: String,
+        l2_token: String,
+    },
     DepositNativeToken {
         l1_token: String,
         l2_token: String,
@@ -61,7 +65,6 @@ pub enum Commands {
         execution_proof: String,
     },
     ProcessNativeRefund {
-        message_nonce: u64,
         receiver: Pubkey,
         public_values: String,
         proof: String,
@@ -69,12 +72,10 @@ pub enum Commands {
     ProcessSplRefund {
         l1_token: Pubkey,
         l1_receiver_address: Pubkey,
-        message_nonce: u64,
         public_values: String,
         proof: String,
     },
     ProcessNativeForcedWithdrawal {
-        message_nonce: u64,
         receiver: Pubkey,
         public_values: String,
         proof: String,
@@ -82,7 +83,6 @@ pub enum Commands {
     ProcessSplForcedWithdrawal {
         l1_token: Pubkey,
         l1_receiver_address: Pubkey,
-        message_nonce: u64,
         public_values: String,
         proof: String,
     },
@@ -97,7 +97,8 @@ pub enum Commands {
     CreateSplToken {},
     GetAllPdas {},
     GetMessagesBufferData {},
-    GetExecutedPayoutsBufferData {},
+    GetDetailedMessagesBufferData {},
+    GetTokensMappingData {},
     GetTwineChainStorageData {},
     GetTwineChainRoleManagerData {},
     GetTokensGatewayRoleManagerData {},
@@ -109,7 +110,15 @@ pub enum Commands {
         role_type: String,
         user_pubkey: Pubkey,
     },
+    RemoveRoleInTwineChain {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
     AddRoleInTokensGateway {
+        role_type: String,
+        user_pubkey: Pubkey,
+    },
+    RemoveRoleInTokensGateway {
         role_type: String,
         user_pubkey: Pubkey,
     },

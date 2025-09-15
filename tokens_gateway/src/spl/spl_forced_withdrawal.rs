@@ -1,12 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
+    clock::Clock,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},
     msg,
-    program::invoke_signed,
+    program::{invoke, invoke_signed},
     program_error::ProgramError,
-    clock::Clock,
     pubkey::Pubkey,
     sysvar::Sysvar,
 };
@@ -15,7 +15,14 @@ use std::str::FromStr;
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{ForcedWithdrawMessageInfo,MessagesBuffer,TransactionType},
+        state::{DetailedMessagesBuffer, MessageInfo, TransactionType, TwineChainStorage},
+    },
+    utils::{
+        address_derivation::{
+            derive_detailed_messages_buffer, derive_messages_buffer, derive_messages_replicator,
+            derive_twine_chain_role_manager, derive_twine_chain_storage, verify_system_program,
+        },
+        constants::MESSAGE_NONCE_GAP,
     },
     ID as twine_chain_program_id,
 };
@@ -26,7 +33,11 @@ use crate::{
         state::{SignMessageInfo, TokenDecimalMappings},
     },
     utils::{
-        constants::{CHAIN_ID, SPL_TOKENS_VAULT_DATA_PREFIX,FORCED_WITHDRAW_TRANSACTION},
+        address_derivation::{
+            derive_native_token_vault_data, derive_spl_tokens_vault_data,
+            derive_token_decimal_mappings, verify_derived_address,
+        },
+        constants::{CHAIN_ID, FORCED_WITHDRAW_TRANSACTION, SPL_TOKENS_VAULT_DATA_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
         recover_address::recover_address,
     },
@@ -64,13 +75,33 @@ pub fn forced_spl_token_withdrawal(
     let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
     let mint = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let forced_withdrawal_messages_buffer_acc = next_account_info(account_info_iter)?;
-    let role_manager_acc = next_account_info(account_info_iter)?;
+    let messages_buffer_acc = next_account_info(account_info_iter)?;
+    let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
+    let twine_chain_role_manager_acc = next_account_info(account_info_iter)?;
+    let twine_chain_storage_acc = next_account_info(account_info_iter)?;
+    let messages_replicator_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
-    if l1_token != mint.key.to_string() {
+    let l1_mint_pk = Pubkey::from_str(&l1_token).map_err(|_| ProgramError::InvalidArgument)?;
+    if l1_mint_pk != *mint.key {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
+    let (twine_chain_storage_data, start_nonce, end_nonce,spl_data_bump) = validate_accounts(
+        user_account,
+        to_token_account,
+        spl_tokens_vault_data_acc,
+        mint,
+        token_decimal_mappings_acc,
+        messages_buffer_acc,
+        detailed_messages_buffer_acc,
+        twine_chain_role_manager_acc,
+        twine_chain_program,
+        twine_chain_storage_acc,
+        messages_replicator_acc,
+        system_program,
+        program_id,
+    )?;
 
     let parsed_to_pubkey =
         Pubkey::from_str(&to_l1_pubkey).map_err(|_| ProgramError::InvalidArgument)?;
@@ -79,13 +110,8 @@ pub fn forced_spl_token_withdrawal(
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
 
-    let spl_data_seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes()];
-
-    let (spl_data_key, spl_data_bump) = Pubkey::find_program_address(spl_data_seeds, program_id);
-
-    if spl_data_key != *spl_tokens_vault_data_acc.key {
-        return Err(ProgramError::InvalidAccountData.into());
-    }
+    let seeds = &[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]];
+    let signer_seeds = &[&seeds[..]];
 
     let token_decimal_mapping =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])?;
@@ -94,7 +120,7 @@ pub fn forced_spl_token_withdrawal(
         .get_mapping(&l1_token)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
 
-     if (l2_token != decimal_mapping.l2_token.to_string()) {
+    if (l2_token != decimal_mapping.l2_token.to_string()) {
         return Err(ProgramCustomError::TokenMappingNotFound.into());
     }
 
@@ -105,43 +131,80 @@ pub fn forced_spl_token_withdrawal(
     )
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
-    let forced_withdrawal_messages_buffer = MessagesBuffer::deserialize(
-        &mut &forced_withdrawal_messages_buffer_acc.data.borrow()[..],
-    )
-    .map_err(|_| ProgramError::InvalidAccountData)?;
+    let forced_withdrawal_messages_buffer =
+        DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = forced_withdrawal_messages_buffer.message_nonce + 1;
 
     let clock = Clock::get()?;
 
-    let withdraw_info = ForcedWithdrawMessageInfo {
-        txn_type:TransactionType::Withdraw,
+    let withdraw_info = MessageInfo {
+        txn_type: TransactionType::Withdraw,
         nonce: u64_nonce,
         chain_id: CHAIN_ID,
         slot_number: clock.slot,
-        from_twine_address: from_twine_address,
-        to_l1_pubkey: to_l1_pubkey,
+        l1_pubkey: to_l1_pubkey,
+        twine_address: from_twine_address,
         l1_token: l1_token,
         l2_token: l2_token,
         amount: l2_amount.to_string(),
-        data: Vec::<u8>::new(), 
+        data: Vec::<u8>::new(),
     };
     let sign_info = SignMessageInfo {
         nonce: u64_nonce,
         chain_id: CHAIN_ID,
         amount: amount,
-        from_twine_address: withdraw_info.from_twine_address.clone(),
-        to_l1_pubkey: withdraw_info.to_l1_pubkey.clone(),
+        l1_pubkey: withdraw_info.l1_pubkey.clone(),
+        twine_address: withdraw_info.twine_address.clone(),
         l1_token: withdraw_info.l1_token.clone(),
         l2_token: withdraw_info.l2_token.clone(),
     };
 
     let recovered_address = recover_address(sign_info.clone(), signature)?;
 
-    if recovered_address.to_lowercase() != withdraw_info.from_twine_address.to_lowercase() {
+    if recovered_address.to_lowercase() != withdraw_info.twine_address.to_lowercase() {
         return Err(ProgramCustomError::PublicKeyMismatch.into());
     };
 
+    // Check nonce gap
+    if forced_withdrawal_messages_buffer.message_nonce
+        >= twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
+    {
+        let payload = TwineChainInstruction::CopyMessagesBuffer;
+        let mut copy_instruction_data = vec![];
+        copy_instruction_data.extend(payload.try_to_vec().unwrap());
+
+        if !messages_replicator_acc.is_writable {
+            msg!("BUG: messages_replicator_acc not writable at outer level");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let copy_instruction_accounts = vec![
+            AccountMeta::new(*detailed_messages_buffer_acc.key, false),
+            AccountMeta::new(*twine_chain_storage_acc.key, false),
+            AccountMeta::new(*messages_replicator_acc.key, false),
+            AccountMeta::new(*user_account.key, true),
+            AccountMeta::new_readonly(*system_program.key, false),
+        ];
+
+        let copy_instruction = Instruction {
+            program_id: *twine_chain_program.key,
+            accounts: copy_instruction_accounts,
+            data: copy_instruction_data,
+        };
+
+        invoke(
+            &copy_instruction,
+            &[
+                detailed_messages_buffer_acc.clone(),
+                twine_chain_storage_acc.clone(),
+                messages_replicator_acc.clone(),
+                user_account.clone(),
+                system_program.clone(),
+            ],
+        )?;
+    }
     let payload = TwineChainInstruction::AppendForcedWithdrawalMessage {
         withdraw_info: withdraw_info,
     };
@@ -151,8 +214,9 @@ pub fn forced_spl_token_withdrawal(
     append_instruction_data.extend(payload.try_to_vec().unwrap());
 
     let append_instruction_accounts = vec![
-        AccountMeta::new(*forced_withdrawal_messages_buffer_acc.key, false),
-        AccountMeta::new_readonly(*role_manager_acc.key, false),
+        AccountMeta::new(*messages_buffer_acc.key, false),
+        AccountMeta::new(*detailed_messages_buffer_acc.key, false),
+        AccountMeta::new_readonly(*twine_chain_role_manager_acc.key, false),
         AccountMeta::new_readonly(*spl_tokens_vault_data_acc.key, true),
     ];
     let append_instruction = Instruction {
@@ -163,11 +227,12 @@ pub fn forced_spl_token_withdrawal(
     invoke_signed(
         &append_instruction,
         &[
-            forced_withdrawal_messages_buffer_acc.clone(),
-            role_manager_acc.clone(),
+            messages_buffer_acc.clone(),
+            detailed_messages_buffer_acc.clone(),
+            twine_chain_role_manager_acc.clone(),
             spl_tokens_vault_data_acc.clone(),
         ],
-        &[&[SPL_TOKENS_VAULT_DATA_PREFIX.as_bytes(), &[spl_data_bump]]],
+        signer_seeds,
     )?;
     Ok(())
 }
@@ -178,11 +243,15 @@ fn validate_accounts(
     spl_tokens_vault_data_acc: &AccountInfo,
     mint: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
-    forced_withdrawal_messages_buffer_acc: &AccountInfo,
-    role_manager_acc: &AccountInfo,
+    messages_buffer_acc: &AccountInfo,
+    detailed_messages_buffer_acc: &AccountInfo,
+    twine_chain_role_manager_acc: &AccountInfo,
     twine_chain_program: &AccountInfo,
+    twine_chain_storage_acc: &AccountInfo,
+    messages_replicator_acc: &AccountInfo,
+    system_program: &AccountInfo,
     program_id: &Pubkey,
-) -> ProgramResult {
+) -> Result<(TwineChainStorage, u64, u64,u8), ProgramError> {
     if !user_account.is_signer {
         msg!("User must be signer");
         return Err(ProgramError::MissingRequiredSignature);
@@ -193,49 +262,52 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if spl_tokens_vault_data_acc.owner != program_id {
-        msg!("Invalid SPL tokens vault data account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_spl_tokens_vault_data_acc, spl_data_bump) = derive_spl_tokens_vault_data(program_id);
+    verify_derived_address(
+        expected_spl_tokens_vault_data_acc,
+        spl_tokens_vault_data_acc,
+    )?;
 
     if mint.owner != &TOKEN_PROGRAM_ID {
         msg!("Invalid mint account owner");
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    if token_decimal_mappings_acc.owner != program_id {
-        msg!("Invalid token decimal mappings account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
+    verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
 
-    if forced_withdrawal_messages_buffer_acc.owner != &twine_chain_program_id {
-        msg!("Invalid forced withdrawal messages buffer account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_messages_buffer, _) = derive_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(expected_messages_buffer, messages_buffer_acc)?;
 
-    if role_manager_acc.owner != &twine_chain_program_id {
-        msg!("Invalid role manager account owner");
-        return Err(ProgramError::IncorrectProgramId);
-    }
+    let (expected_detailed_messages_buffer, _) =
+        derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(
+        expected_detailed_messages_buffer,
+        detailed_messages_buffer_acc,
+    )?;
+
+    let (expected_role_manager, _) = derive_twine_chain_role_manager(&twine_chain_program_id);
+    verify_derived_address(expected_role_manager, twine_chain_role_manager_acc)?;
+
+    let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
+    verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
+
+    verify_system_program(system_program)?;
 
     if twine_chain_program.key != &twine_chain_program_id {
-        msg!("Invalid Twine chain program account");
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    Ok(())
-}
-#[cfg(test)]
-mod mock_clock {
-    use solana_program::program_error::ProgramError;
+    let mut twine_chain_storage_data =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    pub struct Clock {
-        pub slot: u64,
-    }
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
 
-    impl Clock {
-        pub fn get() -> Result<Clock, ProgramError> {
-            Ok(Clock { slot: 1000 })
-        }
-    }
+    let (expected_messages_replicator_pda, _) =
+        derive_messages_replicator(&twine_chain_program_id, start_nonce, end_nonce);
+    verify_derived_address(expected_messages_replicator_pda, messages_replicator_acc)?;
+
+    Ok((twine_chain_storage_data, start_nonce, end_nonce,spl_data_bump))
 }

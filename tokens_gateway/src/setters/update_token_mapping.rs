@@ -63,6 +63,43 @@ pub fn update_token_mapping(
     Ok(())
 }
 
+pub fn remove_token_mapping(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    l1_token: String,
+    l2_token: String,
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+    let authority_acc = next_account_info(account_info_iter)?;
+    let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
+    let role_manager_acc = next_account_info(account_info_iter)?;
+
+    let validated_data = validate_token_mapping_accounts(
+        program_id,
+        authority_acc,
+        token_decimal_mappings_acc,
+        role_manager_acc,
+        &l1_token,
+        &l2_token,
+    )?;
+
+    let mut token_decimal_mappings_data = validated_data.token_decimal_mappings;
+
+    let removed = token_decimal_mappings_data.remove_mapping(&l1_token, &l2_token);
+    if !removed {
+        return Err(ProgramCustomError::RemoveFailed.into());
+    }
+    .serialize(&mut &mut token_decimal_mappings_acc.data.borrow_mut()[..])
+    .map_err(|_| ProgramCustomError::SerializeFailed)?;
+
+    msg!(
+        "EVENT:TokenMappingRemoved: l1_token={}, l2_token={}",
+        l1_token,
+        l2_token
+    );
+
+    Ok(())
+}
 pub fn validate_token_mapping_accounts(
     program_id: &Pubkey,
     authority_acc: &AccountInfo,

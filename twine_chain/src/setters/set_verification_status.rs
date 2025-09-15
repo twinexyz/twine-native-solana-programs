@@ -13,7 +13,7 @@ use crate::{
         state::{RoleType, TwineChainRoleManager, TwineChainStorage},
     },
     utils::address_derivation::{
-        derive_role_manager, derive_twine_chain_storage, verify_derived_address,
+        derive_twine_chain_role_manager, derive_twine_chain_storage, verify_derived_address,
     },
 };
 
@@ -59,7 +59,7 @@ fn validate_accounts(
     verify_derived_address(expected_twine_chain_storage_pda, twine_chain_storage_acc)?;
 
     // Validate key
-    let (expected_role_manager_pda, _role_manager_bump_seed) = derive_role_manager(program_id);
+    let (expected_role_manager_pda, _role_manager_bump_seed) = derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     // Deserialize account data

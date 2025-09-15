@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod helpers;
+use borsh::BorshDeserialize;
 use sha3::{Digest, Keccak256};
 use solana_program_test::*;
 use solana_sdk::{
@@ -16,10 +17,17 @@ use tokens_gateway::{
     id as tokens_gateway_id,
     utils::{
         address_derivation::{derive_spl_tokens_vault_data, derive_spl_vault_authority},
-        constants::{ROLE_MANAGER_ACCOUNT_SIZE,CHAIN_ID}
+        constants::{CHAIN_ID, ROLE_MANAGER_ACCOUNT_SIZE},
     },
 };
-use twine_chain::core::{instruction as twine_chain_instruction, state::{RoleType,TransactionType}};
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{RoleType, TransactionType, TwineChainStorage},
+    },
+    id as twine_chain_id,
+    utils::{address_derivation::derive_twine_chain_storage, constants::MESSAGE_NONCE_GAP},
+};
 
 #[tokio::test]
 async fn process_spl_refund() {
@@ -52,7 +60,7 @@ async fn process_spl_refund() {
 
     let (spl_token_pubkey, user_token_account) =
         create_spl_and_mint(&mut context, &accounts.chain_admin, 9, 90000000000).await;
-        
+
     let spl_token_vault = get_or_create_ata(
         &mut context,
         &accounts.chain_admin,
@@ -76,11 +84,14 @@ async fn process_spl_refund() {
     public_values.extend_from_slice(&l1_token.to_lowercase().as_bytes());
     public_values.extend_from_slice(&l2_token.to_lowercase().as_bytes());
     public_values.extend_from_slice(&l2_amount.to_string().as_bytes());
-    
+
     println!("The public values{:?}", public_values);
     println!("The hex values {:?}", hex::encode(&public_values));
 
-    let v = vec![75, 7, 207, 71, 237, 98, 17, 132, 109, 172, 255, 82, 61, 64, 90, 183, 184, 5, 237, 182, 73, 225, 247, 233, 208, 250, 160, 229, 125, 197, 50, 192];
+    let v = vec![
+        75, 7, 207, 71, 237, 98, 17, 132, 109, 172, 255, 82, 61, 64, 90, 183, 184, 5, 237, 182, 73,
+        225, 247, 233, 208, 250, 160, 229, 125, 197, 50, 192,
+    ];
 
     println!("The hex values sample {:?}", hex::encode(&v));
 
@@ -99,6 +110,7 @@ async fn process_spl_refund() {
     ));
     instructions
         .extend(tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&chain_admin));
+
     instructions.extend(tokens_gateway_instruction::initialize_tokens_gateway(
         &chain_admin,
     ));
@@ -109,32 +121,16 @@ async fn process_spl_refund() {
         l2_decimals,
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::spl_token_deposit(
-        &chain_admin,
-        &user_token_account,
-        &spl_token_pubkey,
-        &spl_token_vault,
-        l2_address,
-        l1_token.clone(),
-        l2_token.clone(),
-        amount,
-        hex::decode(data.clone()).unwrap(),
-    ));
-     let genesis_block_hash = [0u8; 32];
+    let genesis_block_hash = [0u8; 32];
     instructions.extend(twine_chain_instruction::initialize_genesis_batch(
         &accounts.chain_admin.pubkey(),
         genesis_block_hash,
     ));
-     let batch_number = 1;
+
+    let batch_number = 1;
     let batch_hash = [5u8; 32];
 
-    instructions.extend(twine_chain_instruction::commit_batch(
-        &accounts.chain_admin.pubkey(),
-        batch_number,
-        batch_hash,
-    ));
-    let total_msg_handled_on_twine : u64 = 2;
-
+    let total_msg_handled_on_twine: u64 = 2;
 
     let mut finalize_public_values = Vec::with_capacity(72);
     finalize_public_values.extend_from_slice(&genesis_block_hash);
@@ -142,20 +138,11 @@ async fn process_spl_refund() {
     finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
     finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
 
-    instructions.extend(twine_chain_instruction::finalize_batch(
+    instructions.extend(twine_chain_instruction::commit_and_finalize_batch(
         &accounts.chain_admin.pubkey(),
         batch_number,
         finalize_public_values.clone(),
         finalize_public_values,
-    ));
-
-    instructions.extend(tokens_gateway_instruction::process_spl_refund(
-        &spl_token_pubkey,
-        &spl_token_vault,
-          user_token_account,
-         nonce,
-        public_values,
-        execution_proof,
     ));
 
     let transaction = Transaction::new_signed_with_payer(
@@ -168,4 +155,55 @@ async fn process_spl_refund() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+
+    let mut other_instructions = vec![];
+    let twine_chain_storage_account = context
+        .banks_client
+        .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Twine Storage Account Not Found");
+
+    let twine_chain_storage_data: TwineChainStorage =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .expect("Failed to deserialize TwineChainStorage");
+
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+    other_instructions.extend(tokens_gateway_instruction::spl_token_deposit(
+        &chain_admin,
+        &user_token_account,
+        &spl_token_pubkey,
+        &spl_token_vault,
+        l2_address,
+        l1_token.clone(),
+        l2_token.clone(),
+        amount,
+        start_nonce,
+        end_nonce,
+        hex::decode(data.clone()).unwrap(),
+    ));
+
+    other_instructions.extend(tokens_gateway_instruction::process_spl_refund(
+        &chain_admin,
+        &spl_token_pubkey,
+        &spl_token_vault,
+        user_token_account,
+        nonce,
+        public_values,
+        execution_proof,
+    ));
+
+    let other_transaction = Transaction::new_signed_with_payer(
+        &other_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
+    println!("Second Transaction status: {:?}", second_error);
 }

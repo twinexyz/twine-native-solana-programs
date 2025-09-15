@@ -14,18 +14,20 @@ use helpers::tokens_gateway_helper::{
 use tokens_gateway::{
     core::{instruction as tokens_gateway_instruction, state::SignMessageInfo},
     id as tokens_gateway_id,
-     utils::{
-        address_derivation::{derive_spl_tokens_vault_data},
-        constants::ROLE_MANAGER_ACCOUNT_SIZE,
+    utils::{
+        address_derivation::derive_spl_tokens_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
 };
 use twine_chain::{
     core::{
         instruction as twine_chain_instruction,
-        state::{MessagesBuffer, RoleType},
+        state::{MessagesBuffer, RoleType, TwineChainStorage},
     },
     id as twine_chain_id,
-    utils::address_derivation::derive_messages_buffer,
+    utils::{
+        address_derivation::{derive_messages_buffer, derive_twine_chain_storage},
+        constants::MESSAGE_NONCE_GAP,
+    },
 };
 
 #[tokio::test]
@@ -54,8 +56,8 @@ async fn spl_forced_withdrawal_succeed() {
         nonce: 1,
         chain_id: 900,
         amount: amount,
-        from_twine_address: from_twine_address.to_string(),
-        to_l1_pubkey: user_token_account.to_string(),
+        l1_pubkey: user_token_account.to_string(),
+        twine_address: from_twine_address.to_string(),
         l1_token: l1_token.to_string(),
         l2_token: l2_token.clone(),
     };
@@ -69,7 +71,7 @@ async fn spl_forced_withdrawal_succeed() {
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &chain_admin,
     ));
-       instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
+    instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
         &chain_admin,
         &spl_token_valut_data_account,
         RoleType::MessageAppender,
@@ -89,16 +91,6 @@ async fn spl_forced_withdrawal_succeed() {
         l2_decimals,
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::forced_spl_token_withdrawal(
-        &chain_admin,
-        &user_token_account,
-        &spl_token_pubkey,
-        from_twine_address,
-        l1_token.clone(),
-        l2_token.clone(),
-        amount,
-        signature,
-    ));
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
@@ -110,6 +102,47 @@ async fn spl_forced_withdrawal_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+
+    let mut other_instructions = vec![];
+    let twine_chain_storage_account = context
+        .banks_client
+        .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Twine Storage Account Not Found");
+
+    let twine_chain_storage_data: TwineChainStorage =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .expect("Failed to deserialize TwineChainStorage");
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+    other_instructions.extend(tokens_gateway_instruction::forced_spl_token_withdrawal(
+        &chain_admin,
+        &user_token_account,
+        &spl_token_pubkey,
+        from_twine_address,
+        l1_token.clone(),
+        l2_token.clone(),
+        amount,
+        start_nonce,
+        end_nonce,
+        signature,
+    ));
+
+    let other_transaction = Transaction::new_signed_with_payer(
+        &other_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
+
+    println!("ForcedTransaction status: {:?}", second_error);
+
     let forced_withdraw_message_buffer_account = context
         .banks_client
         .get_account(derive_messages_buffer(&twine_chain_id()).0)

@@ -52,7 +52,7 @@ pub fn process_instruction(
         GatewayInstruction::RemoveRoleInGateway { address, role } => {
             remove_role(program_id, accounts, address, role)
         }
-        GatewayInstruction::NativeTokenDepoist {
+        GatewayInstruction::NativeTokenDeposit {
             receiver_twine_address,
             l1_token,
             l2_token,
@@ -67,7 +67,7 @@ pub fn process_instruction(
             amount,
             data,
         ),
-        GatewayInstruction::SplTokenDepoist {
+        GatewayInstruction::SplTokenDeposit {
             receiver_twine_address,
             l1_token,
             l2_token,
@@ -170,5 +170,8 @@ pub fn process_instruction(
             public_values,
             execution_proof,
         ),
+        GatewayInstruction::RemoveTokenMapping { l1_token, l2_token } => {
+            update_token_mapping::remove_token_mapping(program_id, accounts, l1_token, l2_token)
+        }
     }
 }

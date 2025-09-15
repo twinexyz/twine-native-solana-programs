@@ -12,21 +12,23 @@ use helpers::tokens_gateway_helper::{
 };
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction,
+    id as tokens_gateway_id,
     utils::{
-        address_derivation::{derive_spl_vault_authority,derive_spl_tokens_vault_data},
+        address_derivation::{derive_spl_tokens_vault_data, derive_spl_vault_authority},
         constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
-    id as tokens_gateway_id,
 };
 use twine_chain::{
     core::{
         instruction as twine_chain_instruction,
-        state::{MessagesBuffer, RoleType},
+        state::{DetailedMessagesBuffer, RoleType, TwineChainStorage},
     },
     id as twine_chain_id,
-    utils::address_derivation::derive_messages_buffer,
+    utils::{
+        address_derivation::{derive_detailed_messages_buffer, derive_twine_chain_storage},
+        constants::MESSAGE_NONCE_GAP,
+    },
 };
-
 
 #[tokio::test]
 async fn spl_token_deposit_succeed() {
@@ -65,7 +67,7 @@ async fn spl_token_deposit_succeed() {
     instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &chain_admin,
     ));
-      instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
+    instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
         &chain_admin,
         &spl_token_valut_data_account,
         RoleType::MessageAppender,
@@ -85,17 +87,6 @@ async fn spl_token_deposit_succeed() {
         l2_decimals,
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::spl_token_deposit(
-        &chain_admin,
-        &user_token_account,
-        &spl_token_pubkey,
-        &spl_token_vault,
-        receiver_twine_address,
-        l1_token.clone(),
-        l2_token.clone(),
-        amount,
-        hex::decode(data.clone()).unwrap(),
-    ));
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
@@ -107,14 +98,56 @@ async fn spl_token_deposit_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+
+    let mut other_instructions = vec![];
+    let twine_chain_storage_account = context
+        .banks_client
+        .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Twine Storage Account Not Found");
+
+    let twine_chain_storage_data: TwineChainStorage =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .expect("Failed to deserialize TwineChainStorage");
+
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+    other_instructions.extend(tokens_gateway_instruction::spl_token_deposit(
+        &chain_admin,
+        &user_token_account,
+        &spl_token_pubkey,
+        &spl_token_vault,
+        receiver_twine_address,
+        l1_token.clone(),
+        l2_token.clone(),
+        amount,
+        start_nonce,
+        end_nonce,
+        hex::decode(data.clone()).unwrap(),
+    ));
+    let other_transaction = Transaction::new_signed_with_payer(
+        &other_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
+
+    println!("DepositTransaction status: {:?}", second_error);
+
     let deposit_message_buffer_account = context
         .banks_client
-        .get_account(derive_messages_buffer(&twine_chain_id()).0)
+        .get_account(derive_detailed_messages_buffer(&twine_chain_id()).0)
         .await
         .unwrap()
         .expect("Deposit Message Account Not Found");
-    let deposit_message_buffer_data: MessagesBuffer =
-        MessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
+    let deposit_message_buffer_data: DetailedMessagesBuffer =
+        DetailedMessagesBuffer::deserialize(&mut &deposit_message_buffer_account.data[..])
             .expect("Failed to deserialize Deposit Message Buffer Data");
     assert!(
         deposit_message_buffer_data.message_nonce == 1,

@@ -1,5 +1,4 @@
 mod helpers;
-use borsh::BorshDeserialize;
 use helpers::twine_chain_helper::{
     fund_account_for_rent_exemption, program_test, TwineChainAccounts,
 };
@@ -17,7 +16,6 @@ use twine_chain::{
             RoleType,
         },
     },
-    id,
     utils::{
         constants::MAX_ROLES,
     },

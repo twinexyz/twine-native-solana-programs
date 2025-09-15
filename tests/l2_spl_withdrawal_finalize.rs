@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod helpers;
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -18,7 +19,14 @@ use tokens_gateway::{
         constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
 };
-use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{RoleType, TwineChainStorage},
+    },
+    id as twine_chain_id,
+    utils::{address_derivation::derive_twine_chain_storage, constants::MESSAGE_NONCE_GAP},
+};
 
 #[tokio::test]
 async fn l2_spl_withdrawal_finalized_succeed() {
@@ -35,9 +43,8 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     .await;
 
     let l1_decimals = 9u8;
-    let l2_decimals = 18u8;
-    let amount = 8000000000000000u64;
-    let l1_amount = "8000000000000000";
+    let l2_decimals = 9u8;
+    let l1_amount = "800";
     let chain_admin = &accounts.chain_admin.pubkey();
     let receiver_twine_address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string();
     let batch_number = 1u64;
@@ -48,8 +55,8 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     let mut public_values = vec![];
 
     let (spl_token_pubkey, user_token_account) =
-        create_spl_and_mint(&mut context, &accounts.chain_admin, 9, 9000000000).await;
-        
+        create_spl_and_mint(&mut context, &accounts.chain_admin, 9, 100000000000000000).await;
+
     let spl_token_vault = get_or_create_ata(
         &mut context,
         &accounts.chain_admin,
@@ -95,23 +102,27 @@ async fn l2_spl_withdrawal_finalized_succeed() {
         l2_decimals,
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::spl_token_deposit(
-        &chain_admin,
-        &user_token_account,
-        &spl_token_pubkey,
-        &spl_token_vault,
-        receiver_twine_address,
-        l1_token.clone(),
-        l2_token.clone(),
-        4000000000,
-        hex::decode(data.clone()).unwrap(),
+    let genesis_block_hash = [0u8; 32];
+    instructions.extend(twine_chain_instruction::initialize_genesis_batch(
+        &accounts.chain_admin.pubkey(),
+        genesis_block_hash,
     ));
-    instructions.extend(tokens_gateway_instruction::execute_l2_spl_withdrawal(
-        &spl_token_pubkey,
-        &spl_token_vault,
-        user_token_account,
-        public_values,
-        execution_proof,
+
+    let batch_hash = [5u8; 32];
+
+    let total_msg_handled_on_twine: u64 = 2;
+
+    let mut finalize_public_values = Vec::with_capacity(72);
+    finalize_public_values.extend_from_slice(&genesis_block_hash);
+    finalize_public_values.extend_from_slice(&batch_hash);
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+    finalize_public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
+
+    instructions.extend(twine_chain_instruction::commit_and_finalize_batch(
+        &accounts.chain_admin.pubkey(),
+        batch_number,
+        finalize_public_values.clone(),
+        finalize_public_values,
     ));
 
     let transaction = Transaction::new_signed_with_payer(
@@ -124,4 +135,69 @@ async fn l2_spl_withdrawal_finalized_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+    let mut other_instructions = vec![];
+    let twine_chain_storage_account = context
+        .banks_client
+        .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Twine Storage Account Not Found");
+
+    let twine_chain_storage_data: TwineChainStorage =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .expect("Failed to deserialize TwineChainStorage");
+
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+    other_instructions.extend(tokens_gateway_instruction::spl_token_deposit(
+        &chain_admin,
+        &user_token_account,
+        &spl_token_pubkey,
+        &spl_token_vault,
+        receiver_twine_address,
+        l1_token.clone(),
+        l2_token.clone(),
+        800000000000000,
+        start_nonce,
+        end_nonce,
+        hex::decode(data.clone()).unwrap(),
+    ));
+
+    let other_transaction = Transaction::new_signed_with_payer(
+        &other_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
+    println!("Second Transaction status: {:?}", second_error);
+
+    let mut third_instructions = vec![];
+
+    third_instructions.extend(tokens_gateway_instruction::execute_l2_spl_withdrawal(
+        &chain_admin,
+        &spl_token_pubkey,
+        &spl_token_vault,
+        user_token_account,
+        nonce,
+        public_values,
+        execution_proof,
+    ));
+
+    let third_instruction = Transaction::new_signed_with_payer(
+        &third_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let third_error = context
+        .banks_client
+        .process_transaction(third_instruction)
+        .await;
+    println!("Third Transaction status: {:?}", third_error);
 }
