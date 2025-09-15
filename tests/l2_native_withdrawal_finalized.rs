@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod helpers;
+use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     msg,
@@ -17,7 +18,15 @@ use tokens_gateway::{
         address_derivation::derive_native_token_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
 };
-use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
+
+use twine_chain::{
+    core::{
+        instruction as twine_chain_instruction,
+        state::{RoleType, TwineChainStorage},
+    },
+    id as twine_chain_id,
+    utils::{address_derivation::derive_twine_chain_storage, constants::MESSAGE_NONCE_GAP},
+};
 
 #[tokio::test]
 async fn l2_native_withdrawal_finalized_succeed() {
@@ -86,14 +95,6 @@ async fn l2_native_withdrawal_finalized_succeed() {
         l2_decimals,
         &chain_admin,
     ));
-    instructions.extend(tokens_gateway_instruction::native_token_deposit(
-        &chain_admin,
-        receiver_twine_address.clone(),
-        l1_token.clone(),
-        l2_token.clone(),
-        amount,
-        hex::decode(data.clone()).unwrap(),
-    ));
 
     let genesis_block_hash = [0u8; 32];
     instructions.extend(twine_chain_instruction::initialize_genesis_batch(
@@ -119,12 +120,6 @@ async fn l2_native_withdrawal_finalized_succeed() {
         finalize_public_values,
     ));
 
-    instructions.extend(tokens_gateway_instruction::execute_l2_native_withdrawal(
-        l1_receiver_address,
-        public_values,
-        execution_proof,
-    ));
-
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&context.payer.pubkey()),
@@ -135,4 +130,65 @@ async fn l2_native_withdrawal_finalized_succeed() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
+
+    let mut other_instructions = vec![];
+    let twine_chain_storage_account = context
+        .banks_client
+        .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
+        .await
+        .unwrap()
+        .expect("Twine Storage Account Not Found");
+
+    let twine_chain_storage_data: TwineChainStorage =
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
+            .expect("Failed to deserialize TwineChainStorage");
+
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+    let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+    other_instructions.extend(tokens_gateway_instruction::native_token_deposit(
+        &chain_admin,
+        receiver_twine_address,
+        l1_token.clone(),
+        l2_token.clone(),
+        amount,
+        start_nonce,
+        end_nonce,
+        hex::decode(data.clone()).unwrap(),
+    ));
+
+    let other_transaction = Transaction::new_signed_with_payer(
+        &other_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
+    println!("Second Transaction status: {:?}", second_error);
+
+    let mut third_instructions = vec![];
+
+    third_instructions.extend(tokens_gateway_instruction::execute_l2_native_withdrawal(
+        &accounts.chain_admin.pubkey(),
+        l1_receiver_address,
+        nonce,
+        public_values.clone(),
+        execution_proof.clone(),
+    ));
+
+    let third_instruction = Transaction::new_signed_with_payer(
+        &third_instructions,
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &accounts.chain_admin],
+        context.last_blockhash,
+    );
+
+    let third_error = context
+        .banks_client
+        .process_transaction(third_instruction)
+        .await;
+    println!("Third Transaction status: {:?}", third_error);
 }

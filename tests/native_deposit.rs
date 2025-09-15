@@ -91,7 +91,7 @@ async fn native_token_deposit_succeed() {
     println!("Transaction status: {:?}", error);
 
     let mut other_instructions = vec![];
-      let twine_chain_storage_account = context
+    let twine_chain_storage_account = context
         .banks_client
         .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
         .await
@@ -114,14 +114,17 @@ async fn native_token_deposit_succeed() {
         end_nonce,
         hex::decode(data.clone()).unwrap(),
     ));
- let other_transaction = Transaction::new_signed_with_payer(
+    let other_transaction = Transaction::new_signed_with_payer(
         &other_instructions,
         Some(&context.payer.pubkey()),
         &[&context.payer, &accounts.chain_admin],
         context.last_blockhash,
     );
 
-    let second_error = context.banks_client.process_transaction(other_transaction).await;
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
 
     println!("DepositTransaction status: {:?}", second_error);
 

@@ -12,9 +12,8 @@ use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction,
-    id as tokens_gateway_id,
-    utils::address_derivation::{derive_native_token_vault_data},
+    core::instruction as tokens_gateway_instruction, id as tokens_gateway_id,
+    utils::address_derivation::derive_native_token_vault_data,
     utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
 };
 use twine_chain::{
@@ -23,7 +22,9 @@ use twine_chain::{
         state::{DetailedMessagesBuffer, MessagesReplicator, RoleType, TwineChainStorage},
     },
     id as twine_chain_id,
-    utils::address_derivation::{derive_detailed_messages_buffer,derive_messages_replicator, derive_twine_chain_storage},
+    utils::address_derivation::{
+        derive_detailed_messages_buffer, derive_messages_replicator, derive_twine_chain_storage,
+    },
 };
 
 #[tokio::test]
@@ -79,20 +80,22 @@ async fn copy_messages_buffer() {
         l2_decimals,
         &chain_admin,
     ));
-     for _ in 0..run_time {
-    instructions.extend(tokens_gateway_instruction::native_token_deposit(
-        &chain_admin,
-        receiver_twine_address.clone(),
-        l1_token.clone(),
-        l2_token.clone(),
-        amount,
-        hex::decode(data.clone()).unwrap(),
-    ));
-}
-     instructions.extend(twine_chain_instruction::copy_messages_buffer(
+    for _ in 0..run_time {
+        instructions.extend(tokens_gateway_instruction::native_token_deposit(
+            &chain_admin,
+            receiver_twine_address.clone(),
+            l1_token.clone(),
+            l2_token.clone(),
+            amount,
+            start_nonce,
+            end_nonce,
+            hex::decode(data.clone()).unwrap(),
+        ));
+    }
+    instructions.extend(twine_chain_instruction::copy_messages_buffer(
         &chain_admin,
         start_nonce,
-        end_nonce
+        end_nonce,
     ));
 
     let transaction = Transaction::new_signed_with_payer(
@@ -105,7 +108,7 @@ async fn copy_messages_buffer() {
     let error = context.banks_client.process_transaction(transaction).await;
 
     println!("Transaction status: {:?}", error);
-   let deposit_message_buffer_account = context
+    let deposit_message_buffer_account = context
         .banks_client
         .get_account(derive_detailed_messages_buffer(&twine_chain_id()).0)
         .await

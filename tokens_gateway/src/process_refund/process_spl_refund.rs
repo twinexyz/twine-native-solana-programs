@@ -12,6 +12,8 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
@@ -28,21 +30,21 @@ use twine_chain::{
     ID as twine_chain_program_id,
 };
 
-use crate::utils::address_derivation::{
-    derive_executed_payouts_buffer, derive_spl_tokens_vault_data, derive_spl_vault_authority,
-    derive_token_decimal_mappings, verify_derived_address,
-};
 use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, L1OriginTxPublicValues, L2WithdrawValues, RefundSuccessfulEvent,
-            SplTokensVaultData, TokenDecimalMappings,
+            L1OriginTxPublicValues, L2WithdrawValues, RefundSuccessfulEvent, SplTokensVaultData,
+            TokenDecimalMappings,
         },
     },
     utils::{
+        address_derivation::{
+            derive_executed_payouts_pda, derive_spl_tokens_vault_data, derive_spl_vault_authority,
+            derive_token_decimal_mappings, verify_derived_address,
+        },
         batch_range_provider::batch_range_provider,
-        constants::{SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX},
+        constants::{EXECUTED_PAYOUTS_PREFIX, SPL_AUTH_PREFIX, SPL_TOKENS_VAULT_DATA_PREFIX},
         ethereum_checks::is_valid_ethereum_address,
     },
 };
@@ -55,27 +57,28 @@ pub fn process_spl_refund(
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
 
+    let initializer_acc = next_account_info(account_info_iter)?;
     let spl_tokens_vault_data_acc = next_account_info(account_info_iter)?;
     let spl_tokens_vault_acc = next_account_info(account_info_iter)?;
     let vault_authority_acc = next_account_info(account_info_iter)?;
     let token_program = next_account_info(account_info_iter)?;
     let mint = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
-    let executed_payouts_buffer_acc = next_account_info(account_info_iter)?;
+    let executed_payouts_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
-    let role_manager_acc = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
     let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     validate_accounts(
         spl_tokens_vault_data_acc,
         vault_authority_acc,
         twine_chain_storage_acc,
-        executed_payouts_buffer_acc,
         token_decimal_mappings_acc,
         detailed_messages_buffer_acc,
+        system_program,
         twine_chain_program,
         program_id,
     )?;
@@ -105,21 +108,42 @@ pub fn process_spl_refund(
     if refund_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
-    let mut executed_payouts_buffer =
-        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    // For refunds
-    if refund_values.nonce < executed_payouts_buffer.payout_nonce_lower_bound {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
+    let (expected_executed_payouts_pda, executed_payouts_bump) =
+        derive_executed_payouts_pda(program_id, refund_values.nonce);
 
-    if executed_payouts_buffer
-        .executed_payout_nonces
-        .contains(&refund_values.nonce)
-    {
+    if expected_executed_payouts_pda != *executed_payouts_acc.key {
+        return Err(ProgramCustomError::InvalidPDA.into());
+    }
+
+    if executed_payouts_acc.lamports() > 0 {
+        msg!("Payout with this nonce has already been executed");
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
+    }
+
+    let space: usize = 0;
+    let rent = Rent::get()?.minimum_balance(space);
+    let create_account_ix = system_instruction::create_account(
+        initializer_acc.key,
+        executed_payouts_acc.key,
+        rent,
+        space as u64,
+        program_id,
+    );
+
+    invoke_signed(
+        &create_account_ix,
+        &[
+            initializer_acc.clone(),
+            executed_payouts_acc.clone(),
+            system_program.clone(),
+        ],
+        &[&[
+            EXECUTED_PAYOUTS_PREFIX.as_bytes(),
+            &refund_values.nonce.to_be_bytes(),
+            &[executed_payouts_bump],
+        ]],
+    )?;
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
@@ -165,6 +189,16 @@ pub fn process_spl_refund(
         return Err(ProgramCustomError::BatchNotFinalized.into());
     };
 
+    if !twine_chain_storage.skip_verification {
+        verify_proof(
+            &execution_proof,
+            &public_values,
+            &twine_chain_storage.refund_vkey,
+            GROTH16_VK_4_0_0_RC3_BYTES,
+        )
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    }
+
     let token_decimal_mappings =
         TokenDecimalMappings::deserialize(&mut &token_decimal_mappings_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -181,21 +215,6 @@ pub fn process_spl_refund(
 
     let actual_amount = TokenDecimalMappings::parse_amount_to_u64(&converted_amount)?;
 
-    let mut executed_refunds_buffer =
-        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    if refund_values.nonce < executed_refunds_buffer.payout_nonce_lower_bound {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
-    if executed_refunds_buffer
-        .executed_payout_nonces
-        .contains(&refund_values.nonce)
-    {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
     // Spl Token withdrawal
     process_spl_token_withdrawal(
         &program_id,
@@ -207,14 +226,6 @@ pub fn process_spl_refund(
         &receiver_acc,
         actual_amount,
     )?;
-    executed_refunds_buffer
-        .executed_payout_nonces
-        .push(refund_values.nonce);
-    executed_refunds_buffer.post_withdrawal_processing();
-
-    executed_payouts_buffer
-        .serialize(&mut &mut executed_payouts_buffer_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     let clock = Clock::get()?;
 
@@ -239,9 +250,9 @@ fn validate_accounts(
     spl_tokens_vault_data_acc: &AccountInfo,
     vault_authority_acc: &AccountInfo,
     twine_chain_storage_acc: &AccountInfo,
-    executed_payouts_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
     detailed_messages_buffer_acc: &AccountInfo,
+    system_program: &AccountInfo,
     twine_chain_program: &AccountInfo,
     program_id: &Pubkey,
 ) -> ProgramResult {
@@ -253,12 +264,6 @@ fn validate_accounts(
 
     let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
     verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
-
-    let (expected_executed_payouts_buffer, _) = derive_executed_payouts_buffer(program_id);
-    verify_derived_address(
-        expected_executed_payouts_buffer,
-        executed_payouts_buffer_acc,
-    )?;
 
     let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;

@@ -128,7 +128,8 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
     // Update Deposits
-    detailed_messages_buffer_data.messages.drain(..end_index);
+    let messages_to_keep = detailed_messages_buffer_data.messages.split_off(end_index);
+    detailed_messages_buffer_data.messages = messages_to_keep;
 
     detailed_messages_buffer_data
         .serialize(&mut &mut detailed_messages_buffer_acc.data.borrow_mut()[..])

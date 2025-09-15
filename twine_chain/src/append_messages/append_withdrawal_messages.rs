@@ -18,7 +18,9 @@ use crate::{
         },
     },
     utils::{
-        address_derivation::{derive_messages_buffer, derive_twine_chain_role_manager, verify_derived_address},
+        address_derivation::{
+            derive_messages_buffer, derive_twine_chain_role_manager, verify_derived_address,
+        },
         constants::FORCED_WITHDRAW_MESSAGE_TYPE,
     },
 };
@@ -33,7 +35,6 @@ pub fn append_forced_withdrawal_message(
     let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let role_manager_acc = next_account_info(account_info_iter)?;
     let initializer_acc = next_account_info(account_info_iter)?;
-
     validate_accounts(
         program_id,
         messages_buffer_acc,
@@ -43,12 +44,12 @@ pub fn append_forced_withdrawal_message(
 
     // Deserialize account data
     let mut withdrawals =
-        DetailedMessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
+        DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Deserialize account data
     let mut messages_buffer =
-        MessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
+        MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Check if withdraw message buffer is initialized
@@ -59,9 +60,7 @@ pub fn append_forced_withdrawal_message(
     let previous_rolling_hash = messages_buffer.messages_rolling_hash;
     // Update Withdrawals
     withdrawals.messages.push(current_transaction_hash);
-
     withdrawals.message_nonce += 1;
-
     withdrawals
         .serialize(&mut &mut detailed_messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
@@ -69,7 +68,6 @@ pub fn append_forced_withdrawal_message(
     messages_buffer
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
     let event = MessageTransactionEvent {
         event: "MessageTransaction".to_string(),
         nonce: withdraw_info.nonce,
@@ -116,6 +114,5 @@ fn validate_accounts(
     if !role_manager_data.has_role(initializer_acc.key, RoleType::MessageAppender) {
         return Err(ProgramCustomError::Unauthorized.into());
     }
-
     Ok(())
 }

@@ -25,7 +25,7 @@ use twine_chain::{
     },
     id as twine_chain_id,
     utils::{
-        address_derivation::{derive_detailed_messages_buffer,derive_messages_buffer, derive_twine_chain_storage},
+        address_derivation::{derive_detailed_messages_buffer, derive_twine_chain_storage},
         constants::MESSAGE_NONCE_GAP,
     },
 };

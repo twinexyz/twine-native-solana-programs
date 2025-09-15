@@ -1,7 +1,7 @@
 use crate::action_commands::Commands;
 use crate::operations::{
-    create_spl_token::create_spl_token,
     copy_messages_buffer::copy_messages_buffer,
+    create_spl_token::create_spl_token,
     deposit_native_token::native_token_deposit,
     deposit_spl_token::spl_token_deposit,
     execute_native_l2_withdrawal::execute_native_l2_withdrawal,
@@ -11,17 +11,18 @@ use crate::operations::{
     get_all_pdas::{get_all_pdas, get_batch_pda},
     get_associated_token_account::get_associated_token_account,
     get_pdas_data::{
-        get_messages_buffer_data, get_payouts_buffer_data, get_twine_chain_storage_data,get_message_replicator_data,
-        get_tokens_gateway_role_manager_data,get_twine_chain_role_manager_data,get_tokens_mapping_data,get_detailed_messages_buffer_data
+        get_detailed_messages_buffer_data, get_message_replicator_data, get_messages_buffer_data,
+        get_tokens_gateway_role_manager_data, get_tokens_mapping_data,
+        get_twine_chain_role_manager_data, get_twine_chain_storage_data,
     },
     initialize_programs::initialize_twine_solana_programs,
     process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal,
-    process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
     process_native_l1_refund::process_native_l1_refund,
+    process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
     process_spl_l1_refund::process_spl_l1_refund,
-    token_mapping::{update_token_mapping,remove_token_mapping},
-    role_operations_twine_chain::{add_role_in_twine_chain,remove_role_in_twine_chain},
-    role_operations_tokens_gateway::{add_role_in_tokens_gateway,remove_role_in_tokens_gateway},
+    role_operations_tokens_gateway::{add_role_in_tokens_gateway, remove_role_in_tokens_gateway},
+    role_operations_twine_chain::{add_role_in_twine_chain, remove_role_in_twine_chain},
+    token_mapping::{remove_token_mapping, update_token_mapping},
 };
 
 pub fn handle_command(command: Commands) -> anyhow::Result<()> {
@@ -34,20 +35,32 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = create_spl_token();
             println!("Result: {:?}", result);
         }
-        Commands::AddRoleInTwineChain {role_type,user_pubkey} => {
-            let result = add_role_in_twine_chain(role_type,user_pubkey);
+        Commands::AddRoleInTwineChain {
+            role_type,
+            user_pubkey,
+        } => {
+            let result = add_role_in_twine_chain(role_type, user_pubkey);
             println!("Result: {:?}", result);
         }
-         Commands::RemoveRoleInTwineChain {role_type,user_pubkey} => {
-            let result = remove_role_in_twine_chain(role_type,user_pubkey);
+        Commands::RemoveRoleInTwineChain {
+            role_type,
+            user_pubkey,
+        } => {
+            let result = remove_role_in_twine_chain(role_type, user_pubkey);
             println!("Result: {:?}", result);
         }
-        Commands::AddRoleInTokensGateway {role_type,user_pubkey} => {
-            let result = add_role_in_tokens_gateway(role_type,user_pubkey);
+        Commands::AddRoleInTokensGateway {
+            role_type,
+            user_pubkey,
+        } => {
+            let result = add_role_in_tokens_gateway(role_type, user_pubkey);
             println!("Result: {:?}", result);
         }
-        Commands::RemoveRoleInTokensGateway {role_type,user_pubkey} => {
-            let result = remove_role_in_tokens_gateway(role_type,user_pubkey);
+        Commands::RemoveRoleInTokensGateway {
+            role_type,
+            user_pubkey,
+        } => {
+            let result = remove_role_in_tokens_gateway(role_type, user_pubkey);
             println!("Result: {:?}", result);
         }
         Commands::GetAssociatedTokenAccount {
@@ -77,10 +90,6 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = get_tokens_mapping_data();
             println!("Result: {:?}", result);
         }
-        Commands::GetExecutedPayoutsBufferData {} => {
-            let result = get_payouts_buffer_data();
-            println!("Result: {:?}", result);
-        }
         Commands::GetTwineChainStorageData {} => {
             let result = get_twine_chain_storage_data();
             println!("Result: {:?}", result);
@@ -93,12 +102,18 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = get_tokens_gateway_role_manager_data();
             println!("Result: {:?}", result);
         }
-        Commands::GetMessageReplicatorData {start_nonce,end_nonce} => {
-            let result = get_message_replicator_data(start_nonce,end_nonce);
+        Commands::GetMessageReplicatorData {
+            start_nonce,
+            end_nonce,
+        } => {
+            let result = get_message_replicator_data(start_nonce, end_nonce);
             println!("Result: {:?}", result);
         }
-        Commands::CopyMessagesBuffer {start_nonce,end_nonce} => {
-            let result = copy_messages_buffer(start_nonce,end_nonce);
+        Commands::CopyMessagesBuffer {
+            start_nonce,
+            end_nonce,
+        } => {
+            let result = copy_messages_buffer(start_nonce, end_nonce);
             println!("Result: {:?}", result);
         }
         Commands::TokenMapping {
@@ -110,10 +125,7 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = update_token_mapping(l1_token, l2_token, l1_decimals, l2_decimals);
             println!("Result: {:?}", result);
         }
-        Commands::RemoveTokenMapping {
-            l1_token,
-            l2_token,
-        } => {
+        Commands::RemoveTokenMapping { l1_token, l2_token } => {
             let result = remove_token_mapping(l1_token, l2_token);
             println!("Result: {:?}", result);
         }
@@ -214,11 +226,10 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             }
         },
         Commands::ProcessNativeRefund {
-            message_nonce,
             receiver,
             public_values,
             proof,
-        } => match process_native_l1_refund(message_nonce, receiver, public_values, proof) {
+        } => match process_native_l1_refund(receiver, public_values, proof) {
             Ok(_) => {
                 println!("refund successfull");
             }
@@ -229,16 +240,9 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         Commands::ProcessSplRefund {
             l1_token,
             l1_receiver_address,
-            message_nonce,
             public_values,
             proof,
-        } => match process_spl_l1_refund(
-            l1_token,
-            l1_receiver_address,
-            message_nonce,
-            public_values,
-            proof,
-        ) {
+        } => match process_spl_l1_refund(l1_token, l1_receiver_address, public_values, proof) {
             Ok(_) => {
                 println!("refund successfull");
             }
@@ -247,31 +251,25 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             }
         },
         Commands::ProcessNativeForcedWithdrawal {
-            message_nonce,
             receiver,
             public_values,
             proof,
-        } => {
-            match process_native_l1_forced_withdrawal(message_nonce, receiver, public_values, proof)
-            {
-                Ok(_) => {
-                    println!("forced withdrawal successfull");
-                }
-                Err(e) => {
-                    eprintln!("Error: {:?}", e);
-                }
+        } => match process_native_l1_forced_withdrawal(receiver, public_values, proof) {
+            Ok(_) => {
+                println!("forced withdrawal successfull");
             }
-        }
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+            }
+        },
         Commands::ProcessSplForcedWithdrawal {
             l1_token,
             l1_receiver_address,
-            message_nonce,
             public_values,
             proof,
         } => match process_spl_l1_forced_withdrawal(
             l1_token,
             l1_receiver_address,
-            message_nonce,
             public_values,
             proof,
         ) {

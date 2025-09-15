@@ -123,7 +123,7 @@ pub fn commit_and_finalize_batch(
         verify_proof(
             &execution_proof,
             &public_values,
-            &twine_chain_storage_data.execution_vkey,
+            &twine_chain_storage_data.finalize_vkey,
             GROTH16_VK_4_0_0_RC3_BYTES,
         )
         .map_err(|_| ProgramError::InvalidInstructionData)?;

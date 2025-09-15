@@ -29,15 +29,24 @@ pub fn derive_gateway_role_manager(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[ROLE_MANAGER_PREFIX.as_bytes()], &program_id)
 }
 
-pub fn derive_executed_withdrawals_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
+pub fn derive_executed_withdrawals_pda(program_id: &Pubkey, messge_nonce: u64) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[EXECUTED_WITHDRAWALS_BUFFER_PREFIX.as_bytes()],
+        &[
+            EXECUTED_WITHDRAWALS_PREFIX.as_bytes(),
+            &messge_nonce.to_be_bytes(),
+        ],
         &program_id,
     )
 }
 
-pub fn derive_executed_payouts_buffer(program_id: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&[EXECUTED_PAYOUTS_BUFFER_PREFIX.as_bytes()], &program_id)
+pub fn derive_executed_payouts_pda(program_id: &Pubkey, messge_nonce: u64) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[
+            EXECUTED_PAYOUTS_PREFIX.as_bytes(),
+            &messge_nonce.to_be_bytes(),
+        ],
+        &program_id,
+    )
 }
 
 pub fn verify_derived_address(

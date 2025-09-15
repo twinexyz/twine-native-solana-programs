@@ -1,3 +1,31 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+
+use solana_program::{
+    account_info::{next_account_info, AccountInfo},
+    clock::Clock,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program::{invoke, invoke_signed},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    sysvar::Sysvar,
+};
+use twine_chain::{
+    core::{
+        instruction::TwineChainInstruction,
+        state::{DetailedMessagesBuffer, MessageInfo, TransactionType, TwineChainStorage},
+    },
+    utils::{
+        address_derivation::{
+            derive_detailed_messages_buffer, derive_messages_buffer, derive_messages_replicator,
+            derive_twine_chain_role_manager, derive_twine_chain_storage, verify_system_program,
+        },
+        constants::MESSAGE_NONCE_GAP,
+    },
+    ID as twine_chain_program_id,
+};
+
 use crate::{
     core::{
         error::ProgramCustomError,
@@ -11,32 +39,6 @@ use crate::{
         ethereum_checks::is_valid_ethereum_address,
         recover_address::recover_address,
     },
-};
-use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    clock::Clock,
-    entrypoint::ProgramResult,
-    instruction::{AccountMeta, Instruction},
-    msg,
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    sysvar::Sysvar,
-};
-use twine_chain::{
-    core::{
-        instruction::TwineChainInstruction,
-        state::{DetailedMessagesBuffer, MessageInfo, TransactionType, TwineChainStorage},
-    },
-    utils::{
-        address_derivation::{
-            derive_detailed_messages_buffer, derive_messages_buffer,derive_messages_replicator,
-            derive_twine_chain_role_manager, derive_twine_chain_storage, verify_system_program,
-        },
-        constants::MESSAGE_NONCE_GAP,
-    },
-    ID as twine_chain_program_id,
 };
 
 pub fn forced_native_token_withdrawal(
@@ -68,7 +70,6 @@ pub fn forced_native_token_withdrawal(
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
 
-    let _ = program_id;
     let account_info_iter = &mut accounts.iter();
     let user_account = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
@@ -125,7 +126,7 @@ pub fn forced_native_token_withdrawal(
     .map_err(|_| ProgramCustomError::TokenMappingNotFound)?;
 
     let forced_withdrawal_messages_buffer =
-        DetailedMessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
+        DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let u64_nonce = forced_withdrawal_messages_buffer.message_nonce + 1;
@@ -168,9 +169,9 @@ pub fn forced_native_token_withdrawal(
     ];
     let signer_seeds = &[&seeds[..]];
 
-     // Check nonce gap
+    // Check nonce gap
     if forced_withdrawal_messages_buffer.message_nonce
-        > twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
+        >= twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
     {
         let payload = TwineChainInstruction::CopyMessagesBuffer;
         let mut copy_instruction_data = vec![];
@@ -185,7 +186,6 @@ pub fn forced_native_token_withdrawal(
             AccountMeta::new(*detailed_messages_buffer_acc.key, false),
             AccountMeta::new(*twine_chain_storage_acc.key, false),
             AccountMeta::new(*messages_replicator_acc.key, false),
-            AccountMeta::new_readonly(*twine_chain_role_manager_acc.key, false),
             AccountMeta::new(*user_account.key, true),
             AccountMeta::new_readonly(*system_program.key, false),
         ];
@@ -195,22 +195,17 @@ pub fn forced_native_token_withdrawal(
             accounts: copy_instruction_accounts,
             data: copy_instruction_data,
         };
-
-        invoke_signed(
+        invoke(
             &copy_instruction,
             &[
                 detailed_messages_buffer_acc.clone(),
                 twine_chain_storage_acc.clone(),
                 messages_replicator_acc.clone(),
-                twine_chain_role_manager_acc.clone(),
-                native_token_vault_data_acc.clone(),
                 user_account.clone(),
                 system_program.clone(),
             ],
-            signer_seeds,
         )?;
     }
-
     let payload = TwineChainInstruction::AppendForcedWithdrawalMessage {
         withdraw_info: withdraw_info,
     };

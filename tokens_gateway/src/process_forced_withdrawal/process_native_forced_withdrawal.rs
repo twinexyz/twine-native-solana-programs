@@ -11,39 +11,43 @@ use solana_program::{
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
     sysvar::Sysvar,
 };
 use sp1_solana::{verify_proof, GROTH16_VK_4_0_0_RC3_BYTES};
-use twine_chain::utils::address_derivation::{
-    derive_detailed_messages_buffer, derive_twine_chain_storage, verify_system_program,
-};
 use twine_chain::{
     core::{
         instruction::TwineChainInstruction,
-        state::{
-           DetailedMessagesBuffer, MessagesReplicator, TransactionType,
-            TwineChainStorage,
-        },
+        state::{DetailedMessagesBuffer, MessagesReplicator, TransactionType, TwineChainStorage},
     },
-    utils::{address_derivation::derive_messages_replicator, constants::CHAIN_ID},
+    utils::{
+        address_derivation::{
+            derive_detailed_messages_buffer, derive_messages_replicator,
+            derive_twine_chain_storage, verify_system_program,
+        },
+        constants::CHAIN_ID,
+    },
     ID as twine_chain_program_id,
 };
 
-use crate::utils::address_derivation::{
-    derive_executed_payouts_buffer, derive_token_decimal_mappings, verify_derived_address,
-};
 use crate::{
     core::{
         error::ProgramCustomError,
         state::{
-            ExecutedPayoutsBuffer, ExecutedWithdrawalsBuffer, ForcedWithdrawalSuccessfulEvent,
-            L1OriginTxPublicValues, NativeTokenVaultData, TokenDecimalMappings,
+            ForcedWithdrawalSuccessfulEvent, L1OriginTxPublicValues, NativeTokenVaultData,
+            TokenDecimalMappings,
         },
     },
     utils::{
-        address_derivation::derive_native_token_vault_data,
+        address_derivation::{
+            derive_executed_payouts_pda, derive_native_token_vault_data,
+            derive_token_decimal_mappings, verify_derived_address,
+        },
         batch_range_provider::batch_range_provider,
-        constants::{NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX},
+        constants::{
+            EXECUTED_PAYOUTS_PREFIX, NATIVE_TOKEN_VAULT_DATA_PREFIX, NATIVE_TOKEN_VAULT_PREFIX,
+        },
         ethereum_checks::is_valid_ethereum_address,
     },
 };
@@ -55,22 +59,22 @@ pub fn process_native_forced_withdrawal(
     execution_proof: Vec<u8>,
 ) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
+
+    let initializer_acc = next_account_info(account_info_iter)?;
     let native_token_vault_acc = next_account_info(account_info_iter)?;
     let native_token_vault_data_acc = next_account_info(account_info_iter)?;
     let twine_chain_storage_acc = next_account_info(account_info_iter)?;
-    let executed_payouts_buffer_acc = next_account_info(account_info_iter)?;
+    let executed_payouts_acc = next_account_info(account_info_iter)?;
     let receiver_acc = next_account_info(account_info_iter)?;
-    let role_manager = next_account_info(account_info_iter)?;
     let token_decimal_mappings_acc = next_account_info(account_info_iter)?;
-    let system_program = next_account_info(account_info_iter)?;
     let detailed_messages_buffer_acc = next_account_info(account_info_iter)?;
     let messages_replicator_acc = next_account_info(account_info_iter)?;
+    let system_program = next_account_info(account_info_iter)?;
     let twine_chain_program = next_account_info(account_info_iter)?;
 
     validate_accounts(
         native_token_vault_data_acc,
         twine_chain_storage_acc,
-        executed_payouts_buffer_acc,
         token_decimal_mappings_acc,
         system_program,
         detailed_messages_buffer_acc,
@@ -78,34 +82,70 @@ pub fn process_native_forced_withdrawal(
         program_id,
     )?;
 
-    let withdraw_values =
+    let withdrawal_values =
         decode_withdraw_values(&public_values, receiver_acc.key.to_string().len())?;
 
-    if withdraw_values.batch_number <= 0 {
+    if withdrawal_values.batch_number <= 0 {
         return Err(ProgramCustomError::InvalidBatchNumber.into());
     }
 
-    if withdraw_values.slot_number <= 0 {
+    if withdrawal_values.slot_number <= 0 {
         return Err(ProgramCustomError::InvalidArgument.into());
     }
 
-    let amount = TokenDecimalMappings::parse_amount_to_biguint(&withdraw_values.amount)?;
+    let amount = TokenDecimalMappings::parse_amount_to_biguint(&withdrawal_values.amount)?;
 
     if amount <= BigUint::ZERO {
         return Err(ProgramCustomError::InvalidAmount.into());
     }
 
-    if withdraw_values.l1_token_address != "11111111111111111111111111111111" {
+    if withdrawal_values.l1_token_address != "11111111111111111111111111111111" {
         return Err(ProgramCustomError::InvalidL1Token.into());
     }
 
-    if !is_valid_ethereum_address(&withdraw_values.l2_token_address)? {
+    if !is_valid_ethereum_address(&withdrawal_values.l2_token_address)? {
         return Err(ProgramCustomError::InvalidL2Token.into());
     }
 
-    if withdraw_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
+    if withdrawal_values.l1_address != receiver_acc.key.to_string().to_lowercase() {
         return Err(ProgramCustomError::InvalidReceiver.into());
     }
+
+    let (expected_executed_payouts_pda, executed_payouts_bump) =
+        derive_executed_payouts_pda(program_id, withdrawal_values.nonce);
+
+    if expected_executed_payouts_pda != *executed_payouts_acc.key {
+        return Err(ProgramCustomError::InvalidPDA.into());
+    }
+    
+    if executed_payouts_acc.lamports() > 0 {
+        msg!("Payout with this nonce has already been executed");
+        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
+    }
+
+    let space: usize = 0;
+    let rent = Rent::get()?.minimum_balance(space);
+    let create_account_ix = system_instruction::create_account(
+        initializer_acc.key,
+        executed_payouts_acc.key,
+        rent,
+        space as u64,
+        program_id,
+    );
+
+    invoke_signed(
+        &create_account_ix,
+        &[
+            initializer_acc.clone(),
+            executed_payouts_acc.clone(),
+            system_program.clone(),
+        ],
+        &[&[
+            EXECUTED_PAYOUTS_PREFIX.as_bytes(),
+            &withdrawal_values.nonce.to_be_bytes(),
+            &[executed_payouts_bump],
+        ]],
+    )?;
 
     // Deserialize twine_chain_storage_acc
     let twine_chain_storage = {
@@ -113,8 +153,8 @@ pub fn process_native_forced_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    if (withdraw_values.nonce <= twine_chain_storage.last_copied_message_end_nonce) {
-        let (start_nonce, end_nonce) = batch_range_provider(withdraw_values.nonce).unwrap();
+    if (withdrawal_values.nonce <= twine_chain_storage.last_copied_message_end_nonce) {
+        let (start_nonce, end_nonce) = batch_range_provider(withdrawal_values.nonce).unwrap();
         let (expected_message_replicator, _bump_seed) =
             derive_messages_replicator(&twine_chain_program_id, start_nonce, end_nonce);
 
@@ -135,8 +175,9 @@ pub fn process_native_forced_withdrawal(
             return Err(ProgramCustomError::InvalidTransaction.into());
         };
     } else {
-        let messages_buffer_data =
-            DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])?;
+        let messages_buffer_data = DetailedMessagesBuffer::deserialize(
+            &mut &detailed_messages_buffer_acc.data.borrow()[..],
+        )?;
         if !messages_buffer_data
             .messages
             .contains(&Keccak256::digest(&public_values[40..]).into())
@@ -146,16 +187,15 @@ pub fn process_native_forced_withdrawal(
         };
     }
 
-    if withdraw_values.batch_number > twine_chain_storage.last_finalized_batch_number {
+    if withdrawal_values.batch_number > twine_chain_storage.last_finalized_batch_number {
         return Err(ProgramCustomError::BatchNotFinalized.into());
     };
 
-    // encoding public input structure to get public input
     if !twine_chain_storage.skip_verification {
         verify_proof(
             &execution_proof,
             &public_values,
-            &twine_chain_storage.execution_vkey,
+            &twine_chain_storage.forced_withdrawal_vkey,
             GROTH16_VK_4_0_0_RC3_BYTES,
         )
         .map_err(|_| ProgramError::InvalidInstructionData)?;
@@ -166,11 +206,11 @@ pub fn process_native_forced_withdrawal(
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let decimal_mapping = token_decimal_mappings
-        .get_mapping(&withdraw_values.l1_token_address)
+        .get_mapping(&withdrawal_values.l1_token_address)
         .ok_or(ProgramCustomError::TokenMappingNotFound)?;
 
     let converted_amount = TokenDecimalMappings::convert_l2_to_l1(
-        &withdraw_values.amount,
+        &withdrawal_values.amount,
         decimal_mapping.l2_decimals,
         decimal_mapping.l1_decimals,
     )?;
@@ -181,21 +221,6 @@ pub fn process_native_forced_withdrawal(
         return Err(ProgramCustomError::InsufficientFunds.into());
     }
 
-    let mut executed_payouts_buffer =
-        ExecutedPayoutsBuffer::deserialize(&mut &executed_payouts_buffer_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-    // For refunds
-    if withdraw_values.nonce < executed_payouts_buffer.payout_nonce_lower_bound {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
-    if executed_payouts_buffer
-        .executed_payout_nonces
-        .contains(&withdraw_values.nonce)
-    {
-        return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
-    };
-
     // Native token (SOL) withdrawal
     process_native_token_withdrawal(
         &program_id,
@@ -205,23 +230,15 @@ pub fn process_native_forced_withdrawal(
         &receiver_acc,
         actual_amount,
     )?;
-    executed_payouts_buffer
-        .executed_payout_nonces
-        .push(withdraw_values.nonce);
 
-    executed_payouts_buffer.post_withdrawal_processing();
-
-    executed_payouts_buffer
-        .serialize(&mut &mut executed_payouts_buffer_acc.data.borrow_mut()[..])
-        .map_err(|_| ProgramCustomError::SerializeFailed)?;
     let clock = Clock::get()?;
 
     let event = ForcedWithdrawalSuccessfulEvent {
         event: "ForcedWithdrawalSuccessful".to_string(),
-        nonce: withdraw_values.nonce,
+        nonce: withdrawal_values.nonce,
         l1_receiver: receiver_acc.key.to_string(),
-        l1_token: withdraw_values.l1_token_address,
-        chain_id: withdraw_values.chain_id,
+        l1_token: withdrawal_values.l1_token_address,
+        chain_id: withdrawal_values.chain_id,
         amount: actual_amount,
         slot_number: clock.slot,
     };
@@ -236,7 +253,6 @@ pub fn process_native_forced_withdrawal(
 fn validate_accounts(
     native_token_vault_data_acc: &AccountInfo,
     twine_chain_storage_acc: &AccountInfo,
-    executed_payouts_buffer_acc: &AccountInfo,
     token_decimal_mappings_acc: &AccountInfo,
     system_program: &AccountInfo,
     detailed_messages_buffer_acc: &AccountInfo,
@@ -252,19 +268,17 @@ fn validate_accounts(
     let (expected_twine_chain_storage, _) = derive_twine_chain_storage(&twine_chain_program_id);
     verify_derived_address(expected_twine_chain_storage, twine_chain_storage_acc)?;
 
-    let (expected_executed_payouts_buffer, _) = derive_executed_payouts_buffer(program_id);
-    verify_derived_address(
-        expected_executed_payouts_buffer,
-        executed_payouts_buffer_acc,
-    )?;
-
     let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
 
     verify_system_program(system_program);
 
-    let (expected_detailed_message_buffer, _) = derive_detailed_messages_buffer(&twine_chain_program_id);
-    verify_derived_address(expected_detailed_message_buffer, detailed_messages_buffer_acc)?;
+    let (expected_detailed_message_buffer, _) =
+        derive_detailed_messages_buffer(&twine_chain_program_id);
+    verify_derived_address(
+        expected_detailed_message_buffer,
+        detailed_messages_buffer_acc,
+    )?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
