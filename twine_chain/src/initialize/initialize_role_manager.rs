@@ -18,7 +18,9 @@ use crate::{
         state::{RoleType, TwineChainRoleManager},
     },
     utils::{
-        address_derivation::{derive_twine_chain_role_manager, verify_derived_address, verify_system_program},
+        address_derivation::{
+            derive_twine_chain_role_manager, verify_derived_address, verify_system_program,
+        },
         constants::{INITIAL_CHAIN_ADMIN, MAX_ROLES, ROLE_MANAGER_PREFIX},
     },
 };
@@ -63,19 +65,13 @@ pub fn initialize_role_manager(program_id: &Pubkey, accounts: &[AccountInfo]) ->
     let role_manager_data = TwineChainRoleManager {
         is_initialized: true,
         chain_admin: chain_admin,
-        twine_operator: Pubkey::default(),
-        token_gateway_program: Pubkey::default(),
-        roles: vec![
-            (chain_admin, RoleType::TwineOperationHandler),
-            (chain_admin, RoleType::MessageAppender),
-        ],
+        roles: vec![(chain_admin, RoleType::TwineOperationHandler)],
     };
-
     role_manager_data
         .serialize(&mut &mut role_manager_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
 
-    msg!("Role Manager Initialized");
+    msg!("Twine Chain Role Manager Initialized");
     Ok(())
 }
 
@@ -90,7 +86,8 @@ fn validate_accounts(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (expected_role_manager_pda, role_manager_bump) = derive_twine_chain_role_manager(program_id);
+    let (expected_role_manager_pda, role_manager_bump) =
+        derive_twine_chain_role_manager(program_id);
     verify_derived_address(expected_role_manager_pda, role_manager_acc)?;
 
     verify_system_program(system_program)?;

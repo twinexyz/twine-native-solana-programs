@@ -10,8 +10,6 @@ use solana_program::{program_error::ProgramError, program_pack::IsInitialized, p
 pub struct TwineChainRoleManager {
     pub is_initialized: bool,
     pub chain_admin: Pubkey,
-    pub twine_operator: Pubkey,
-    pub token_gateway_program: Pubkey,
     pub roles: Vec<(Pubkey, RoleType)>,
 }
 
@@ -140,7 +138,7 @@ pub struct MessageTransactionEvent {
     pub amount: String,
     pub data: Vec<u8>,
     pub message_type: String,
-    pub previous_rolling_hash: [u8;32],
+    pub previous_rolling_hash: [u8; 32],
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -150,7 +148,6 @@ pub struct CommitedBatchEvent {
     pub chain_id: u64,
     pub slot_number: u64,
     pub batch_hash: [u8; 32],
-   
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -161,7 +158,6 @@ pub struct FinalizedBatchEvent {
     pub chain_id: u64,
     pub slot_number: u64,
     pub batch_hash: [u8; 32],
-    
 }
 
 /********************************
@@ -182,8 +178,21 @@ impl TransactionType {
 }
 
 impl MessageInfo {
+    pub fn packed_len(&self) -> usize {
+        let txn_len = self.txn_type.as_bytes().len();
+        txn_len
+        + 8 // nonce
+        + 8 // chain_id
+        + 8 // slot_number
+        + 32 // data_hash (Keccak of data)
+        + self.l1_pubkey.to_lowercase().as_bytes().len()
+        + self.twine_address.to_lowercase().as_bytes().len()
+        + self.l1_token.to_lowercase().as_bytes().len()
+        + self.l2_token.to_lowercase().as_bytes().len()
+        + self.amount.as_bytes().len()
+    }
     pub fn abi_encode_packed(&self) -> Vec<u8> {
-        let mut encoded: Vec<u8> = Vec::with_capacity(MessageInfo::LEN);
+        let mut encoded = Vec::with_capacity(self.packed_len());
         encoded.extend(self.txn_type.as_bytes());
         encoded.extend(self.nonce.to_be_bytes());
         encoded.extend(self.chain_id.to_be_bytes());
@@ -207,47 +216,38 @@ impl MessageInfo {
         result.copy_from_slice(&hash);
         result
     }
-
 }
+
 impl MessagesBuffer {
-      pub fn update_rolling_hash(&mut self, new_message_hash: &[u8; 32]) {
+    pub fn update_rolling_hash(&mut self, new_message_hash: &[u8; 32]) {
         let mut hasher = Keccak256::new();
         hasher.update(&self.messages_rolling_hash);
         hasher.update(new_message_hash);
         let result = hasher.finalize();
-        
+
         self.messages_rolling_hash.copy_from_slice(&result);
         self.message_nonce += 1;
     }
-
 }
 /******************************************
  * Implementations for Length Calculation *
  *****************************************/
 
 impl TwineChainStorage {
-    pub const LEN: usize = 1    // is_initialized
-        + 4 + 512   // groth16_vk
-        + 4 + 66        // execution_vkey
-        + 4 + 66    // inclusion_vkey
-        + 4 + 66        // withdrawal_vkey
-        + 1         // skip_verification  
-        + 16        // last_finalized_batch
-        + 16        // last_committed_batch
-        + 16        // last_transcation_finalized_batch
-        + 32; // last_finalized_receipt_root
-}
-
-impl MessageInfo {
-    pub const LEN: usize = 1
-        + 8           // nonce (u64)
-        + 8         // chain_id (u64)
-        + 8         // slot_number(u64)
-        + 4 + 44    // from_L1_publkey (String)
-        + 4 + 42    // to_twine_address (String)
-        + 4 + 44    // l1_token (String)
-        + 4 + 42    // l2_token (String)
-        + 4 + 32; // amount (String)
+    pub const LEN: usize = 1    // is_initialized: bool
+        + 8     // last_copied_message_start_nonce: u64
+        + 8     // last_copied_message_end_nonce: u64
+        + 8     // total_msg_handled_on_twine: u64
+        + 8     // last_committed_batch_number: u64
+        + 8     // last_finalized_batch_number: u64
+        + 4 + 512   // groth16_vk: Vec<u8> (4-byte len + 512 max bytes)
+        + 4 + 66    // finalize_vkey: String (4-byte len + 66 max bytes)
+        + 4 + 66    // refund_vkey: String (4-byte len + 66 max bytes)
+        + 4 + 66    // forced_withdrawal_vkey: String (4-byte len + 66 max bytes)
+        + 4 + 66    // l2_withdrawal_vkey: String (4-byte len + 66 max bytes)
+        + 1     // skip_verification: bool
+        + 32    // last_committed_batch_hash: [u8; 32]
+        + 32; // last_finalized_batch_hash: [u8; 32]
 }
 
 impl BatchPdaAccount {

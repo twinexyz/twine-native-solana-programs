@@ -30,10 +30,10 @@ fn main() -> io::Result<()> {
 
     println!("✅ Build steps complete!");
 
-    let tg_id = deploy(TOKENS_GATEWAY_SO, "tokens_gateway", &url, &keypair_path)?;
+    // let tg_id = deploy(TOKENS_GATEWAY_SO, "tokens_gateway", &url, &keypair_path)?;
     let tc_id = deploy(TWINE_CHAIN_SO, "twine_chain", &url, &keypair_path)?;
 
-    println!("🎉 Deployment finished.\n🚪 Tokens Gateway: {tg_id}");
+    // println!("🎉 Deployment finished.\n🚪 Tokens Gateway: {tg_id}");
     println!("🎉 Deployment finished.\n🔗 Twine Chain: {tc_id}");
 
     Ok(())
