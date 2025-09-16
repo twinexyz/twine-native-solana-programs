@@ -58,7 +58,7 @@ pub fn get_twine_chain_storage_data() -> Result<()> {
 
     let twine_chain_storage_data =
         TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
-            .context("Failed to deserialize Deposit Buffer")?;
+            .context("Failed to deserialize Twine Chain Storage Data")?;
 
     println!("Twine chain storage data: {:?}", twine_chain_storage_data);
 
@@ -111,7 +111,7 @@ pub fn get_tokens_gateway_role_manager_data() -> Result<()> {
 
     let tokens_gateway_role_manager_data: TokensGatewayRoleManager =
         TokensGatewayRoleManager::deserialize(&mut &tokens_gateway_role_manager_account.data[..])
-            .expect("Failed to deserialize Twine Chain Rolemanager Data");
+            .expect("Failed to deserialize Tokens Gateway Rolemanager Data");
 
     println!(
         "Tokens Gateway RoleManager Data: {:?}",
@@ -130,7 +130,7 @@ pub fn get_tokens_mapping_data() -> Result<()> {
 
     let tokens_mapping_account_data: TokenDecimalMappings =
         TokenDecimalMappings::deserialize(&mut &tokens_mapping_account.data[..])
-            .expect("Failed to deserialize Twine Chain Rolemanager Data");
+            .expect("Failed to deserialize Tokens Mapping Data");
 
     println!("Tokens Mapping Data: {:?}", tokens_mapping_account_data);
 

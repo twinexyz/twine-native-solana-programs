@@ -89,6 +89,7 @@ help:
 	@echo "  get-tokens-mapping-data           Get tokens mapping data"
 	@echo "  get-executed-payouts-buffer-data  Get executed payouts buffer data"
 	@echo "  get-associated-token-account      Get associated token account of a wallet"
+	@echo "  get-message-replicator-data       Get Message Replicator data"
 	@echo "  get-twine-chain-storage-data      Get twine chain storage data"
 	@echo "  get-twine-chain-role-manager-data Get twine chain role manager data"
 	@echo "  get-tokens-gateway-role-manager-data Get tokens gateway role manager data"

@@ -9,7 +9,7 @@ use crate::{
         initialize_twine_chain_storage,
     },
     role::roles_manager::{add_role, remove_role},
-    setters::{set_token_gateway, set_v_keys},
+    setters::set_v_keys,
 };
 
 pub fn process_instruction(
@@ -31,11 +31,6 @@ pub fn process_instruction(
         TwineChainInstruction::InitializeMessageBuffer => {
             initialize_message_buffer::initialize_message_buffer(program_id, accounts)
         }
-
-        TwineChainInstruction::SetTokenGateway {
-            token_gateway_program,
-        } => set_token_gateway::set_token_gateway(program_id, accounts, token_gateway_program),
-
         TwineChainInstruction::SetVkeys {
             groth16_vk,
             finalize_vkey,

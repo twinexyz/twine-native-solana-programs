@@ -23,9 +23,6 @@ pub enum TwineChainInstruction {
     InitializeRoleManager,
     InitializeTwineChainStorage,
     InitializeMessageBuffer,
-    SetTokenGateway {
-        token_gateway_program: Pubkey,
-    },
     SetVkeys {
         groth16_vk: Vec<u8>,
         finalize_vkey: String,
@@ -56,11 +53,6 @@ pub enum TwineChainInstruction {
         address: Pubkey,
         role: RoleType,
     },
-}
-
-#[derive(BorshDeserialize)]
-struct SetTokenGatewayPayload {
-    token_gateway_program: Pubkey,
 }
 
 #[derive(BorshDeserialize)]
@@ -290,13 +282,6 @@ impl TwineChainInstruction {
             1 => Ok(Self::InitializeTwineChainStorage),
             2 => Ok(Self::InitializeMessageBuffer),
             3 => {
-                let payload = SetTokenGatewayPayload::try_from_slice(rest)
-                    .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::SetTokenGateway {
-                    token_gateway_program: payload.token_gateway_program,
-                })
-            }
-            4 => {
                 let payload = SetVkeysPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SetVkeys {
@@ -307,28 +292,28 @@ impl TwineChainInstruction {
                     l2_withdrawal_vkey: payload.l2_withdrawal_vkey,
                 })
             }
-            5 => {
+            4 => {
                 let payload = AppendDepositMessagePayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::AppendDepositMessage {
                     deposit_info: payload.deposit_info,
                 })
             }
-            6 => {
+            5 => {
                 let payload = AppendForcedWithdrawalMessage::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::AppendForcedWithdrawalMessage {
                     withdraw_info: payload.withdraw_info,
                 })
             }
-            7 => {
+            6 => {
                 let payload = InitializeGenesisBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::InitializeGenesisBatch {
                     genesis_batch_hash: payload.genesis_block_hash,
                 })
             }
-            8 => {
+            7 => {
                 let payload = AddRoleInTwineChainPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::AddRoleInTwineChain {
@@ -336,8 +321,8 @@ impl TwineChainInstruction {
                     role: payload.role,
                 })
             }
-            9 => Ok(Self::CopyMessagesBuffer),
-            10 => {
+            8 => Ok(Self::CopyMessagesBuffer),
+            9 => {
                 let payload = CommitAndFinalizeBatchPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::CommitAndFinalizeBatch {
@@ -346,7 +331,7 @@ impl TwineChainInstruction {
                     execution_proof: payload.execution_proof,
                 })
             }
-            11 => {
+            10 => {
                 msg!("Here in remove role");
                 let payload = RemoveRoleInTwineChainPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
