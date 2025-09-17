@@ -1,14 +1,13 @@
-use std::process::Command;
 use std::io::{self, Write};
+use std::process::Command;
 
 const TWINE_CHAIN_PROGRAM_SO_PATH: &str = "./target/deploy/twine_chain.so";
 
 fn main() -> io::Result<()> {
     println!("🚀 Starting twine_chain program update process...");
 
-
     print!("💡 Enter the twine_chain Program ID (base58, as on-chain): ");
-    io::stdout().flush()?; 
+    io::stdout().flush()?;
     let mut program_id = String::new();
     io::stdin().read_line(&mut program_id)?;
     let program_id = program_id.trim();
