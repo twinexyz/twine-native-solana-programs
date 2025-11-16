@@ -1,10 +1,11 @@
 use crate::utils::{get_default_keypair, get_ethereum_signature, get_rpc_client};
 use anyhow::{Context, Result};
 use borsh::BorshDeserialize;
-use solana_sdk::{signature::Signer, transaction::Transaction};
-use tokens_gateway::{
-    core::{instruction as tokens_gateway_instruction, state::SignMessageInfo},
+use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction, instruction::Instruction, signature::Signer,
+    transaction::Transaction,
 };
+use tokens_gateway::core::{instruction as tokens_gateway_instruction, state::SignMessageInfo};
 use twine_chain::{
     core::state::{MessagesBuffer, TwineChainStorage},
     id as twine_chain_program_id,
@@ -67,9 +68,14 @@ pub fn forced_native_withdrawal(
         end_nonce,
         signature,
     );
+    let cu_limit_ix: Instruction = ComputeBudgetInstruction::set_compute_unit_limit(600_000);
+    let cu_price_ix: Instruction = ComputeBudgetInstruction::set_compute_unit_price(5_000);
+    let mut all_instructions = vec![cu_limit_ix, cu_price_ix];
+
+    all_instructions.extend(instructions);
 
     let transaction = Transaction::new_signed_with_payer(
-        &instructions,
+        &all_instructions,
         Some(&account.pubkey()),
         &[&account],
         blockhash,
