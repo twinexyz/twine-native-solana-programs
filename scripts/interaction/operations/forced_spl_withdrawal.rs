@@ -1,7 +1,10 @@
 use crate::utils::{get_default_keypair, get_ethereum_signature, get_rpc_client};
 use anyhow::{Context, Ok, Result};
 use borsh::BorshDeserialize;
-use solana_sdk::{msg, pubkey::Pubkey, signature::Signer, transaction::Transaction};
+use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction, pubkey::Pubkey, signature::Signer,
+    transaction::Transaction,
+};
 use tokens_gateway::{
     core::instruction as tokens_gateway_instruction, core::state::SignMessageInfo,
 };
@@ -30,7 +33,6 @@ pub fn forced_spl_withdrawal(
         .context("Failed to fetch PDA account")?;
     let messages_buffer_data = MessagesBuffer::deserialize(&mut &messages_buffer_account.data[..])
         .context("Failed to deserialize Message Buffer")?;
-    msg!("nonce here {:?}", messages_buffer_data.message_nonce + 1);
     let twine_chain_storage_account = rpc_client
         .get_account(&derive_twine_chain_storage(&twine_chain_program_id()).0)
         .context("Failed to fetch PDA account")?;
@@ -53,8 +55,12 @@ pub fn forced_spl_withdrawal(
 
     let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
     let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
+    let mut instructions = Vec::new();
 
-    let instructions = tokens_gateway_instruction::forced_spl_token_withdrawal(
+    let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(400_000);
+    instructions.push(compute_budget_ix);
+
+    let withdrawal_instructions = tokens_gateway_instruction::forced_spl_token_withdrawal(
         &account.pubkey(),
         &user_token_account,
         &l1_token,
@@ -66,6 +72,8 @@ pub fn forced_spl_withdrawal(
         end_nonce,
         signature,
     );
+
+    instructions.extend(withdrawal_instructions);
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
