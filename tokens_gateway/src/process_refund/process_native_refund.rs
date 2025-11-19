@@ -118,6 +118,16 @@ pub fn process_native_refund(
         return Err(ProgramCustomError::WithdrawalAlreadyExecuted.into());
     }
 
+    // Deserialize twine_chain_storage_acc
+    let twine_chain_storage = {
+        TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
+            .map_err(|_| ProgramError::InvalidAccountData)?
+    };
+
+    if (refund_values.nonce > twine_chain_storage.total_msg_handled_on_twine) {
+        return Err(ProgramCustomError::L2ExecutionPending.into());
+    }
+
     let space: usize = 0;
     let rent = Rent::get()?.minimum_balance(space);
     let create_account_ix = system_instruction::create_account(
@@ -127,7 +137,8 @@ pub fn process_native_refund(
         space as u64,
         program_id,
     );
-
+    
+    // Create a PDA account to mark this payout as executed and prevent double-spending
     invoke_signed(
         &create_account_ix,
         &[
@@ -142,11 +153,6 @@ pub fn process_native_refund(
         ]],
     )?;
 
-    // Deserialize twine_chain_storage_acc
-    let twine_chain_storage = {
-        TwineChainStorage::deserialize(&mut &twine_chain_storage_acc.data.borrow()[..])
-            .map_err(|_| ProgramError::InvalidAccountData)?
-    };
 
     if (refund_values.nonce <= twine_chain_storage.last_copied_message_end_nonce) {
         let (start_nonce, end_nonce) = batch_range_provider(refund_values.nonce).unwrap();
