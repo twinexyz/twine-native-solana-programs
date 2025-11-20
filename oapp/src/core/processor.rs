@@ -4,11 +4,13 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 use crate::{
     core::{
         instruction::OAppInstruction,
-        state::{InitStoreParams, SendMsgParams, SetPeerParams},
+        state::{
+            InitStoreParams, SendMsgParams, SetConfigParams, SetPeerParams, SetSendLibraryParams,
+        },
     },
     initialize::initialize_store,
     message_handlers,
-    setters::set_peer,
+    setters::{set_config, set_peer, set_send_library},
 };
 
 pub fn process_instruction(
@@ -50,6 +52,34 @@ pub fn process_instruction(
                 options,
                 native_fee,
                 zro_fee,
+            },
+        ),
+        OAppInstruction::SetSendLibrary {
+            sender,
+            eid,
+            new_lib,
+        } => set_send_library::set_send_library(
+            program_id,
+            accounts,
+            SetSendLibraryParams {
+                sender,
+                eid,
+                new_lib,
+            },
+        ),
+        OAppInstruction::SetConfig {
+            oapp,
+            eid,
+            config_type,
+            config,
+        } => set_config::set_config(
+            program_id,
+            accounts,
+            SetConfigParams {
+                oapp,
+                eid,
+                config_type,
+                config,
             },
         ),
     }

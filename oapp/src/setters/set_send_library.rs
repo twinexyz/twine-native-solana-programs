@@ -101,7 +101,7 @@ fn validate_accounts(
     let expected_send_library_acc = Pubkey::find_program_address(
         &[
             SEND_LIBRARY_CONFIG_SEED,
-            &params.sender.as_ref(),
+            params.sender.as_ref(),
             &params.eid.to_be_bytes(),
         ],
         &endpoint_program_id,
