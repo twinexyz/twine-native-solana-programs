@@ -45,6 +45,8 @@ pub enum ProgramCustomError {
     TokenNotFound,
     #[error("Failed to remove the particular role")]
     RemoveFailed,
+    #[error("Transaction needs to be executed on L2")]
+    L2ExecutionPending,
     #[error("Batch needs to be committed before finalization")]
     BatchNotCommitted,
     #[error("Overflow occurred while updating total deposits.")]
