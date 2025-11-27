@@ -11,8 +11,12 @@ members  = [
 ]
 
 [[bin]]
-name = "deploy_programs"
-path = "scripts/deployment/deploy_programs.rs"
+name = "deploy_twine_chain"
+path = "scripts/deployment/deploy_twine_chain.rs"
+
+[[bin]]
+name = "deploy_tokens_gateway"
+path = "scripts/deployment/deploy_tokens_gateway.rs"
 
 [[bin]]
 name = "update_tokens_gateway"
