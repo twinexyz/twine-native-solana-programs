@@ -11,7 +11,7 @@ SOL_PUBKEY = 11111111111111111111111111111111
 # ==============================
 #        Phony Targets
 # ==============================
-.PHONY: all build build-sbf clean test deploy help \
+.PHONY: all build build-sbf clean test deploy deploy_tokens_gateway deploy_twine_chain help \
 		sync-keys sync-keys-twine-chain sync-keys-gateway update-admin \
         update-tokens-gateway update-twine-chain \
         keygen-tokens-gateway-program-id keygen-twine-chain-program-id \
@@ -38,6 +38,8 @@ help:
 	@echo ""
 	@echo "=== DEPLOYMENT TARGETS ==="
 	@echo "  deploy                            Deploy programs"
+	@echo "  deploy_tokens_gateway             Deploy tokens_gateway program"
+	@echo "  deploy_twine_chain                Deploy twine_chain program"
 	@echo "  update-tokens-gateway             Update the tokens gateway"
 	@echo "  update-twine-chain                Update the twine chain"
 	@echo ""
@@ -163,8 +165,15 @@ test:
 # ==============================
 #        Deployment Targets
 # ==============================
+deploy_tokens_gateway:
+	$(CARGO) run --bin deploy_tokens_gateway
+
+deploy_twine_chain:
+	$(CARGO) run --bin deploy_twine_chain
+
 deploy:
-	$(CARGO) run --bin deploy_programs
+	make deploy_tokens_gateway
+	make deploy_twine_chain
 
 update-tokens-gateway:
 	$(CARGO) run --bin update_tokens_gateway

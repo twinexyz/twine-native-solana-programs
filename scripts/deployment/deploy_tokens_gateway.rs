@@ -3,7 +3,6 @@ use std::io;
 use std::path::PathBuf;
 use std::process::Command;
 
-const TWINE_CHAIN_SO: &str = "./target/deploy/twine_chain.so";
 const TOKENS_GATEWAY_SO: &str = "./target/deploy/tokens_gateway.so";
 const TOKENS_GATEWAY_KEYPAIR: &str = "./target/deploy/tokens_gateway-keypair.json";
 
@@ -33,11 +32,7 @@ fn main() -> io::Result<()> {
     // Deploy tokens gateway using buffer with specific program-id
     let tg_id = deploy_with_buffer(TOKENS_GATEWAY_SO, "tokens_gateway", &url, &keypair_path)?;
 
-    // Deploy twine chain using the original method
-    let tc_id = deploy(TWINE_CHAIN_SO, "twine_chain", &url, &keypair_path)?;
-
     println!("🎉 Deployment finished.\n🚪 Tokens Gateway: {tg_id}");
-    println!("🎉 Deployment finished.\n🔗 Twine Chain: {tc_id}");
 
     Ok(())
 }
@@ -151,55 +146,4 @@ fn deploy_with_buffer(
             io::Error::new(io::ErrorKind::Other, "Program ID not found")
         })?;
     Ok(program_id)
-}
-
-fn deploy(so_path: &str, name: &str, url: &str, keypair_path: &PathBuf) -> io::Result<String> {
-    println!("📤 Deploying {name}: {so_path}");
-
-    let args = vec![
-        "program",
-        "deploy",
-        so_path,
-        "--url",
-        url,
-        "--commitment",
-        "confirmed",
-        "--keypair",
-        keypair_path.to_str().expect("Invalid keypair path"),
-    ];
-
-    // Show the exact command for debugging
-    eprintln!("🔧 Exec: solana {}", args.join(" "));
-
-    let output = Command::new("solana").args(&args).output()?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        eprintln!("❌ Deploy failed for {name}");
-        eprintln!("Exit code: {:?}", output.status.code());
-        if !stderr.is_empty() {
-            eprintln!("--- STDERR ---\n{}", stderr);
-        }
-        if !stdout.is_empty() {
-            eprintln!("--- STDOUT ---\n{}", stdout);
-        }
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("Deploy failed: {name}. See logs above."),
-        ));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout
-        .lines()
-        .find_map(|l| {
-            l.split_once("Program Id:")
-                .map(|(_, id)| id.trim().to_string())
-        })
-        .ok_or_else(|| {
-            eprintln!("⚠️  Program ID not found in output for {name}");
-            eprintln!("Full output:\n{stdout}");
-            io::Error::new(io::ErrorKind::Other, "Program ID not found")
-        })
 }
