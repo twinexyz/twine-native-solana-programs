@@ -5,6 +5,10 @@ use thiserror::Error;
 pub enum ProgramCustomError {
     #[error("PDA derived does not equal PDA passed in")]
     InvalidPDA,
+    #[error("Failed to serialize the state")]
+    SerializeFailed, 
+    #[error("Failed to call endpoint function")]
+    EndpointFunctionFailed,
 }
 
 impl From<ProgramCustomError> for ProgramError {

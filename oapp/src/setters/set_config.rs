@@ -27,6 +27,14 @@ pub fn set_config(
     let message_lib_info_acc = next_account_info(account_info_iter)?;
     let message_lib_acc = next_account_info(account_info_iter)?;
     let message_lib_program_acc = next_account_info(account_info_iter)?;
+    let uln_acc = next_account_info(account_info_iter)?;
+    let send_config_acc = next_account_info(account_info_iter)?;
+    let receive_config_acc = next_account_info(account_info_iter)?;
+    let default_send_config_acc = next_account_info(account_info_iter)?;
+    let default_receive_config_acc = next_account_info(account_info_iter)?;
+    let event_acc = next_account_info(account_info_iter)?;
+    let uln_program = next_account_info(account_info_iter)?;
+    let endpoint_program = next_account_info(account_info_iter)?;
 
     let (endpoint_program_id, store_bump) = validate_accounts(
         program_id,
@@ -48,9 +56,17 @@ pub fn set_config(
     let mut cpi_accounts = vec![];
     cpi_accounts.push(AccountMeta::new(*store_acc.key, true));
     cpi_accounts.push(AccountMeta::new(*oapp_registry_acc.key, false));
-    cpi_accounts.push(AccountMeta::new(*message_lib_info_acc.key, false));
+    cpi_accounts.push(AccountMeta::new_readonly(*message_lib_info_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*message_lib_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*message_lib_program_acc.key, false));
+
+    cpi_accounts.push(AccountMeta::new(*uln_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*send_config_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*receive_config_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*default_send_config_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*default_receive_config_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*event_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*uln_program.key, false));
 
     let send_ix = Instruction {
         program_id: endpoint_program_id,
@@ -66,6 +82,14 @@ pub fn set_config(
             message_lib_info_acc.clone(),
             message_lib_acc.clone(),
             message_lib_program_acc.clone(),
+            uln_acc.clone(),
+            send_config_acc.clone(),
+            receive_config_acc.clone(),
+            default_send_config_acc.clone(),
+            default_receive_config_acc.clone(),
+            event_acc.clone(),
+            uln_program.clone(),
+            endpoint_program.clone(),
         ],
         &[&[STORE_SEED, &[store_bump]]], // seeds for Store PDA signer
     )?;

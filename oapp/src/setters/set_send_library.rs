@@ -26,6 +26,8 @@ pub fn set_send_library(
     let oapp_registry_acc = next_account_info(account_info_iter)?;
     let send_library_config_acc = next_account_info(account_info_iter)?;
     let message_library_info_acc = next_account_info(account_info_iter)?;
+    let event_authority_acc = next_account_info(account_info_iter)?;
+    let endpoint_program_acc = next_account_info(account_info_iter)?;
 
     let (endpoint_program_id, store_bump) = validate_accounts(
         program_id,
@@ -48,6 +50,8 @@ pub fn set_send_library(
     cpi_accounts.push(AccountMeta::new(*oapp_registry_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*send_library_config_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*message_library_info_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*event_authority_acc.key, false));
+    cpi_accounts.push(AccountMeta::new_readonly(*endpoint_program_acc.key, false));
 
     let send_ix = Instruction {
         program_id: endpoint_program_id,
@@ -62,6 +66,8 @@ pub fn set_send_library(
             oapp_registry_acc.clone(),
             send_library_config_acc.clone(),
             message_library_info_acc.clone(),
+            event_authority_acc.clone(),
+            endpoint_program_acc.clone(),
         ],
         &[&[STORE_SEED, &[store_bump]]],
     )?;

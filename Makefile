@@ -4,8 +4,10 @@
 CARGO = cargo
 TOKENS_GATEWAY_KEYPAIR = ./target/deploy/tokens_gateway-keypair.json
 TWINE_CHAIN_KEYPAIR = target/deploy/twine_chain-keypair.json
+OAPP_KEYPAIR = target/deploy/oapp-keypair.json
 TWINE_CHAIN_LIB     ?= twine_chain/src/lib.rs
 TOKENS_GATEWAY_LIB  ?= tokens_gateway/src/lib.rs
+OAPP_LIB ?= oapp/src/lib.rs
 SOL_PUBKEY = 11111111111111111111111111111111
 
 # ==============================
@@ -23,7 +25,7 @@ SOL_PUBKEY = 11111111111111111111111111111111
         get-all-pdas get-batch-pda get-messages-buffer-data get-detailed-messages-buffer-data get-tokens-mapping-data\
         get-associated-token-account get-twine-chain-storage-data \
         process-native-forced-withdrawal process-native-refund \
-		add-role-in-twine-chain add-role-in-tokens-gateway\
+		add-role-in-twine-chain add-role-in-tokens-gateway init-send-library\
 
 # ==============================
 #        Help Target
@@ -125,9 +127,16 @@ update-admin:
 # ==============================
 #       Update program pubkeys
 # ==============================
-sync-keys: sync-keys-twine-chain sync-keys-gateway
+sync-keys: sync-keys-twine-chain sync-keys-gateway sync-keys-oapp
 	@echo "All keys synced successfully."
 
+sync-keys-oapp:
+	@PUBKEY=$$(solana-keygen pubkey $(OAPP_KEYPAIR)); \
+	echo "Setting declare_id! to $$PUBKEY in $(OAPP_LIB)"; \
+	sed $(SED_INPLACE) -E \
+	  's|^solana_program::declare_id!\("[^"]*"\);$$|solana_program::declare_id!("'"$$PUBKEY"'");|' \
+	  $(OAPP_LIB); \
+	echo "Updated: $(OAPP_LIB)"
 
 sync-keys-twine-chain:
 	@PUBKEY=$$(solana-keygen pubkey $(TWINE_CHAIN_KEYPAIR)); \
@@ -171,6 +180,10 @@ update-tokens-gateway:
 
 update-twine-chain:
 	$(CARGO) run --bin update_twine_chain
+
+update-oapp:
+	$(CARGO) run --bin update_oapp
+
 
 # ==============================
 #        Key Generation Targets
@@ -336,3 +349,33 @@ get-tokens-gateway-role-manager-data:
 copy-messages-buffer:
 	@echo "Copy Message Buffer..."
 	$(CARGO) run --bin interaction -- copy-messages-buffer "$(start_nonce)" "$(end_nonce)"
+
+
+
+# ==============================
+#     OApp Operations
+# ==============================
+init-store:
+	@echo "Initializing OApp Store..."
+	$(CARGO) run --bin interaction -- initialize-store
+
+init-send-library:
+	@echo "Initializing Send Library..."
+	$(CARGO) run --bin interaction -- init-send-library
+
+# Usage: make init-nonce remote_oapp=remote_oapp_address
+init-nonce:
+	@echo "Initializing Nonce.."
+	$(CARGO) run --bin interaction -- init-nonce "$(remote_oapp)"
+
+init-config:
+	@echo "Initializing Config..."
+	$(CARGO) run --bin interaction -- init-config
+
+set-send-library:
+	@echo "Setting Send Library..."
+	$(CARGO) run --bin interaction -- set-send-library
+
+set-config:
+	@echo "Setting Config..."
+	$(CARGO) run --bin interaction -- set-config

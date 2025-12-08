@@ -1,16 +1,22 @@
+use std::vec;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
-    system_program, sysvar,
+    system_program,
 };
 
 use crate::{
     core::state::{
-        SendMsgParams, SetConfigParams, SetSendLibraryParams, ENDPOINT_SEED, LZ_COMPOSE_TYPES_SEED,
-        LZ_RECEIVE_TYPES_SEED, MESSAGE_LIB_SEED, NONCE_SEED, OAPP_SEED, SEND_LIBRARY_CONFIG_SEED,
-        STORE_SEED,
+        InitConfigParams, InitNonceParams, InitReceiveLibraryParams, InitSendLibraryParams,
+        MessageLibType, RegisterLibraryParams, SendMsgParams, SetConfigParams,
+        SetSendLibraryParams, ENDPOINT_INIT_CONFIG_DISCRIMINATOR,
+        ENDPOINT_INIT_NONCE_DISCRIMINATOR, ENDPOINT_INIT_RECEIVE_LIBRARY_DISCRIMINATOR,
+        ENDPOINT_INIT_SEND_LIBRARY_DISCRIMINATOR, ENDPOINT_SEED, EVENT_SEED, MESSAGE_LIB_SEED,
+        NONCE_SEED, OAPP_SEED, PENDING_NONCE_SEED, RECEIVE_CONFIG_SEED,
+        RECEIVE_LIBRARY_CONFIG_SEED, SEND_CONFIG_SEED, SEND_LIBRARY_CONFIG_SEED, STORE_SEED,
     },
     ID,
 };
@@ -103,21 +109,17 @@ pub fn initialize_store(endpoint_id: &Pubkey, admin: &Pubkey) -> Vec<Instruction
 
     let accounts = vec![
         AccountMeta::new(*admin, true),
-        AccountMeta::new(Pubkey::find_program_address(&[STORE_SEED], &ID).0, true),
+        AccountMeta::new(Pubkey::find_program_address(&[STORE_SEED], &ID).0, false),
+        AccountMeta::new_readonly(system_program::ID, false),
         AccountMeta::new(
-            Pubkey::find_program_address(&[LZ_RECEIVE_TYPES_SEED, store_account.as_ref()], &ID).0,
+            Pubkey::find_program_address(&[EVENT_SEED], endpoint_id).0,
             false,
         ),
         AccountMeta::new(
-            Pubkey::find_program_address(&[LZ_COMPOSE_TYPES_SEED, store_account.as_ref()], &ID).0,
+            Pubkey::find_program_address(&[OAPP_SEED, &store_account.as_ref()], endpoint_id).0,
             false,
         ),
-        AccountMeta::new(system_program::id(), false),
-        AccountMeta::new(sysvar::rent::ID, false),
-        AccountMeta::new(
-            Pubkey::find_program_address(&[b"OApp", store_account.as_ref()], &ID).0,
-            false,
-        ),
+        AccountMeta::new_readonly(*endpoint_id, false),
     ];
 
     vec![Instruction {
@@ -215,11 +217,14 @@ pub fn set_send_library(params: SetSendLibraryParams, endpoint_id: &Pubkey) -> V
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(Pubkey::find_program_address(&[STORE_SEED], &ID).0, true),
+        // signer
+        AccountMeta::new(Pubkey::find_program_address(&[STORE_SEED], &ID).0, false),
+        // oapp_registry
         AccountMeta::new(
             Pubkey::find_program_address(&[OAPP_SEED, params.sender.as_ref()], endpoint_id).0,
-            true,
+            false,
         ),
+        // send_library_config
         AccountMeta::new(
             Pubkey::find_program_address(
                 &[
@@ -232,6 +237,7 @@ pub fn set_send_library(params: SetSendLibraryParams, endpoint_id: &Pubkey) -> V
             .0,
             false,
         ),
+        // message_lib_info
         AccountMeta::new(
             Pubkey::find_program_address(
                 &[MESSAGE_LIB_SEED, &params.new_lib.to_bytes()],
@@ -240,6 +246,11 @@ pub fn set_send_library(params: SetSendLibraryParams, endpoint_id: &Pubkey) -> V
             .0,
             false,
         ),
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EVENT_SEED], endpoint_id).0,
+            false,
+        ),
+        AccountMeta::new_readonly(*endpoint_id, false),
     ];
 
     vec![Instruction {
@@ -252,9 +263,11 @@ pub fn set_send_library(params: SetSendLibraryParams, endpoint_id: &Pubkey) -> V
 pub fn set_config(
     params: SetConfigParams,
     endpoint_id: &Pubkey,
-    message_lib_acc: &Pubkey,
     message_lib_program: &Pubkey,
 ) -> Vec<Instruction> {
+    let store_account = Pubkey::find_program_address(&[STORE_SEED], &ID).0;
+    let message_lib = Pubkey::find_program_address(&[MESSAGE_LIB_SEED], message_lib_program).0;
+
     let payload = OAppInstruction::SetConfig {
         oapp: params.oapp,
         eid: params.eid,
@@ -266,29 +279,303 @@ pub fn set_config(
     data.extend(payload.try_to_vec().unwrap());
 
     let accounts = vec![
-        AccountMeta::new(Pubkey::find_program_address(&[STORE_SEED], &ID).0, true),
+        AccountMeta::new(store_account, false),
         AccountMeta::new(
-            Pubkey::find_program_address(&[OAPP_SEED, params.oapp.as_ref()], endpoint_id).0,
+            Pubkey::find_program_address(&[OAPP_SEED, &store_account.as_ref()], endpoint_id).0,
+            false,
+        ),
+        // messageLibInfo
+        AccountMeta::new_readonly(
+            Pubkey::find_program_address(&[MESSAGE_LIB_SEED, &message_lib.as_ref()], endpoint_id).0,
+            false,
+        ),
+        // message lib
+        AccountMeta::new(message_lib, false),
+        // messageLibProgram
+        AccountMeta::new(*message_lib_program, false),
+        // --------------- remaining accounts for ULN::init_config ---------------
+        // uln
+        AccountMeta::new_readonly(
+            Pubkey::find_program_address(&[MESSAGE_LIB_SEED], message_lib_program).0,
+            false,
+        ),
+        // send_config
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    &SEND_CONFIG_SEED,
+                    &params.eid.to_be_bytes(),
+                    &params.oapp.to_bytes(),
+                ],
+                message_lib_program,
+            )
+            .0,
+            false,
+        ),
+        // receive_config
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    &RECEIVE_CONFIG_SEED,
+                    &params.eid.to_be_bytes(),
+                    &params.oapp.to_bytes(),
+                ],
+                message_lib_program,
+            )
+            .0,
+            false,
+        ),
+        // default_send_config
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[&SEND_CONFIG_SEED, &params.eid.to_be_bytes()],
+                message_lib_program,
+            )
+            .0,
+            false,
+        ),
+        // default receive_config
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[&RECEIVE_CONFIG_SEED, &params.eid.to_be_bytes()],
+                message_lib_program,
+            )
+            .0,
+            false,
+        ),
+        // event account
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EVENT_SEED], message_lib_program).0,
+            false,
+        ),
+        // program
+        AccountMeta::new(*message_lib_program, false),
+        AccountMeta::new(*endpoint_id, false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
+// Instruction to call the enpoint's function directly:
+
+pub fn init_send_library(endpoint_id: &Pubkey, admin: &Pubkey) -> Vec<Instruction> {
+    let store_account = Pubkey::find_program_address(&[STORE_SEED], &ID).0;
+
+    let payload = InitSendLibraryParams {
+        sender: store_account,
+        eid: 40161,
+    };
+
+    let discriminator = ENDPOINT_INIT_SEND_LIBRARY_DISCRIMINATOR;
+    let params_data = payload.try_to_vec().unwrap();
+
+    let mut data = vec![];
+    data.extend_from_slice(&discriminator);
+    data.extend_from_slice(&params_data);
+
+    let accounts = vec![
+        AccountMeta::new(*admin, true),
+        AccountMeta::new(
+            Pubkey::find_program_address(&[OAPP_SEED, &store_account.as_ref()], endpoint_id).0,
             false,
         ),
         AccountMeta::new(
             Pubkey::find_program_address(
-                &[MESSAGE_LIB_SEED, &message_lib_acc.to_bytes()],
+                &[
+                    SEND_LIBRARY_CONFIG_SEED,
+                    &payload.sender.to_bytes(),
+                    &payload.eid.to_be_bytes(),
+                ],
                 endpoint_id,
             )
             .0,
             false,
         ),
-        //(*message_lib_acc)
-        AccountMeta::new(
-            Pubkey::find_program_address(&[MESSAGE_LIB_SEED], message_lib_program).0,
-            false,
-        ),
-        AccountMeta::new(*message_lib_program, false),
+        AccountMeta::new_readonly(system_program::ID, false),
     ];
 
     vec![Instruction {
-        program_id: ID,
+        program_id: *endpoint_id,
+        accounts,
+        data,
+    }]
+}
+
+pub fn init_receive_library(endpoint_id: &Pubkey, admin: &Pubkey) -> Vec<Instruction> {
+    let store_account = Pubkey::find_program_address(&[STORE_SEED], &ID).0;
+
+    let payload = InitReceiveLibraryParams {
+        receiver: store_account,
+        eid: 40161,
+    };
+
+    let discriminator = ENDPOINT_INIT_RECEIVE_LIBRARY_DISCRIMINATOR;
+    let params_data = payload.try_to_vec().unwrap();
+
+    let mut data = vec![];
+    data.extend_from_slice(&discriminator);
+    data.extend_from_slice(&params_data);
+
+    let accounts = vec![
+        AccountMeta::new(*admin, true),
+        AccountMeta::new(
+            Pubkey::find_program_address(&[OAPP_SEED, &store_account.as_ref()], endpoint_id).0,
+            false,
+        ),
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    RECEIVE_LIBRARY_CONFIG_SEED,
+                    &payload.receiver.to_bytes(),
+                    &payload.eid.to_be_bytes(),
+                ],
+                endpoint_id,
+            )
+            .0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::ID, false),
+    ];
+
+    vec![Instruction {
+        program_id: *endpoint_id,
+        accounts,
+        data,
+    }]
+}
+
+pub fn init_nonce(endpoint_id: &Pubkey, admin: &Pubkey, remote_oapp: [u8; 32]) -> Vec<Instruction> {
+    let store_account = Pubkey::find_program_address(&[STORE_SEED], &ID).0;
+
+    let payload = InitNonceParams {
+        local_oapp: store_account,
+        remote_eid: 40161,
+        remote_oapp: remote_oapp,
+    };
+
+    let discriminator = ENDPOINT_INIT_NONCE_DISCRIMINATOR;
+    let params_data = payload.try_to_vec().unwrap();
+
+    let mut data = vec![];
+    data.extend_from_slice(&discriminator);
+    data.extend_from_slice(&params_data);
+
+    let accounts = vec![
+        AccountMeta::new(*admin, true),
+        AccountMeta::new(
+            Pubkey::find_program_address(&[OAPP_SEED, &store_account.as_ref()], endpoint_id).0,
+            false,
+        ),
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    NONCE_SEED,
+                    &payload.local_oapp.to_bytes(),
+                    &payload.remote_eid.to_be_bytes(),
+                    &payload.remote_oapp[..],
+                ],
+                endpoint_id,
+            )
+            .0,
+            false,
+        ),
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    PENDING_NONCE_SEED,
+                    &payload.local_oapp.to_bytes(),
+                    &payload.remote_eid.to_be_bytes(),
+                    &payload.remote_oapp[..],
+                ],
+                endpoint_id,
+            )
+            .0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::ID, false),
+    ];
+
+    vec![Instruction {
+        program_id: *endpoint_id,
+        accounts,
+        data,
+    }]
+}
+
+pub fn init_config(
+    endpoint_id: &Pubkey,
+    admin: &Pubkey,
+    message_lib_program: &Pubkey,
+) -> Vec<Instruction> {
+    let store_account = Pubkey::find_program_address(&[STORE_SEED], &ID).0;
+    let message_lib = Pubkey::find_program_address(&[MESSAGE_LIB_SEED], message_lib_program).0;
+
+    let payload = InitConfigParams {
+        oapp: store_account,
+        eid: 40161,
+    };
+
+    let discriminator = ENDPOINT_INIT_CONFIG_DISCRIMINATOR;
+    let params_data = payload.try_to_vec().unwrap();
+
+    let mut data = vec![];
+    data.extend_from_slice(&discriminator);
+    data.extend_from_slice(&params_data);
+
+    let accounts = vec![
+        AccountMeta::new(*admin, true),
+        AccountMeta::new(
+            Pubkey::find_program_address(&[OAPP_SEED, &store_account.as_ref()], endpoint_id).0,
+            false,
+        ),
+        // messageLibInfo
+        AccountMeta::new_readonly(
+            Pubkey::find_program_address(&[MESSAGE_LIB_SEED, &message_lib.as_ref()], endpoint_id).0,
+            false,
+        ),
+        // message lib
+        AccountMeta::new(message_lib, false),
+        // messageLibProgram
+        AccountMeta::new(*message_lib_program, false),
+        // --------------- remaining accounts for ULN::init_config ---------------
+        AccountMeta::new(*admin, true),
+        AccountMeta::new_readonly(
+            Pubkey::find_program_address(&[MESSAGE_LIB_SEED], message_lib_program).0,
+            false,
+        ),
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    &SEND_CONFIG_SEED,
+                    &payload.eid.to_be_bytes(),
+                    &payload.oapp.to_bytes(),
+                ],
+                message_lib_program,
+            )
+            .0,
+            false,
+        ),
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    &RECEIVE_CONFIG_SEED,
+                    &payload.eid.to_be_bytes(),
+                    &payload.oapp.to_bytes(),
+                ],
+                message_lib_program,
+            )
+            .0,
+            false,
+        ),
+        AccountMeta::new(system_program::ID, false),
+    ];
+
+    vec![Instruction {
+        program_id: *endpoint_id,
         accounts,
         data,
     }]

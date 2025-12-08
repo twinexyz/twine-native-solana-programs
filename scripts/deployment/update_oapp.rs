@@ -1,12 +1,9 @@
 use std::env;
-use std::io;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Command;
 
-const OAPP_SO: &str = "./target/deploy/oapp.so";
-const TWINE_CHAIN_SO: &str = "./target/deploy/twine_chain.so";
-const TOKENS_GATEWAY_SO: &str = "./target/deploy/tokens_gateway.so";
-const TOKENS_GATEWAY_KEYPAIR: &str = "./target/deploy/tokens_gateway-keypair.json";
+const OAPP_PROGRAM_SO_PATH: &str = "./target/deploy/oapp.so";
 
 fn get_default_keypair_path() -> PathBuf {
     let mut keypair_path = dirs::home_dir().expect("Could not get home directory");
@@ -14,12 +11,28 @@ fn get_default_keypair_path() -> PathBuf {
     keypair_path
 }
 
+fn get_program_id_from_user() -> io::Result<String> {
+    print!("🔑 Please enter the OAPP Program ID: ");
+    io::stdout().flush()?;
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+    let program_id = input.trim().to_string();
+
+    if program_id.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Program ID cannot be empty",
+        ));
+    }
+
+    Ok(program_id)
+}
+
 fn main() -> io::Result<()> {
-    println!("🚀 Starting deployment...");
+    println!("🚀 Starting OAPP program update process...");
 
     // Optional env overrides
-    // SOLANA_RPC_URL (e.g., "http://127.0.0.1:8899" or "https://api.devnet.solana.com")
-    // SOLANA_KEYPAIR (e.g., "/home/me/.config/solana/id.json")
     let url = env::var("SOLANA_RPC_URL").unwrap_or_else(|_| "http://127.0.0.1:8899".to_string());
 
     // Use environment variable if provided, otherwise fall back to default path
@@ -27,33 +40,34 @@ fn main() -> io::Result<()> {
         .map(PathBuf::from)
         .unwrap_or_else(|_| get_default_keypair_path());
 
+    // Get program ID from user input
+    let program_id = get_program_id_from_user()?;
+
     println!("Using cluster: {url}");
     println!("Using keypair: {}", keypair_path.display());
-    println!("✅ Build steps complete!");
+    println!("Using program ID: {program_id}");
 
-    // // Deploy tokens gateway using buffer with specific program-id
-    // let tg_id = deploy_with_buffer(TOKENS_GATEWAY_SO, "tokens_gateway", &url, &keypair_path)?;
+    update_program_with_buffer(
+        OAPP_PROGRAM_SO_PATH,
+        "oapp",
+        &url,
+        &keypair_path,
+        &program_id,
+    )?;
 
-    // // Deploy twine chain using the original method
-    // let tc_id = deploy(TWINE_CHAIN_SO, "twine_chain", &url, &keypair_path)?;
-
-    // Deploy OApp
-    let oapp_id = deploy(OAPP_SO, "oapp", &url, &keypair_path)?;
-
-    // println!("🎉 Deployment finished.\n🚪 Tokens Gateway: {tg_id}");
-    // println!("🎉 Deployment finished.\n🔗 Twine Chain: {tc_id}");
-    println!("🎉 Deployment finished.\n🅾️ LZ OApp: {oapp_id}");
+    println!("🎉 Update finished.");
 
     Ok(())
 }
 
-fn deploy_with_buffer(
+fn update_program_with_buffer(
     so_path: &str,
     name: &str,
     url: &str,
     keypair_path: &PathBuf,
-) -> io::Result<String> {
-    println!("📤 Deploying {name} with buffer: {so_path}");
+    program_id: &str,
+) -> io::Result<()> {
+    println!("📤 Updating {name} with buffer: {so_path}");
 
     // Step 1: Write program to buffer
     let buffer_args = vec![
@@ -104,7 +118,7 @@ fn deploy_with_buffer(
 
     println!("📝 Buffer created: {buffer_address}");
 
-    // Step 2: Deploy program from buffer with specific program-id and compute unit price
+    // Step 2: Deploy program from buffer using user-provided program ID
     let deploy_args = vec![
         "program",
         "deploy",
@@ -115,7 +129,7 @@ fn deploy_with_buffer(
         "--buffer",
         &buffer_address,
         "--program-id",
-        TOKENS_GATEWAY_KEYPAIR,
+        program_id,
         "--with-compute-unit-price",
         "1000000",
         "--commitment",
@@ -144,67 +158,18 @@ fn deploy_with_buffer(
     }
 
     let deploy_stdout = String::from_utf8_lossy(&deploy_output.stdout);
-    let program_id = deploy_stdout
+
+    // Extract and display the program ID from output
+    let deployed_program_id = deploy_stdout
         .lines()
         .find_map(|l| {
             l.split_once("Program Id:")
                 .map(|(_, id)| id.trim().to_string())
         })
-        .ok_or_else(|| {
-            eprintln!("⚠️  Program ID not found in output for {name}");
-            eprintln!("Full output:\n{deploy_stdout}");
-            io::Error::new(io::ErrorKind::Other, "Program ID not found")
-        })?;
-    Ok(program_id)
-}
+        .unwrap_or_else(|| "Program ID not found in output".to_string());
 
-fn deploy(so_path: &str, name: &str, url: &str, keypair_path: &PathBuf) -> io::Result<String> {
-    println!("📤 Deploying {name}: {so_path}");
+    println!("🎉 Program updated successfully!");
+    println!("🚪 Tokens Gateway Program ID: {deployed_program_id}");
 
-    let args = vec![
-        "program",
-        "deploy",
-        so_path,
-        "--url",
-        url,
-        "--commitment",
-        "confirmed",
-        "--keypair",
-        keypair_path.to_str().expect("Invalid keypair path"),
-    ];
-
-    // Show the exact command for debugging
-    eprintln!("🔧 Exec: solana {}", args.join(" "));
-
-    let output = Command::new("solana").args(&args).output()?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        eprintln!("❌ Deploy failed for {name}");
-        eprintln!("Exit code: {:?}", output.status.code());
-        if !stderr.is_empty() {
-            eprintln!("--- STDERR ---\n{}", stderr);
-        }
-        if !stdout.is_empty() {
-            eprintln!("--- STDOUT ---\n{}", stdout);
-        }
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            format!("Deploy failed: {name}. See logs above."),
-        ));
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    stdout
-        .lines()
-        .find_map(|l| {
-            l.split_once("Program Id:")
-                .map(|(_, id)| id.trim().to_string())
-        })
-        .ok_or_else(|| {
-            eprintln!("⚠️  Program ID not found in output for {name}");
-            eprintln!("Full output:\n{stdout}");
-            io::Error::new(io::ErrorKind::Other, "Program ID not found")
-        })
+    Ok(())
 }

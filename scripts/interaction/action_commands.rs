@@ -126,4 +126,15 @@ pub enum Commands {
         start_nonce: u64,
         end_nonce: u64,
     },
+
+    // OAPP Commands:
+    InitializeStore {},
+    InitSendLibrary {},
+    InitReceiveLibrary {},
+    InitNonce {
+        remote_oapp: String,
+    },
+    InitConfig {},
+    SetSendLibrary {},
+    SetConfig {},
 }

@@ -1,4 +1,11 @@
 use crate::action_commands::Commands;
+use crate::operations::oapp_init_config::init_config;
+use crate::operations::oapp_init_nonce::init_nonce;
+use crate::operations::oapp_init_receive_library::init_receive_library;
+use crate::operations::oapp_init_send_library::init_send_library;
+use crate::operations::oapp_initialize_store::initialize_store;
+use crate::operations::oapp_set_config::set_config;
+use crate::operations::oapp_set_send_library::set_send_library;
 use crate::operations::{
     copy_messages_buffer::copy_messages_buffer,
     create_spl_token::create_spl_token,
@@ -280,6 +287,34 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
                 eprintln!("Error: {:?}", e);
             }
         },
+        Commands::InitializeStore {} => {
+            let result = initialize_store();
+            println!("Result: {:?}", result);
+        }
+        Commands::InitSendLibrary {} => {
+            let result = init_send_library();
+            println!("Result: {:?}", result);
+        }
+        Commands::InitReceiveLibrary {} => {
+            let result = init_receive_library();
+            println!("Result: {:?}", result);
+        }
+        Commands::InitNonce { remote_oapp } => {
+            let result = init_nonce(remote_oapp);
+            println!("Result: {:?}", result);
+        }
+        Commands::InitConfig {} => {
+            let result = init_config();
+            println!("Result: {:?}", result);
+        }
+        Commands::SetSendLibrary {} => {
+            let result = set_send_library();
+            println!("Result: {:?}", result);
+        }
+        Commands::SetConfig {} => {
+            let result = set_config();
+            println!("Result: {:?}", result);
+        }
     }
     Ok(())
 }
