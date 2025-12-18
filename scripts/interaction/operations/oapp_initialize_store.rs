@@ -2,7 +2,9 @@ use std::str::FromStr;
 
 use crate::utils::{get_default_keypair, get_rpc_client};
 use anyhow::{Context, Result};
-use oapp::core::instruction as oapp_instructions;
+use oapp::{
+    core::{instruction as oapp_instructions},
+};
 use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 
 pub fn initialize_store() -> Result<()> {

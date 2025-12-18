@@ -18,6 +18,10 @@ pub const RECEIVE_CONFIG_SEED: &[u8] = b"ReceiveConfig";
 pub const SEND_LIBRARY_CONFIG_SEED: &[u8] = b"SendLibraryConfig";
 pub const RECEIVE_LIBRARY_CONFIG_SEED: &[u8] = b"ReceiveLibraryConfig";
 
+pub const EXECUTOR_CONFIG_SEED: &[u8] = b"ExecutorConfig";
+pub const DVN_CONFIG_SEED: &[u8] = b"DvnConfig";
+
+
 // Anchor instruction use an 8-byte discriminator followed by the serialized parameters.
 // Example:  Discriminator for "register_oapp" (sha256("global:register_oapp")[..8]):
 pub const ENDPOINT_SEND_DISCRIMINATOR: [u8; 8] = [0x66, 0xfb, 0x14, 0xbb, 0x41, 0x4b, 0x0c, 0x45];
@@ -101,12 +105,11 @@ pub struct InitConfigParams {
 #[derive(BorshSerialize, BorshDeserialize, Clone)]
 pub struct SendMsgParams {
     pub dst_eid: u32,       // Destination chain ID
-    pub dst_oapp: [u8; 32], // Destination contract address (32-byte)
+    pub receiver: [u8; 32], // Destination contract address (32-byte)
     pub message: Vec<u8>,   // Arbitrary payload to send
     pub options: Vec<u8>,
-    pub native_fee: u64, // Fee in native tokens (e.g. lamports) to pay for messaging
-    pub zro_fee: u64,    // Fee in ZRO token (if using LayerZero token for fees)
-                         // (For simplicity, we use no AdapterParameters "options"; we pass an empty options vector)
+    pub native_fee: u64,    // Fee in native tokens (e.g. lamports) to pay for messaging
+    pub lz_token_fee: u64,    // Fee in ZRO token (if using LayerZero token for fees)
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]

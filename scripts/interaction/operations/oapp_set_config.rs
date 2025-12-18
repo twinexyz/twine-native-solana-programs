@@ -20,7 +20,9 @@ pub fn set_config() -> Result<()> {
     let endpoint_id = Pubkey::from_str("76y77prsiCMvXMjuoZ5VRrhG5qYBrUMYTE5WgHqgjEn6").unwrap();
     let send_lib = Pubkey::from_str("7a4WjyR8VZ7yZz5XJAKm39BUGn5iT9CKcv2pmG9tdXVH").unwrap();
 
-    let dvn_account = Pubkey::from_str("7a4WjyR8VZ7yZz5XJAKm39BUGn5iT9CKcv2pmG9tdXVH").unwrap();
+    let dvn_account = Pubkey::from_str("BqmY5RWg1f7vRWnFwjMeX4hCNqC7Av3XC6V1aFttBZf3").unwrap();
+    let executor_account =
+        Pubkey::from_str("A57guqey6XeG7dnF2CTExPU2KX4Muh88g799tfPTVjT4").unwrap();
     let store_account = derive_store_pda(&oapp_id).0;
 
     let uln_config = UlnConfig {
@@ -34,7 +36,7 @@ pub fn set_config() -> Result<()> {
 
     let executor_config = ExecutorConfig {
         max_message_size: 100000,
-        executor: dvn_account,
+        executor: executor_account,
     };
 
     let send_uln_config = SetConfigParams {

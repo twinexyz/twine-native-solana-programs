@@ -137,4 +137,5 @@ pub enum Commands {
     InitConfig {},
     SetSendLibrary {},
     SetConfig {},
+    SendMessage {},
 }

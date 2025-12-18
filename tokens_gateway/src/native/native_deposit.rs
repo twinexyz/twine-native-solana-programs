@@ -174,7 +174,7 @@ pub fn native_token_deposit(
         >= twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP
     {
         let payload = TwineChainInstruction::CopyMessagesBuffer;
-        let mut copy_instruction_data = vec![];
+        let mut copy_instruction_data: Vec<_> = vec![];
         copy_instruction_data.extend(payload.try_to_vec().unwrap());
 
         if !messages_replicator_acc.is_writable {

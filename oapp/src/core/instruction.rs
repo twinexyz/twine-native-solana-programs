@@ -1,22 +1,22 @@
-use std::vec;
+use std::{str::FromStr, vec};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
-    pubkey::Pubkey,
+    pubkey::{Pubkey},
     system_program,
 };
 
 use crate::{
     core::state::{
         InitConfigParams, InitNonceParams, InitReceiveLibraryParams, InitSendLibraryParams,
-        MessageLibType, RegisterLibraryParams, SendMsgParams, SetConfigParams,
-        SetSendLibraryParams, ENDPOINT_INIT_CONFIG_DISCRIMINATOR,
-        ENDPOINT_INIT_NONCE_DISCRIMINATOR, ENDPOINT_INIT_RECEIVE_LIBRARY_DISCRIMINATOR,
-        ENDPOINT_INIT_SEND_LIBRARY_DISCRIMINATOR, ENDPOINT_SEED, EVENT_SEED, MESSAGE_LIB_SEED,
-        NONCE_SEED, OAPP_SEED, PENDING_NONCE_SEED, RECEIVE_CONFIG_SEED,
-        RECEIVE_LIBRARY_CONFIG_SEED, SEND_CONFIG_SEED, SEND_LIBRARY_CONFIG_SEED, STORE_SEED,
+        SendMsgParams, SetConfigParams, SetSendLibraryParams, DVN_CONFIG_SEED,
+        ENDPOINT_INIT_CONFIG_DISCRIMINATOR, ENDPOINT_INIT_NONCE_DISCRIMINATOR,
+        ENDPOINT_INIT_RECEIVE_LIBRARY_DISCRIMINATOR, ENDPOINT_INIT_SEND_LIBRARY_DISCRIMINATOR,
+        ENDPOINT_SEED, EVENT_SEED, EXECUTOR_CONFIG_SEED, MESSAGE_LIB_SEED, NONCE_SEED, OAPP_SEED,
+        PENDING_NONCE_SEED, RECEIVE_CONFIG_SEED, RECEIVE_LIBRARY_CONFIG_SEED, SEND_CONFIG_SEED,
+        SEND_LIBRARY_CONFIG_SEED, STORE_SEED,
     },
     ID,
 };
@@ -32,11 +32,11 @@ pub enum OAppInstruction {
     },
     SendMessage {
         dst_eid: u32,
-        dst_oapp: [u8; 32],
+        receiver: [u8; 32],
         message: Vec<u8>,
         options: Vec<u8>,
         native_fee: u64,
-        zro_fee: u64,
+        lz_token_fee: u64,
     },
     SetSendLibrary {
         sender: Pubkey,
@@ -65,11 +65,11 @@ struct SetPeerPayload {
 #[derive(BorshSerialize, BorshDeserialize)]
 struct SendMessagePayload {
     dst_eid: u32,
-    dst_oapp: [u8; 32],
+    receiver: [u8; 32],
     message: Vec<u8>,
     options: Vec<u8>,
     native_fee: u64,
-    zro_fee: u64,
+    lz_token_fee: u64,
 }
 
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -131,27 +131,36 @@ pub fn initialize_store(endpoint_id: &Pubkey, admin: &Pubkey) -> Vec<Instruction
 
 pub fn send_message(
     params: SendMsgParams,
+    admin: &Pubkey,
     endpoint_id: &Pubkey,
-    send_library_id: &Pubkey,
+    send_library_program: &Pubkey,
+    send_library: &Pubkey,
+    dvn_program: &Pubkey,
+    executor_program: &Pubkey,
 ) -> Vec<Instruction> {
     let payload = OAppInstruction::SendMessage {
         dst_eid: params.dst_eid,
-        dst_oapp: params.dst_oapp,
+        receiver: params.receiver,
         message: params.message,
         options: params.options,
         native_fee: params.native_fee,
-        zro_fee: params.zro_fee,
+        lz_token_fee: params.lz_token_fee,
     };
 
     let mut data = vec![];
     data.extend(payload.try_to_vec().unwrap());
 
     let store_account = Pubkey::find_program_address(&[STORE_SEED], &ID).0;
+    let native_loader_program_id =
+        Pubkey::from_str("NativeLoader1111111111111111111111111111111").unwrap();
 
     let accounts = vec![
-        AccountMeta::new(*endpoint_id, false),
-        AccountMeta::new(Pubkey::find_program_address(&[STORE_SEED], &ID).0, true),
-        AccountMeta::new(*send_library_id, false),
+        // <------------------- Endpoint Accounts --------------------------->
+        // sender
+        AccountMeta::new(Pubkey::find_program_address(&[STORE_SEED], &ID).0, false),
+        // sendLibraryProgram (ULN Program)
+        AccountMeta::new_readonly(*send_library_program, false),
+        // sendLibraryConfig
         AccountMeta::new(
             Pubkey::find_program_address(
                 &[
@@ -164,6 +173,7 @@ pub fn send_message(
             .0,
             false,
         ),
+        // defaultSendLibraryConfig
         AccountMeta::new(
             Pubkey::find_program_address(
                 &[SEND_LIBRARY_CONFIG_SEED, &params.dst_eid.to_be_bytes()],
@@ -172,31 +182,106 @@ pub fn send_message(
             .0,
             false,
         ),
-        AccountMeta::new(
+        // sendLibraryInfo (sendLibrary: 2Xg...LkQ)
+        AccountMeta::new_readonly(
             Pubkey::find_program_address(
-                &[MESSAGE_LIB_SEED, &send_library_id.to_bytes()],
+                &[MESSAGE_LIB_SEED, &send_library.to_bytes()],
                 &endpoint_id,
             )
             .0,
             false,
         ),
+        // endpoint
         AccountMeta::new(
             Pubkey::find_program_address(&[ENDPOINT_SEED], &endpoint_id).0,
             false,
         ),
+        // nonce
         AccountMeta::new(
             Pubkey::find_program_address(
                 &[
                     NONCE_SEED,
                     &store_account.to_bytes(),
                     &params.dst_eid.to_be_bytes(),
-                    &params.dst_oapp[..],
+                    &params.receiver[..],
                 ],
                 &endpoint_id,
             )
             .0,
             false,
         ),
+        // eventAuthority
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EVENT_SEED], endpoint_id).0,
+            false,
+        ),
+        // program
+        AccountMeta::new_readonly(*endpoint_id, false),
+        // <------------------- Library Accounts --------------------------->
+
+        // uln
+        AccountMeta::new(
+            Pubkey::find_program_address(&[MESSAGE_LIB_SEED], send_library_program).0,
+            false,
+        ),
+        // sendConfig
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[
+                    SEND_CONFIG_SEED,
+                    &params.dst_eid.to_be_bytes(),
+                    &store_account.to_bytes(),
+                ],
+                send_library_program,
+            )
+            .0,
+            false,
+        ),
+        // defaultSendConfig
+        AccountMeta::new(
+            Pubkey::find_program_address(
+                &[SEND_CONFIG_SEED, &params.dst_eid.to_be_bytes()],
+                send_library_program,
+            )
+            .0,
+            false,
+        ),
+        // payer
+        AccountMeta::new(*admin, true),
+        // treasury (Optional)
+        AccountMeta::new(*admin, false),
+        // systemProgram
+        AccountMeta::new_readonly(system_program::ID, false),
+        // eventAuthority
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EVENT_SEED], send_library_program).0,
+            false,
+        ),
+        // program
+        AccountMeta::new_readonly(*send_library_program, false),
+        // <------------------ Remaining Accounts ------------------------->
+        // Executor Program
+        AccountMeta::new_readonly(*executor_program, false),
+        // Executor Config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EXECUTOR_CONFIG_SEED], executor_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+        // DVN program
+        AccountMeta::new_readonly(*dvn_program, false),
+        // dvn config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[DVN_CONFIG_SEED], dvn_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
     ];
 
     vec![Instruction {
@@ -608,11 +693,11 @@ impl OAppInstruction {
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SendMessage {
                     dst_eid: payload.dst_eid,
-                    dst_oapp: payload.dst_oapp,
+                    receiver: payload.receiver,
                     message: payload.message,
                     options: payload.options,
                     native_fee: payload.native_fee,
-                    zro_fee: payload.zro_fee,
+                    lz_token_fee: payload.lz_token_fee,
                 })
             }
             3 => {

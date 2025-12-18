@@ -379,3 +379,7 @@ set-send-library:
 set-config:
 	@echo "Setting Config..."
 	$(CARGO) run --bin interaction -- set-config
+
+send-message:
+	@echo "Setting Config..."
+	$(CARGO) run --bin interaction -- send-message

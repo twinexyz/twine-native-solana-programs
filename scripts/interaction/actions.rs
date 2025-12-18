@@ -4,6 +4,7 @@ use crate::operations::oapp_init_nonce::init_nonce;
 use crate::operations::oapp_init_receive_library::init_receive_library;
 use crate::operations::oapp_init_send_library::init_send_library;
 use crate::operations::oapp_initialize_store::initialize_store;
+use crate::operations::oapp_send_message::send_message;
 use crate::operations::oapp_set_config::set_config;
 use crate::operations::oapp_set_send_library::set_send_library;
 use crate::operations::{
@@ -313,6 +314,10 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::SetConfig {} => {
             let result = set_config();
+            println!("Result: {:?}", result);
+        }
+        Commands::SendMessage {} => {
+            let result = send_message();
             println!("Result: {:?}", result);
         }
     }

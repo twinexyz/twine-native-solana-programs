@@ -6,6 +6,7 @@ pub mod oapp_set_config;
 pub mod create_spl_token;
 pub mod oapp_init_config;
 pub mod deposit_spl_token;
+pub mod oapp_send_message;
 pub mod initialize_programs;
 pub mod deposit_native_token;
 pub mod copy_messages_buffer;

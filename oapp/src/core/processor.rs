@@ -37,21 +37,21 @@ pub fn process_instruction(
         ),
         OAppInstruction::SendMessage {
             dst_eid,
-            dst_oapp,
+            receiver,
             message,
             options,
             native_fee,
-            zro_fee,
+            lz_token_fee,
         } => message_handlers::send_message::send_message(
             program_id,
             accounts,
             SendMsgParams {
                 dst_eid,
-                dst_oapp,
+                receiver,
                 message,
                 options,
                 native_fee,
-                zro_fee,
+                lz_token_fee,
             },
         ),
         OAppInstruction::SetSendLibrary {

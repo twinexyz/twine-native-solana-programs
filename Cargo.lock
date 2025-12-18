@@ -3093,6 +3093,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
+name = "oapp"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "solana-program",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "object"
 version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8096,6 +8105,7 @@ dependencies = [
  "hex",
  "lazy_static",
  "libsecp256k1 0.7.2",
+ "oapp",
  "rlp",
  "serde",
  "serde_json",

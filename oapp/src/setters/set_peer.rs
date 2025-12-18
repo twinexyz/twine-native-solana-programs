@@ -14,8 +14,8 @@ use crate::core::{
 pub fn set_peer(program_id: &Pubkey, accounts: &[AccountInfo], params: SetPeerParams) -> ProgramResult {
     let account_info_iter = &mut accounts.iter();
     let admin_acc = next_account_info(account_info_iter)?;
-    let store_acc = next_account_info(account_info_iter)?;
     let peer_acc = next_account_info(account_info_iter)?;
+    let store_acc = next_account_info(account_info_iter)?;
 
     if !admin_acc.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
