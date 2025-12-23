@@ -2,18 +2,15 @@ use crate::utils::{get_default_keypair, get_rpc_client};
 use anyhow::{Context, Result};
 use hex::FromHex;
 use oapp::core::instruction as oapp_instructions;
-use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
-use std::str::FromStr;
+use solana_sdk::{signature::Signer, transaction::Transaction};
 
 pub fn init_nonce(remote_oapp: String) -> Result<()> {
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
     let blockhash = rpc_client.get_latest_blockhash()?;
-    let endpoint_id = Pubkey::from_str("76y77prsiCMvXMjuoZ5VRrhG5qYBrUMYTE5WgHqgjEn6").unwrap();
 
     let remote_oapp_bytes32 = evm_address_to_bytes32(remote_oapp);
-    let instructions =
-        oapp_instructions::init_nonce(&endpoint_id, &account.pubkey(), remote_oapp_bytes32);
+    let instructions = oapp_instructions::init_nonce(&account.pubkey(), remote_oapp_bytes32);
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,

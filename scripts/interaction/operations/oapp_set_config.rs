@@ -17,8 +17,6 @@ pub fn set_config() -> Result<()> {
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
     let blockhash = rpc_client.get_latest_blockhash()?;
-    let endpoint_id = Pubkey::from_str("76y77prsiCMvXMjuoZ5VRrhG5qYBrUMYTE5WgHqgjEn6").unwrap();
-    let send_lib = Pubkey::from_str("7a4WjyR8VZ7yZz5XJAKm39BUGn5iT9CKcv2pmG9tdXVH").unwrap();
 
     let dvn_account = Pubkey::from_str("BqmY5RWg1f7vRWnFwjMeX4hCNqC7Av3XC6V1aFttBZf3").unwrap();
     let executor_account =
@@ -54,16 +52,8 @@ pub fn set_config() -> Result<()> {
     };
 
     let mut instructions = vec![];
-    instructions.extend(oapp_instructions::set_config(
-        send_uln_config,
-        &endpoint_id,
-        &send_lib,
-    ));
-    instructions.extend(oapp_instructions::set_config(
-        executor,
-        &endpoint_id,
-        &send_lib,
-    ));
+    instructions.extend(oapp_instructions::set_config(send_uln_config));
+    instructions.extend(oapp_instructions::set_config(executor));
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,

@@ -68,7 +68,7 @@ pub fn append_deposit_message(
     messages_buffer
         .serialize(&mut &mut messages_buffer_acc.data.borrow_mut()[..])
         .map_err(|_| ProgramCustomError::SerializeFailed)?;
-
+    
     let event = MessageTransactionEvent {
         event: "MessageTransaction".to_string(),
         nonce: deposit_info.nonce,

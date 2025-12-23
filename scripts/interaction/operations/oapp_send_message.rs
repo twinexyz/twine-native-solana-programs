@@ -11,10 +11,6 @@ pub fn send_message() -> Result<()> {
     let rpc_client = get_rpc_client();
     let blockhash = rpc_client.get_latest_blockhash()?;
 
-    let endpoint_id = Pubkey::from_str("76y77prsiCMvXMjuoZ5VRrhG5qYBrUMYTE5WgHqgjEn6").unwrap();
-    let send_library_program =
-        Pubkey::from_str("7a4WjyR8VZ7yZz5XJAKm39BUGn5iT9CKcv2pmG9tdXVH").unwrap();
-    let send_library = Pubkey::from_str("2XgGZG4oP29U3w5h4nTk1V2LFHL23zKDPJjs3psGzLKQ").unwrap();
     let receiver_address = String::from("0x91607f93f3F46e05e62AE910FE0d75fB001E74b6");
     let dvn_account = Pubkey::from_str("A8BmGrQ7vuNNy5URzvfM5nr8RvWodAheMxjMcBQULiUE").unwrap();
     let executor_account =
@@ -35,9 +31,6 @@ pub fn send_message() -> Result<()> {
     let instructions = oapp_instructions::send_message(
         params,
         &account.pubkey(),
-        &endpoint_id,
-        &send_library_program,
-        &send_library,
         &dvn_account,
         &executor_account,
     );
