@@ -1,12 +1,5 @@
 use crate::action_commands::Commands;
-use crate::operations::oapp_init_config::init_config;
-use crate::operations::oapp_init_nonce::init_nonce;
-use crate::operations::oapp_init_receive_library::init_receive_library;
-use crate::operations::oapp_init_send_library::init_send_library;
-use crate::operations::oapp_initialize_store::initialize_store;
-use crate::operations::oapp_send_message::send_message;
-use crate::operations::oapp_set_config::set_config;
-use crate::operations::oapp_set_send_library::set_send_library;
+use crate::operations::set_layer_zero_info::set_layer_zero_info;
 use crate::operations::{
     copy_messages_buffer::copy_messages_buffer,
     create_spl_token::create_spl_token,
@@ -24,6 +17,18 @@ use crate::operations::{
         get_twine_chain_role_manager_data, get_twine_chain_storage_data,
     },
     initialize_programs::initialize_twine_solana_programs,
+    lz_deposit_native_token::lz_native_token_deposit,
+    lz_deposit_spl_token::lz_spl_token_deposit,
+    lz_forced_native_withdrawal::lz_forced_native_withdrawal,
+    lz_forced_spl_withdrawal::lz_forced_spl_withdrawal,
+    oapp_init_config::init_config,
+    oapp_init_nonce::init_nonce,
+    oapp_init_receive_library::init_receive_library,
+    oapp_init_send_library::init_send_library,
+    oapp_initialize_store::initialize_store,
+    oapp_send_message::send_message,
+    oapp_set_config::set_config,
+    oapp_set_send_library::set_send_library,
     process_native_l1_forced_withdrawal::process_native_l1_forced_withdrawal,
     process_native_l1_refund::process_native_l1_refund,
     process_spl_l1_forced_withdrawal::process_spl_l1_forced_withdrawal,
@@ -318,6 +323,78 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
         }
         Commands::SendMessage {} => {
             let result = send_message();
+            println!("Result: {:?}", result);
+        }
+        Commands::LzDepositNativeToken {
+            l1_token,
+            l2_token,
+            receiver_twine_address,
+            amount,
+            data,
+        } => {
+            let result =
+                lz_native_token_deposit(l1_token, l2_token, receiver_twine_address, amount, data);
+            println!("Result: {:?}", result);
+        }
+        Commands::LzDepositSplToken {
+            l1_token,
+            l2_token,
+            receiver_twine_address,
+            user_token_account,
+            amount,
+            data,
+        } => {
+            let result = lz_spl_token_deposit(
+                l1_token,
+                l2_token,
+                receiver_twine_address,
+                user_token_account,
+                amount,
+                data,
+            );
+            println!("Result: {:?}", result);
+        }
+        Commands::LzForcedNativeWithdrawal {
+            l1_token,
+            l2_token,
+            from_twine_address,
+            l1_receiver,
+            privkey,
+            amount,
+        } => {
+            let result = lz_forced_native_withdrawal(
+                l1_token,
+                l2_token,
+                from_twine_address,
+                l1_receiver,
+                privkey,
+                amount,
+            );
+            println!("Result: {:?}", result);
+        }
+        Commands::LzForcedSplWithdrawal {
+            l1_token,
+            l2_token,
+            from_twine_address,
+            privkey,
+            user_token_account,
+            amount,
+        } => {
+            let result = lz_forced_spl_withdrawal(
+                l1_token,
+                l2_token,
+                from_twine_address,
+                privkey,
+                user_token_account,
+                amount,
+            );
+            println!("Result: {:?}", result);
+        }
+        Commands::SetLayerZeroInfo {
+            dst_eid,
+            dst_oapp_address,
+        } => {
+            let result = set_layer_zero_info(dst_eid, dst_oapp_address);
             println!("Result: {:?}", result);
         }
     }

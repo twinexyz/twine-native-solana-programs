@@ -127,6 +127,43 @@ pub enum Commands {
         end_nonce: u64,
     },
 
+    // Layer Zero Methods:
+    LzDepositNativeToken {
+        l1_token: String,
+        l2_token: String,
+        receiver_twine_address: String,
+        amount: u64,
+        data: String,
+    },
+    LzDepositSplToken {
+        l1_token: Pubkey,
+        l2_token: String,
+        receiver_twine_address: String,
+        user_token_account: Pubkey,
+        amount: u64,
+        data: String,
+    },
+    LzForcedNativeWithdrawal {
+        l1_token: String,
+        l2_token: String,
+        from_twine_address: String,
+        l1_receiver: String,
+        privkey: String,
+        amount: u64,
+    },
+    LzForcedSplWithdrawal {
+        l1_token: Pubkey,
+        l2_token: String,
+        from_twine_address: String,
+        privkey: String,
+        user_token_account: Pubkey,
+        amount: u64,
+    },
+    SetLayerZeroInfo {
+        dst_eid: u32,
+        dst_oapp_address: String,
+    },
+
     // OAPP Commands:
     InitializeStore {},
     InitSendLibrary {},

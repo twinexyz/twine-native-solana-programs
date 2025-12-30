@@ -2,9 +2,7 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    account_info,
     instruction::{AccountMeta, Instruction},
-    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
     system_program,
@@ -62,6 +60,10 @@ pub enum TwineChainInstruction {
     AppendLzForcedWithdrawalMessage {
         withdraw_info: MessageInfo,
     },
+    SetLzInfo {
+        dst_eid: u32,
+        dst_oapp_address: String,
+    },
 }
 
 #[derive(BorshDeserialize)]
@@ -105,6 +107,12 @@ struct AddRoleInTwineChainPayload {
 struct RemoveRoleInTwineChainPayload {
     address: Pubkey,
     role: RoleType,
+}
+
+#[derive(BorshDeserialize, BorshSerialize)]
+struct SetLzInfoPayload {
+    dst_eid: u32,
+    dst_oapp_address: String,
 }
 
 pub fn initialize_twine_chain_role_manager(chain_admin: &Pubkey) -> Vec<Instruction> {
@@ -301,6 +309,32 @@ pub fn initialize_layer_zero_info(chain_admin: &Pubkey) -> Vec<Instruction> {
     }]
 }
 
+pub fn set_layer_zero_info(
+    chain_admin: &Pubkey,
+    dst_eid: u32,
+    dst_oapp_address: String,
+) -> Vec<Instruction> {
+    let payload = TwineChainInstruction::SetLzInfo {
+        dst_eid,
+        dst_oapp_address,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(derive_layer_zero_info(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
 impl TwineChainInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (&discriminator, rest) = input
@@ -368,21 +402,29 @@ impl TwineChainInstruction {
                     role: payload.role,
                 })
             }
-            11 => {
+            11 => Ok(Self::InitializeLayerZeroInfo),
+            12 => {
                 let payload = AppendDepositMessagePayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::AppendLzDepositMessage {
                     deposit_info: payload.deposit_info,
                 })
             }
-            12 => {
+            13 => {
                 let payload = AppendForcedWithdrawalMessage::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::AppendLzForcedWithdrawalMessage {
                     withdraw_info: payload.withdraw_info,
                 })
             }
-            13 => Ok(Self::InitializeLayerZeroInfo),
+            14 => {
+                let payload = SetLzInfoPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::SetLzInfo {
+                    dst_eid: payload.dst_eid,
+                    dst_oapp_address: payload.dst_oapp_address,
+                })
+            }
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

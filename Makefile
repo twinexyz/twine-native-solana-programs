@@ -230,6 +230,17 @@ deposit-spl-token:
 	@echo "Depositing SPL tokens..."
 	$(CARGO) run --bin interaction -- deposit-spl-token "$(l1_token)" "$(l2_token)" "$(receiver_twine_address)" "$(user_token_account)" "$(amount)" "$(data)"
 
+# Usage: make lz-deposit-native-token l2_token=l2_token_here receiver_address=receiver_address_here amount=amount_here data=data_here
+lz-deposit-native-token:
+	@echo "Depositing native tokens with LayerZero..."
+	$(CARGO) run --bin interaction -- lz-deposit-native-token "$(SOL_PUBKEY)" "$(l2_token)" "$(receiver_address)" "$(amount)" "$(data)"
+
+# Usage: make lz-deposit-spl-token l1_token=l1_token_here l2_token=l2_token_here receiver_twine_address=receiver_address_here user_token_account=user_token_account_here amount=amount_here data=data_here
+lz-deposit-spl-token:
+	@echo "Depositing SPL tokens with LayerZero..."
+	$(CARGO) run --bin interaction -- lz-deposit-spl-token "$(l1_token)" "$(l2_token)" "$(receiver_twine_address)" "$(user_token_account)" "$(amount)" "$(data)"
+
+
 # ==============================
 #        Withdrawal Operations
 # ==============================
@@ -242,6 +253,16 @@ forced-native-withdrawal:
 forced-spl-withdrawal:
 	@echo "Forced SPL Token Withdrawal..."
 	$(CARGO) run --bin interaction -- forced-spl-withdrawal "$(l1Token)" "$(l2Token)" "$(twineAccount)" "$(privateKey)" "$(receiver)" "$(amount)"
+
+# Usage: make lz-forced-native-withdrawal l2_token=l2_token_here from_address=twine_address receiver_address=receiver_address_here private_key=your_private_key amount=amount_here   
+lz-forced-native-withdrawal:
+	@echo "Forced native withdrawal with LayerZero..."
+	$(CARGO) run --bin interaction -- lz-forced-native-withdrawal "$(SOL_PUBKEY)" "$(l2_token)" "$(from_address)" "$(receiver_address)" "$(private_key)" "$(amount)"
+
+# Usage: make lz-forced-spl-withdrawal l1Token=your_l1_token_pubkey_here l2Token=your_l2_token_address_here twineAccount=your_twine_account_here privateKey=your_private_key_here receiver=your_receiver_pubkey_here amount=100 
+lz-forced-spl-withdrawal:
+	@echo "Forced SPL Token Withdrawal with LayerZero..."
+	$(CARGO) run --bin interaction -- lz-forced-spl-withdrawal "$(l1Token)" "$(l2Token)" "$(twineAccount)" "$(privateKey)" "$(receiver)" "$(amount)"
 
 # Usage: make execute-native-l2-withdrawal receiver=your_receiver_here publicValue=your_public_value_here executionProof=your_execution_proof_here
 execute-native-l2-withdrawal:
@@ -295,6 +316,15 @@ add-role-in-tokens-gateway:
 remove-role-in-tokens-gateway:
 	@echo "Add Role in twineChain..."
 	$(CARGO) run --bin interaction -- remove-role-in-tokens-gateway "$(role_type)" "$(user_pubkey)"
+
+# ==============================
+#        	Setters
+# ==============================
+#Usage: make set-lz-info dst_eid=dst_eid dst_oapp_address=dst_oapp_address
+set-lz-info:
+	@echo "Setting Layer Zero Info..."
+	$(CARGO) run --bin interaction -- set-layer-zero-info "$(dst_eid)" "$(dst_oapp_address)"
+
 # ==============================
 #        Data Retrieval Targets
 # ==============================

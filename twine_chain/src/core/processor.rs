@@ -12,7 +12,7 @@ use crate::{
         initialize_role_manager, initialize_twine_chain_storage,
     },
     role::roles_manager::{add_role, remove_role},
-    setters::set_v_keys,
+    setters::{set_lz_info, set_v_keys},
 };
 
 pub fn process_instruction(
@@ -112,5 +112,9 @@ pub fn process_instruction(
                 withdraw_info,
             )
         }
+        TwineChainInstruction::SetLzInfo {
+            dst_eid,
+            dst_oapp_address,
+        } => set_lz_info::set_lz_info(program_id, accounts, dst_eid, dst_oapp_address),
     }
 }

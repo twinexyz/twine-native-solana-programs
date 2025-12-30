@@ -31,18 +31,18 @@ fn main() -> io::Result<()> {
     println!("Using keypair: {}", keypair_path.display());
     println!("✅ Build steps complete!");
 
-    // // Deploy tokens gateway using buffer with specific program-id
-    // let tg_id = deploy_with_buffer(TOKENS_GATEWAY_SO, "tokens_gateway", &url, &keypair_path)?;
+    // Deploy tokens gateway using buffer with specific program-id
+    let tg_id = deploy_with_buffer(TOKENS_GATEWAY_SO, "tokens_gateway", &url, &keypair_path)?;
 
-    // // Deploy twine chain using the original method
-    // let tc_id = deploy(TWINE_CHAIN_SO, "twine_chain", &url, &keypair_path)?;
+    // Deploy twine chain using the original method
+    let tc_id = deploy(TWINE_CHAIN_SO, "twine_chain", &url, &keypair_path)?;
 
     // Deploy OApp
     let oapp_id = deploy(OAPP_SO, "oapp", &url, &keypair_path)?;
 
-    // println!("🎉 Deployment finished.\n🚪 Tokens Gateway: {tg_id}");
-    // println!("🎉 Deployment finished.\n🔗 Twine Chain: {tc_id}");
-    println!("🎉 Deployment finished.\n🅾️ LZ OApp: {oapp_id}");
+    println!("🎉 Deployment finished.\n🚪 Tokens Gateway: {tg_id}");
+    println!("🎉 Deployment finished.\n🔗 Twine Chain: {tc_id}");
+    println!("🎉 Deployment finished.\n🅾️  LZ OApp: {oapp_id}");
 
     Ok(())
 }

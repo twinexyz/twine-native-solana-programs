@@ -26,3 +26,9 @@ pub mod get_associated_token_account;
 pub mod process_spl_l1_forced_withdrawal;
 pub mod process_native_l1_forced_withdrawal;
 
+pub mod lz_deposit_native_token;
+pub mod lz_deposit_spl_token;
+pub mod lz_forced_native_withdrawal;
+pub mod lz_forced_spl_withdrawal;
+
+pub mod set_layer_zero_info;
