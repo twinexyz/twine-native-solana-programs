@@ -24,6 +24,10 @@ pub fn derive_twine_chain_storage(program_id: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(&[TWINE_CHAIN_STORAGE_PREFIX.as_bytes()], program_id)
 }
 
+pub fn derive_layer_zero_info(program_id: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(&[LAYER_ZERO_INFO_PREFIX.as_bytes()], program_id)
+}
+
 pub fn derive_messages_replicator(
     program_id: &Pubkey,
     start_nonce: u64,

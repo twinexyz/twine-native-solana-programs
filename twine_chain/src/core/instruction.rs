@@ -2,6 +2,7 @@ use std::vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
+    account_info,
     instruction::{AccountMeta, Instruction},
     msg,
     program_error::ProgramError,
@@ -12,8 +13,9 @@ use solana_program::{
 use crate::{
     core::state::{MessageInfo, RoleType},
     utils::address_derivation::{
-        derive_commitment_pda, derive_detailed_messages_buffer, derive_messages_buffer,
-        derive_messages_replicator, derive_twine_chain_role_manager, derive_twine_chain_storage,
+        derive_commitment_pda, derive_detailed_messages_buffer, derive_layer_zero_info,
+        derive_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
+        derive_twine_chain_storage,
     },
     ID,
 };
@@ -52,6 +54,13 @@ pub enum TwineChainInstruction {
     RemoveRoleInTwineChain {
         address: Pubkey,
         role: RoleType,
+    },
+    InitializeLayerZeroInfo,
+    AppendLzDepositMessage {
+        deposit_info: MessageInfo,
+    },
+    AppendLzForcedWithdrawalMessage {
+        withdraw_info: MessageInfo,
     },
 }
 
@@ -272,6 +281,26 @@ pub fn remove_role_in_twine_chain(
     }]
 }
 
+pub fn initialize_layer_zero_info(chain_admin: &Pubkey) -> Vec<Instruction> {
+    let payload = TwineChainInstruction::InitializeLayerZeroInfo;
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let accounts = vec![
+        AccountMeta::new(derive_layer_zero_info(&ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&ID).0, false),
+        AccountMeta::new(*chain_admin, true),
+        AccountMeta::new(system_program::id(), false),
+    ];
+
+    vec![Instruction {
+        program_id: ID,
+        accounts,
+        data,
+    }]
+}
+
 impl TwineChainInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         let (&discriminator, rest) = input
@@ -332,7 +361,6 @@ impl TwineChainInstruction {
                 })
             }
             10 => {
-                msg!("Here in remove role");
                 let payload = RemoveRoleInTwineChainPayload::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::RemoveRoleInTwineChain {
@@ -340,6 +368,21 @@ impl TwineChainInstruction {
                     role: payload.role,
                 })
             }
+            11 => {
+                let payload = AppendDepositMessagePayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::AppendLzDepositMessage {
+                    deposit_info: payload.deposit_info,
+                })
+            }
+            12 => {
+                let payload = AppendForcedWithdrawalMessage::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::AppendLzForcedWithdrawalMessage {
+                    withdraw_info: payload.withdraw_info,
+                })
+            }
+            13 => Ok(Self::InitializeLayerZeroInfo),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

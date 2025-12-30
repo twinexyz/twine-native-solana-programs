@@ -1,4 +1,11 @@
+use std::str::FromStr;
+
 use borsh::{BorshDeserialize, BorshSerialize};
+use oapp::{
+    core::state::{DVN_CONFIG_SEED, EXECUTOR_CONFIG_SEED},
+    utils::address_derivation::*,
+    ID as oapp_program_id,
+};
 use solana_program::{
     account_info::AccountInfo,
     instruction::{AccountMeta, Instruction},
@@ -12,8 +19,8 @@ use twine_chain::{
     utils::{
         address_derivation::{
             derive_detailed_messages_buffer, derive_execution_message_buffer,
-            derive_messages_buffer, derive_messages_replicator, derive_twine_chain_role_manager,
-            derive_twine_chain_storage,
+            derive_layer_zero_info, derive_messages_buffer, derive_messages_replicator,
+            derive_twine_chain_role_manager, derive_twine_chain_storage,
         },
         constants::MESSAGE_NONCE_GAP,
     },
@@ -23,6 +30,7 @@ use twine_chain::{
 use super::state::RoleType;
 
 use crate::{
+    core::state::LzMessageParams,
     utils::{
         address_derivation::{
             derive_executed_payouts_pda, derive_executed_withdrawals_pda,
@@ -113,6 +121,36 @@ pub enum GatewayInstruction {
     RemoveTokenMapping {
         l1_token: String,
         l2_token: String,
+    },
+    LzNativeTokenDeposit {
+        receiver_twine_address: String,
+        l1_token: String,
+        l2_token: String,
+        amount: u64,
+        data: Vec<u8>,
+    },
+    LzSplTokenDeposit {
+        receiver_twine_address: String,
+        l1_token: String,
+        l2_token: String,
+        amount: u64,
+        data: Vec<u8>,
+    },
+    LzNativeTokenForcedWithdrawal {
+        from_twine_address: String,
+        to_l1_pubkey: String,
+        l1_token: String,
+        l2_token: String,
+        amount: u64,
+        signature: Vec<u8>,
+    },
+    LzSplTokenForcedWithdrawal {
+        from_twine_address: String,
+        to_l1_pubkey: String,
+        l1_token: String,
+        l2_token: String,
+        amount: u64,
+        signature: Vec<u8>,
     },
 }
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -352,6 +390,125 @@ pub fn native_token_deposit(
     }]
 }
 
+pub fn lz_native_token_deposit(
+    user: &Pubkey,
+    receiver_twine_address: String,
+    l1_token: String,
+    l2_token: String,
+    amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
+    data: Vec<u8>,
+    // Layer Zero Requirements
+    dvn_program: &Pubkey,
+    executor_program: &Pubkey,
+    params: LzMessageParams,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::LzNativeTokenDeposit {
+        receiver_twine_address,
+        l1_token,
+        l2_token,
+        amount,
+        data,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let store_account = derive_store_pda(&oapp_program_id).0;
+    let native_loader_program_id =
+        Pubkey::from_str("NativeLoader1111111111111111111111111111111").unwrap();
+
+    let accounts = vec![
+        AccountMeta::new(*user, true),
+        AccountMeta::new(derive_native_token_vault(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
+        AccountMeta::new(derive_layer_zero_info(&twine_chain_id).0, false),
+        // <------------------- Endpoint Accounts --------------------------->
+        // sender
+        AccountMeta::new(store_account, false),
+        // sendLibraryProgram (ULN Program)
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // sendLibraryConfig
+        AccountMeta::new(
+            derive_send_library_config(&store_account, &params.dst_eid).0,
+            false,
+        ),
+        // defaultSendLibraryConfig
+        AccountMeta::new(derive_default_send_library_config(&params.dst_eid).0, false),
+        // sendLibraryInfo (sendLibrary: 2Xg...LkQ)
+        AccountMeta::new_readonly(derive_send_library_info().0, false),
+        // endpointSettings
+        AccountMeta::new(derive_endpoint_settings().0, false),
+        // nonce
+        AccountMeta::new(
+            derive_nonce(&store_account, &params.dst_eid, &params.receiver).0,
+            false,
+        ),
+        // eventAuthority
+        AccountMeta::new(derive_endpoint_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_endpoint_id(), false),
+        // <------------------- Library Accounts --------------------------->
+        // uln
+        AccountMeta::new(derive_uln().0, false),
+        // sendConfig
+        AccountMeta::new(derive_send_config(&params.dst_eid, &store_account).0, false),
+        // defaultSendConfig
+        AccountMeta::new(derive_default_send_config(&params.dst_eid).0, false),
+        // payer
+        AccountMeta::new(*user, true),
+        // treasury (Optional)
+        AccountMeta::new(*user, false),
+        // systemProgram
+        AccountMeta::new_readonly(system_program::ID, false),
+        // eventAuthority
+        AccountMeta::new(derive_library_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // <------------------ Remaining Accounts ------------------------->
+        // Executor Program
+        AccountMeta::new_readonly(*executor_program, false),
+        // Executor Config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EXECUTOR_CONFIG_SEED], executor_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+        // DVN program
+        AccountMeta::new_readonly(*dvn_program, false),
+        // dvn config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[DVN_CONFIG_SEED], dvn_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
 pub fn forced_native_token_withdrawal(
     user: &Pubkey,
     from_twine_address: String,
@@ -397,6 +554,127 @@ pub fn forced_native_token_withdrawal(
         data,
     }]
 }
+
+pub fn lz_forced_native_token_withdrawal(
+    user: &Pubkey,
+    from_twine_address: String,
+    to_l1_pubkey: String,
+    l1_token: String,
+    l2_token: String,
+    amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
+    signature: Vec<u8>,
+    // Layer Zero Requirements
+    dvn_program: &Pubkey,
+    executor_program: &Pubkey,
+    params: LzMessageParams,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::LzNativeTokenForcedWithdrawal {
+        from_twine_address,
+        to_l1_pubkey,
+        l1_token,
+        l2_token,
+        amount,
+        signature,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let store_account = derive_store_pda(&oapp_program_id).0;
+    let native_loader_program_id =
+        Pubkey::from_str("NativeLoader1111111111111111111111111111111").unwrap();
+
+    let accounts = vec![
+        AccountMeta::new(*user, true),
+        AccountMeta::new(derive_native_token_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
+        AccountMeta::new(derive_layer_zero_info(&twine_chain_id).0, false),
+        // <------------------- Endpoint Accounts --------------------------->
+        // sender
+        AccountMeta::new(store_account, false),
+        // sendLibraryProgram (ULN Program)
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // sendLibraryConfig
+        AccountMeta::new(
+            derive_send_library_config(&store_account, &params.dst_eid).0,
+            false,
+        ),
+        // defaultSendLibraryConfig
+        AccountMeta::new(derive_default_send_library_config(&params.dst_eid).0, false),
+        // sendLibraryInfo (sendLibrary: 2Xg...LkQ)
+        AccountMeta::new_readonly(derive_send_library_info().0, false),
+        // endpointSettings
+        AccountMeta::new(derive_endpoint_settings().0, false),
+        // nonce
+        AccountMeta::new(
+            derive_nonce(&store_account, &params.dst_eid, &params.receiver).0,
+            false,
+        ),
+        // eventAuthority
+        AccountMeta::new(derive_endpoint_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_endpoint_id(), false),
+        // <------------------- Library Accounts --------------------------->
+        // uln
+        AccountMeta::new(derive_uln().0, false),
+        // sendConfig
+        AccountMeta::new(derive_send_config(&params.dst_eid, &store_account).0, false),
+        // defaultSendConfig
+        AccountMeta::new(derive_default_send_config(&params.dst_eid).0, false),
+        // payer
+        AccountMeta::new(*user, true),
+        // treasury (Optional)
+        AccountMeta::new(*user, false),
+        // systemProgram
+        AccountMeta::new_readonly(system_program::ID, false),
+        // eventAuthority
+        AccountMeta::new(derive_library_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // <------------------ Remaining Accounts ------------------------->
+        // Executor Program
+        AccountMeta::new_readonly(*executor_program, false),
+        // Executor Config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EXECUTOR_CONFIG_SEED], executor_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+        // DVN program
+        AccountMeta::new_readonly(*dvn_program, false),
+        // dvn config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[DVN_CONFIG_SEED], dvn_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
 pub fn spl_token_deposit(
     user: &Pubkey,
     user_token_account: &Pubkey,
@@ -447,6 +725,130 @@ pub fn spl_token_deposit(
     }]
 }
 
+pub fn lz_spl_token_deposit(
+    user: &Pubkey,
+    user_token_account: &Pubkey,
+    token_mint_pubkey: &Pubkey,
+    spl_tokens_vault: &Pubkey,
+    receiver_twine_address: String,
+    l1_token: String,
+    l2_token: String,
+    amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
+    data: Vec<u8>,
+    // Layer Zero Requirements
+    dvn_program: &Pubkey,
+    executor_program: &Pubkey,
+    params: LzMessageParams,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::LzSplTokenDeposit {
+        receiver_twine_address,
+        l1_token,
+        l2_token,
+        amount,
+        data,
+    };
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let store_account = derive_store_pda(&oapp_program_id).0;
+    let native_loader_program_id =
+        Pubkey::from_str("NativeLoader1111111111111111111111111111111").unwrap();
+
+    let accounts = vec![
+        AccountMeta::new(*user, true),
+        AccountMeta::new(*user_token_account, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(*spl_tokens_vault, false),
+        AccountMeta::new(*token_mint_pubkey, false),
+        AccountMeta::new(spl_token::id(), false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
+        AccountMeta::new(derive_layer_zero_info(&twine_chain_id).0, false),
+        // <------------------- Endpoint Accounts --------------------------->
+        // sender
+        AccountMeta::new(store_account, false),
+        // sendLibraryProgram (ULN Program)
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // sendLibraryConfig
+        AccountMeta::new(
+            derive_send_library_config(&store_account, &params.dst_eid).0,
+            false,
+        ),
+        // defaultSendLibraryConfig
+        AccountMeta::new(derive_default_send_library_config(&params.dst_eid).0, false),
+        // sendLibraryInfo (sendLibrary: 2Xg...LkQ)
+        AccountMeta::new_readonly(derive_send_library_info().0, false),
+        // endpointSettings
+        AccountMeta::new(derive_endpoint_settings().0, false),
+        // nonce
+        AccountMeta::new(
+            derive_nonce(&store_account, &params.dst_eid, &params.receiver).0,
+            false,
+        ),
+        // eventAuthority
+        AccountMeta::new(derive_endpoint_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_endpoint_id(), false),
+        // <------------------- Library Accounts --------------------------->
+        // uln
+        AccountMeta::new(derive_uln().0, false),
+        // sendConfig
+        AccountMeta::new(derive_send_config(&params.dst_eid, &store_account).0, false),
+        // defaultSendConfig
+        AccountMeta::new(derive_default_send_config(&params.dst_eid).0, false),
+        // payer
+        AccountMeta::new(*user, true),
+        // treasury (Optional)
+        AccountMeta::new(*user, false),
+        // systemProgram
+        AccountMeta::new_readonly(system_program::ID, false),
+        // eventAuthority
+        AccountMeta::new(derive_library_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // <------------------ Remaining Accounts ------------------------->
+        // Executor Program
+        AccountMeta::new_readonly(*executor_program, false),
+        // Executor Config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EXECUTOR_CONFIG_SEED], executor_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+        // DVN program
+        AccountMeta::new_readonly(*dvn_program, false),
+        // dvn config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[DVN_CONFIG_SEED], dvn_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
 pub fn forced_spl_token_withdrawal(
     user: &Pubkey,
     to_token_account: &Pubkey,
@@ -487,6 +889,129 @@ pub fn forced_spl_token_withdrawal(
         ),
         AccountMeta::new_readonly(system_program::id(), false),
         AccountMeta::new_readonly(twine_chain_id, false),
+    ];
+
+    vec![Instruction {
+        program_id: tokens_gateway_ID,
+        accounts,
+        data,
+    }]
+}
+
+pub fn lz_forced_spl_token_withdrawal(
+    user: &Pubkey,
+    to_token_account: &Pubkey,
+    token_mint_pubkey: &Pubkey,
+    from_twine_address: String,
+    l1_token: String,
+    l2_token: String,
+    amount: u64,
+    start_nonce: u64,
+    end_nonce: u64,
+    signature: Vec<u8>,
+    // Layer Zero Requirements
+    dvn_program: &Pubkey,
+    executor_program: &Pubkey,
+    params: LzMessageParams,
+) -> Vec<Instruction> {
+    let payload = GatewayInstruction::SplTokenForcedWithdrawal {
+        from_twine_address,
+        to_l1_pubkey: to_token_account.to_string(),
+        l1_token,
+        l2_token,
+        amount,
+        signature,
+    };
+
+    let mut data = vec![];
+    data.extend(payload.try_to_vec().unwrap());
+
+    let store_account = derive_store_pda(&oapp_program_id).0;
+    let native_loader_program_id =
+        Pubkey::from_str("NativeLoader1111111111111111111111111111111").unwrap();
+
+    let accounts = vec![
+        AccountMeta::new(*user, true),
+        AccountMeta::new(*to_token_account, false),
+        AccountMeta::new(derive_spl_tokens_vault_data(&tokens_gateway_ID).0, false),
+        AccountMeta::new(*token_mint_pubkey, false),
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
+        AccountMeta::new(derive_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_role_manager(&twine_chain_id).0, false),
+        AccountMeta::new(derive_twine_chain_storage(&twine_chain_id).0, false),
+        AccountMeta::new(
+            derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
+            false,
+        ),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(twine_chain_id, false),
+        AccountMeta::new(derive_layer_zero_info(&twine_chain_id).0, false),
+        // <------------------- Endpoint Accounts --------------------------->
+        // sender
+        AccountMeta::new(store_account, false),
+        // sendLibraryProgram (ULN Program)
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // sendLibraryConfig
+        AccountMeta::new(
+            derive_send_library_config(&store_account, &params.dst_eid).0,
+            false,
+        ),
+        // defaultSendLibraryConfig
+        AccountMeta::new(derive_default_send_library_config(&params.dst_eid).0, false),
+        // sendLibraryInfo (sendLibrary: 2Xg...LkQ)
+        AccountMeta::new_readonly(derive_send_library_info().0, false),
+        // endpointSettings
+        AccountMeta::new(derive_endpoint_settings().0, false),
+        // nonce
+        AccountMeta::new(
+            derive_nonce(&store_account, &params.dst_eid, &params.receiver).0,
+            false,
+        ),
+        // eventAuthority
+        AccountMeta::new(derive_endpoint_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_endpoint_id(), false),
+        // <------------------- Library Accounts --------------------------->
+        // uln
+        AccountMeta::new(derive_uln().0, false),
+        // sendConfig
+        AccountMeta::new(derive_send_config(&params.dst_eid, &store_account).0, false),
+        // defaultSendConfig
+        AccountMeta::new(derive_default_send_config(&params.dst_eid).0, false),
+        // payer
+        AccountMeta::new(*user, true),
+        // treasury (Optional)
+        AccountMeta::new(*user, false),
+        // systemProgram
+        AccountMeta::new_readonly(system_program::ID, false),
+        // eventAuthority
+        AccountMeta::new(derive_library_event_authority().0, false),
+        // program
+        AccountMeta::new_readonly(get_send_library_program(), false),
+        // <------------------ Remaining Accounts ------------------------->
+        // Executor Program
+        AccountMeta::new_readonly(*executor_program, false),
+        // Executor Config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[EXECUTOR_CONFIG_SEED], executor_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
+        // DVN program
+        AccountMeta::new_readonly(*dvn_program, false),
+        // dvn config
+        AccountMeta::new(
+            Pubkey::find_program_address(&[DVN_CONFIG_SEED], dvn_program).0,
+            false,
+        ),
+        // Price feed Program
+        AccountMeta::new_readonly(native_loader_program_id, false),
+        // Price feed config
+        AccountMeta::new_readonly(system_program::ID, false),
     ];
 
     vec![Instruction {
@@ -602,7 +1127,7 @@ pub fn process_native_refund(
             false,
         ),
         AccountMeta::new(l1_receiver_address, false),
-        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false), 
+        AccountMeta::new(derive_token_decimal_mappings(&tokens_gateway_ID).0, false),
         AccountMeta::new(derive_detailed_messages_buffer(&twine_chain_id).0, false),
         AccountMeta::new(
             derive_messages_replicator(&twine_chain_id, start_nonce, end_nonce).0,
@@ -971,6 +1496,54 @@ impl GatewayInstruction {
                 Ok(Self::RemoveTokenMapping {
                     l1_token: payload.l1_token,
                     l2_token: payload.l2_token,
+                })
+            }
+            17 => {
+                let payload = NativeTokenDepositPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::LzNativeTokenDeposit {
+                    receiver_twine_address: payload.receiver_twine_address,
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
+                    amount: payload.amount,
+                    data: payload.data,
+                })
+            }
+
+            18 => {
+                let payload = SplTokenDepositPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::LzSplTokenDeposit {
+                    receiver_twine_address: payload.receiver_twine_address,
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
+                    amount: payload.amount,
+                    data: payload.data,
+                })
+            }
+
+            19 => {
+                let payload = NativeTokenForcedWithdrawalPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::LzNativeTokenForcedWithdrawal {
+                    from_twine_address: payload.from_twine_address,
+                    to_l1_pubkey: payload.to_l1_pubkey,
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
+                    amount: payload.amount,
+                    signature: payload.signature,
+                })
+            }
+            20 => {
+                let payload = SplTokenForcedWithdrawalPayload::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::LzSplTokenForcedWithdrawal {
+                    from_twine_address: payload.from_twine_address,
+                    to_l1_pubkey: payload.to_l1_pubkey,
+                    l1_token: payload.l1_token,
+                    l2_token: payload.l2_token,
+                    amount: payload.amount,
+                    signature: payload.signature,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),

@@ -4,12 +4,12 @@ use crate::{
     core::{error::ProgramCustomError, instruction::GatewayInstruction},
     execute_l2_withdrawal::{execute_native_l2_withdrawal, execute_spl_l2_withdrawal},
     initialize::{initialize_tokens_gateway, initialze_role_manager},
-    native::{native_deposit, native_forced_withdrawal},
+    native::{lz_native_deposit, lz_native_forced_withdrawal, native_deposit, native_forced_withdrawal},
     process_forced_withdrawal::{process_native_forced_withdrawal, process_spl_forced_withdrawal},
     process_refund::{process_native_refund, process_spl_refund},
     roles::roles_manager::{add_role, remove_role, set_role_chain_admin},
     setters::update_token_mapping,
-    spl::{spl_deposit, spl_forced_withdrawal},
+    spl::{lz_spl_depsoit, lz_spl_forced_withdrawal, spl_deposit, spl_forced_withdrawal},
 };
 
 use super::instruction::process_native_refund;
@@ -172,6 +172,70 @@ pub fn process_instruction(
         ),
         GatewayInstruction::RemoveTokenMapping { l1_token, l2_token } => {
             update_token_mapping::remove_token_mapping(program_id, accounts, l1_token, l2_token)
-        }
+        },
+         GatewayInstruction::LzNativeTokenDeposit {
+            receiver_twine_address,
+            l1_token,
+            l2_token,
+            amount,
+            data,
+        } => lz_native_deposit::lz_native_token_deposit(
+            program_id,
+            accounts,
+            receiver_twine_address,
+            l1_token,
+            l2_token,
+            amount,
+            data,
+        ),
+        GatewayInstruction::LzSplTokenDeposit {
+            receiver_twine_address,
+            l1_token,
+            l2_token,
+            amount,
+            data,
+        } => lz_spl_depsoit::lz_spl_token_deposit(
+            program_id,
+            accounts,
+            receiver_twine_address,
+            l1_token,
+            l2_token,
+            amount,
+            data,
+        ),
+        GatewayInstruction::LzNativeTokenForcedWithdrawal {
+            from_twine_address,
+            to_l1_pubkey,
+            l1_token,
+            l2_token,
+            amount,
+            signature,
+        } => lz_native_forced_withdrawal::lz_forced_native_token_withdrawal(
+            program_id,
+            accounts,
+            from_twine_address,
+            to_l1_pubkey,
+            l1_token,
+            l2_token,
+            amount,
+            signature,
+        ),
+        GatewayInstruction::LzSplTokenForcedWithdrawal {
+            from_twine_address,
+            to_l1_pubkey,
+            l1_token,
+            l2_token,
+            amount,
+            signature,
+        } => lz_spl_forced_withdrawal::lz_forced_spl_token_withdrawal(
+            program_id,
+            accounts,
+            from_twine_address,
+            to_l1_pubkey,
+            l1_token,
+            l2_token,
+            amount,
+            signature,
+        ),
     }
 }

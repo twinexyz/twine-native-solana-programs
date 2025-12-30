@@ -1,5 +1,6 @@
 use crate::core::error::ProgramCustomError;
 use borsh::{BorshDeserialize, BorshSerialize};
+use hex::encode;
 use sha3::{Digest, Keccak256};
 use solana_program::{program_error::ProgramError, program_pack::IsInitialized, pubkey::Pubkey};
 /****************
@@ -122,6 +123,20 @@ pub struct CommitBatchInfo {
     pub receipt_root: [u8; 32],
 }
 
+/**************************
+ * Layer Zero Information *
+ *************************/
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct LayerZeroInfo {
+    pub is_initialized: bool,
+    pub dst_eid: u32,
+    pub receiver: [u8;32],
+    pub options: Vec<u8>,
+    pub native_fee: u64,
+    pub lz_token_fee: u64,
+}
+
+
 /**********
  * Events *
  *********/
@@ -175,6 +190,25 @@ impl TransactionType {
             _ => Err(ProgramCustomError::InvalidTransactionType.into()),
         }
     }
+}
+
+impl MessageTransactionEvent {
+    pub fn abi_encode_packed(&self) -> Vec<u8> {
+        let mut encoded = Vec::new();
+        encoded.extend(self.nonce.to_be_bytes());
+        encoded.extend(self.slot_number.to_be_bytes());
+        encoded.extend(self.l1_pubkey.to_lowercase().as_bytes());
+        encoded.extend(self.twine_address.to_lowercase().as_bytes());
+        encoded.extend(self.l1_token.to_lowercase().as_bytes());
+        encoded.extend(self.l2_token.to_lowercase().as_bytes());
+        encoded.extend(self.chain_id.to_be_bytes());
+        encoded.extend(self.amount.as_bytes());
+        encoded.extend(&self.data);
+        encoded.extend(self.message_type.as_bytes());
+        encoded.extend(&self.previous_rolling_hash);
+
+        encoded
+    } 
 }
 
 impl MessageInfo {
@@ -254,6 +288,16 @@ impl BatchPdaAccount {
     pub const LEN: usize = 1 + 32;
 }
 
+impl LayerZeroInfo {
+    pub const LEN: usize =
+        1                 // is_initialized: bool
+        + 4               // dst_eid: u32
+        + 32              // receiver: [u8; 32]
+        + 4 + 512         // options: Vec<u8> (4-byte len + 512 max bytes)
+        + 8               // native_fee: u64
+        + 8;              // lz_token_fee: u64
+}
+
 /******************************************************
  * Implementations of IsInitialized function for PDAs *
  ******************************************************/
@@ -282,6 +326,12 @@ impl IsInitialized for TwineChainStorage {
 }
 
 impl IsInitialized for BatchPdaAccount {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+impl IsInitialized for LayerZeroInfo {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }

@@ -7842,6 +7842,7 @@ dependencies = [
  "libsecp256k1 0.7.2",
  "num-bigint 0.4.6",
  "num-traits",
+ "oapp",
  "serde",
  "serde_json",
  "sha3",
@@ -8128,6 +8129,7 @@ version = "0.1.0"
 dependencies = [
  "borsh 0.10.4",
  "hex",
+ "oapp",
  "serde",
  "serde_json",
  "sha3",

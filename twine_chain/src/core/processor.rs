@@ -1,12 +1,15 @@
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 use crate::{
-    append_messages::{append_deposit_messages, append_withdrawal_messages, copy_messages_buffer},
+    append_messages::{
+        append_deposit_messages, append_lz_deposit_messages, append_lz_withdrawal_messages,
+        append_withdrawal_messages, copy_messages_buffer,
+    },
     commit_finalize::commit_and_finalize_batch,
     core::instruction::TwineChainInstruction,
     initialize::{
-        initialize_genesis_batch, initialize_message_buffer, initialize_role_manager,
-        initialize_twine_chain_storage,
+        initialize_genesis_batch, initialize_layer_zero_info, initialize_message_buffer,
+        initialize_role_manager, initialize_twine_chain_storage,
     },
     role::roles_manager::{add_role, remove_role},
     setters::set_v_keys,
@@ -89,5 +92,25 @@ pub fn process_instruction(
             public_values,
             execution_proof,
         ),
+
+        TwineChainInstruction::InitializeLayerZeroInfo => {
+            initialize_layer_zero_info::initialize_layer_zero_info(program_id, accounts)
+        }
+
+        TwineChainInstruction::AppendLzDepositMessage { deposit_info } => {
+            append_lz_deposit_messages::append_lz_deposit_message(
+                program_id,
+                accounts,
+                deposit_info,
+            )
+        }
+
+        TwineChainInstruction::AppendLzForcedWithdrawalMessage { withdraw_info } => {
+            append_lz_withdrawal_messages::append_lz_forced_withdrawal_message(
+                program_id,
+                accounts,
+                withdraw_info,
+            )
+        }
     }
 }

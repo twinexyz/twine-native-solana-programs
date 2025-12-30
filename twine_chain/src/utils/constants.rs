@@ -15,3 +15,5 @@ pub const MEESSAGES_REPLICATOR_PREFIX: &str = "messages_replicator_prefix";
 pub const EXECUTION_MESSAGE_BUFFER_PREFIX: &str = "execution_message_buffer";
 pub const DETAILED_MESSAGES_BUFFER_PREFIX: &str = "detailed_messages_buffer";
 pub const INITIAL_CHAIN_ADMIN: &str = "BdhpXtonNKnVKpEK7iSzZvVU1gKSWtMjUaTuQZ4rvJkS";
+
+pub const LAYER_ZERO_INFO_PREFIX: &str = "layer_zero_info";

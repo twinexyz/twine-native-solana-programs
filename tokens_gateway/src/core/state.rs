@@ -161,6 +161,12 @@ pub struct L2WithdrawExecutedEvent {
     pub slot_number: u64,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug)]
+pub struct LzMessageParams { 
+    pub dst_eid: u32,       // Destination chain ID
+    pub receiver: [u8; 32], // Destination contract address (32-byte)
+}
+
 impl SignMessageInfo {
     pub fn abi_encode_packed(&self) -> Vec<u8> {
         let mut encoded: Vec<u8> = Vec::new();
