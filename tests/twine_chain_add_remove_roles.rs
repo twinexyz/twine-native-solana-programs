@@ -1,32 +1,26 @@
 mod helpers;
+#[path = "../scripts/interaction/twine_chain_client.rs"]
+mod twine_chain_client;
 use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program_test::*;
 use solana_sdk::{
-    signature::{Keypair, Signer}, transaction::Transaction
+    signature::{Keypair, Signer},
+    transaction::Transaction,
 };
 use std::str::FromStr;
-
+use twine_chain_client as twine_chain_instruction;
 
 use helpers::twine_chain_helper::{
     fund_account_for_rent_exemption, program_test, TwineChainAccounts,
 };
 
-use tokens_gateway::{
-    utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
-};
+use tokens_gateway::utils::constants::ROLE_MANAGER_ACCOUNT_SIZE;
 
 use twine_chain::{
-    core::{
-        instruction as twine_chain_instruction,
-        state::{RoleType, TwineChainRoleManager},
-    },
+    core::state::{RoleType, TwineChainRoleManager},
     id as twine_chain_id,
-    utils::{
-        address_derivation::{
-             derive_twine_chain_role_manager
-        },
-    },
+    utils::address_derivation::derive_twine_chain_role_manager,
 };
 
 #[tokio::test]
@@ -44,11 +38,15 @@ async fn add_roles_twine_chain() {
         844073716442015,
     )
     .await;
-    let mut instructions  = vec![];
-     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey()));
+    let mut instructions = vec![];
+    instructions.extend(
+        twine_chain_instruction::initialize_twine_chain_role_manager(
+            &accounts.chain_admin.pubkey(),
+        ),
+    );
     instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
         &accounts.chain_admin.pubkey(),
-        &user_pubkey, 
+        &user_pubkey,
         RoleType::TwineOperationHandler,
     ));
     let transaction = Transaction::new_signed_with_payer(
@@ -93,18 +91,21 @@ async fn remove_roles_twine_chain() {
         844073716442015,
     )
     .await;
-    let mut instructions  = vec![];
-     instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey()));
+    let mut instructions = vec![];
+    instructions.extend(
+        twine_chain_instruction::initialize_twine_chain_role_manager(
+            &accounts.chain_admin.pubkey(),
+        ),
+    );
     instructions.extend(twine_chain_instruction::add_role_in_twine_chain(
         &accounts.chain_admin.pubkey(),
-        &user_pubkey, 
+        &user_pubkey,
         RoleType::TwineOperationHandler,
     ));
     instructions.extend(twine_chain_instruction::remove_role_in_twine_chain(
         &accounts.chain_admin.pubkey(),
         &user_pubkey,
         RoleType::TwineOperationHandler,
-        
     ));
 
     let transaction = Transaction::new_signed_with_payer(

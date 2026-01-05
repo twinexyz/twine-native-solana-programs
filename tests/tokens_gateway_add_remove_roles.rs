@@ -1,4 +1,7 @@
 mod helpers;
+#[path = "../scripts/interaction/tokens_gateway_client.rs"]
+mod tokens_gateway_client;
+use tokens_gateway_client as tokens_gateway_instruction;
 use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program_test::*;
@@ -13,10 +16,7 @@ use helpers::tokens_gateway_helper::{
 };
 
 use tokens_gateway::{
-    core::{
-        instruction as tokens_gateway_instruction,
-        state::{RoleType, TokensGatewayRoleManager},
-    },
+    core::state::{RoleType, TokensGatewayRoleManager},
     id as tokens_gateway_id,
     utils::address_derivation::derive_gateway_role_manager,
     utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,

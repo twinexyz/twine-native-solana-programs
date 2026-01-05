@@ -1,5 +1,11 @@
 #[cfg(test)]
 mod helpers;
+#[path = "../scripts/interaction/twine_chain_client.rs"]
+mod twine_chain_client;
+use twine_chain_client as twine_chain_instruction;
+#[path = "../scripts/interaction/tokens_gateway_client.rs"]
+mod tokens_gateway_client;
+use tokens_gateway_client as tokens_gateway_instruction;
 use borsh::BorshDeserialize;
 use sha3::{Digest, Keccak256};
 use solana_program_test::*;
@@ -13,7 +19,7 @@ use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, get_ethereum_signature, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::{instruction as tokens_gateway_instruction, state::SignMessageInfo},
+    core::state::SignMessageInfo,
     id,
     utils::{
         address_derivation::derive_native_token_vault_data,
@@ -22,10 +28,8 @@ use tokens_gateway::{
 };
 
 use twine_chain::{
-    core::{
-        instruction as twine_chain_instruction,
+    core::
         state::{RoleType, TransactionType, TwineChainStorage},
-    },
     id as twine_chain_id,
     utils::{
         address_derivation::{derive_twine_chain_storage},

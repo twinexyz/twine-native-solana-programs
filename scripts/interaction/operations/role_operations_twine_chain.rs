@@ -1,8 +1,9 @@
 use crate::utils::{get_default_keypair, get_rpc_client};
+use crate::twine_chain_client as twine_chain_instruction;
 use anyhow::{anyhow, Context, Result};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::{signature::Signer, transaction::Transaction};
-use twine_chain::core::{instruction as twine_chain_instruction, state::RoleType};
+use twine_chain::core::state::RoleType;
 
 pub fn parse_role_type(s: &str) -> Result<RoleType> {
     match s.to_lowercase().as_str() {

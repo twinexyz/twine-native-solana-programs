@@ -1,8 +1,9 @@
 use crate::utils::{get_default_keypair, get_rpc_client};
+use crate::tokens_gateway_client as tokens_gateway_instruction;
 use anyhow::{anyhow, Context, Result};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::{signature::Signer, transaction::Transaction};
-use tokens_gateway::core::{instruction as tokens_gateway_instruction, state::RoleType};
+use tokens_gateway::core::{state::RoleType};
 
 pub fn parse_role_type(s: &str) -> Result<RoleType> {
     match s.to_lowercase().as_str() {

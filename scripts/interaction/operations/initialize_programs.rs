@@ -1,15 +1,16 @@
 use crate::utils::{get_default_keypair, get_rpc_client};
+use crate::{tokens_gateway_client as tokens_gateway_instruction, twine_chain_client as twine_chain_instruction};
 use anyhow::{Context, Result};
 use sha3::{Digest, Keccak256};
 use solana_sdk::{signature::Signer, transaction::Transaction};
 use tokens_gateway::{
-    core::{instruction as tokens_gateway_instruction},
     id as tokens_gateway_id,
     utils::{
         address_derivation::{derive_native_token_vault_data,derive_spl_tokens_vault_data}
 },
 };
-use twine_chain::core::{instruction as twine_chain_instruction,state::RoleType};
+use twine_chain::core::{state::RoleType};
+
 
 pub fn empty_keccak256() -> [u8; 32] {
     let mut hasher = Keccak256::new();

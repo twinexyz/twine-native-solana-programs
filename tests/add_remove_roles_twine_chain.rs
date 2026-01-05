@@ -1,4 +1,7 @@
 mod helpers;
+#[path = "../scripts/interaction/twine_chain_client.rs"]
+mod twine_chain_client;
+use twine_chain_client as twine_chain_instruction;
 use helpers::twine_chain_helper::{
     fund_account_for_rent_exemption, program_test, TwineChainAccounts,
 };
@@ -11,7 +14,6 @@ use solana_sdk::{
 use std::str::FromStr;
 use twine_chain::{
     core::{
-        instruction as twine_chain_instruction,
         state::{
             RoleType,
         },

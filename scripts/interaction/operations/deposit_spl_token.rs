@@ -1,9 +1,9 @@
 use crate::utils::{get_default_keypair, get_or_create_ata, get_rpc_client};
-use anyhow::{Context,Result};
+use crate::tokens_gateway_client as tokens_gateway_instruction;
+use anyhow::{Context, Result};
 use borsh::BorshDeserialize;
 use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction,
     utils::address_derivation::derive_spl_vault_authority, ID as tokens_gateway_ID,
 };
 use twine_chain::{
@@ -18,7 +18,7 @@ pub fn spl_token_deposit(
     receiver_twine_address: String,
     user_token_account: Pubkey,
     amount: u64,
-    data: String
+    data: String,
 ) -> Result<()> {
     let account = get_default_keypair();
     let rpc_client = get_rpc_client();
@@ -60,14 +60,12 @@ pub fn spl_token_deposit(
         blockhash,
     );
 
-     let signature = rpc_client
+    let signature = rpc_client
         .send_and_confirm_transaction(&transaction)
         .context("Failed to send and confirm transaction")?;
-    
+
     println!("✅ Spl token deposit successful!");
     println!("Transaction: {}", signature);
 
     Ok(())
 }
-
-

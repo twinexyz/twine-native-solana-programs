@@ -1,11 +1,12 @@
 use crate::utils::{get_default_keypair, get_ethereum_signature, get_rpc_client};
+use crate::tokens_gateway_client as tokens_gateway_instruction;
 use anyhow::{Context, Result};
 use borsh::BorshDeserialize;
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction, instruction::Instruction, signature::Signer,
     transaction::Transaction,
 };
-use tokens_gateway::core::{instruction as tokens_gateway_instruction, state::SignMessageInfo};
+use tokens_gateway::core::state::SignMessageInfo;
 use twine_chain::{
     core::state::{MessagesBuffer, TwineChainStorage},
     id as twine_chain_program_id,

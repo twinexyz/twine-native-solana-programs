@@ -1,28 +1,30 @@
 #[cfg(test)]
 mod helpers;
-
+#[path = "../scripts/interaction/twine_chain_client.rs"]
+mod twine_chain_client;
+use twine_chain_client as twine_chain_instruction;
+#[path = "../scripts/interaction/tokens_gateway_client.rs"]
+mod tokens_gateway_client;
 use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use tokens_gateway_client as tokens_gateway_instruction;
 
 use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, get_ethereum_signature, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::{instruction as tokens_gateway_instruction, state::SignMessageInfo},
+    core::state::SignMessageInfo,
     id,
     utils::{
         address_derivation::derive_native_token_vault_data, constants::ROLE_MANAGER_ACCOUNT_SIZE,
     },
 };
 use twine_chain::{
-    core::{
-        instruction as twine_chain_instruction,
-        state::{DetailedMessagesBuffer, RoleType, TwineChainStorage,},
-    },
+    core::state::{DetailedMessagesBuffer, RoleType, TwineChainStorage},
     id as twine_chain_id,
     utils::{
         address_derivation::{derive_detailed_messages_buffer, derive_twine_chain_storage},
@@ -101,7 +103,7 @@ async fn native_forced_withdrawal_succeed() {
 
     println!("Transaction status: {:?}", error);
     let mut other_instructions = vec![];
-       let twine_chain_storage_account = context
+    let twine_chain_storage_account = context
         .banks_client
         .get_account(derive_twine_chain_storage(&twine_chain_id()).0)
         .await
@@ -111,11 +113,11 @@ async fn native_forced_withdrawal_succeed() {
     let twine_chain_storage_data: TwineChainStorage =
         TwineChainStorage::deserialize(&mut &twine_chain_storage_account.data[..])
             .expect("Failed to deserialize TwineChainStorage");
-    
-     let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
+
+    let start_nonce = twine_chain_storage_data.last_copied_message_end_nonce + 1;
     let end_nonce = twine_chain_storage_data.last_copied_message_end_nonce + MESSAGE_NONCE_GAP;
 
-     other_instructions.extend(tokens_gateway_instruction::forced_native_token_withdrawal(
+    other_instructions.extend(tokens_gateway_instruction::forced_native_token_withdrawal(
         &chain_admin,
         from_twine_address.clone(),
         chain_admin.to_string(),
@@ -127,17 +129,20 @@ async fn native_forced_withdrawal_succeed() {
         signature,
     ));
 
-     let other_transaction = Transaction::new_signed_with_payer(
+    let other_transaction = Transaction::new_signed_with_payer(
         &other_instructions,
         Some(&context.payer.pubkey()),
         &[&context.payer, &accounts.chain_admin],
         context.last_blockhash,
     );
 
-    let second_error = context.banks_client.process_transaction(other_transaction).await;
+    let second_error = context
+        .banks_client
+        .process_transaction(other_transaction)
+        .await;
 
     println!("DepositTransaction status: {:?}", second_error);
-    
+
     let forced_withdraw_message_buffer_account = context
         .banks_client
         .get_account(derive_detailed_messages_buffer(&twine_chain_id()).0)
@@ -145,12 +150,11 @@ async fn native_forced_withdrawal_succeed() {
         .unwrap()
         .expect("Forced Message Buffer Not Found");
 
-      let forced_withdraw_message_buffer_data: DetailedMessagesBuffer =
+    let forced_withdraw_message_buffer_data: DetailedMessagesBuffer =
         DetailedMessagesBuffer::deserialize(&mut &forced_withdraw_message_buffer_account.data[..])
             .expect("Failed to deserialize Native Token Vault Data");
-      assert!(
-    forced_withdraw_message_buffer_data.message_nonce == 1,
-    "Forced Withdrawal Not successful"
-
-      )
+    assert!(
+        forced_withdraw_message_buffer_data.message_nonce == 1,
+        "Forced Withdrawal Not successful"
+    )
 }

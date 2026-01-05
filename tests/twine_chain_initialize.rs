@@ -1,4 +1,7 @@
 mod helpers;
+#[path = "../scripts/interaction/twine_chain_client.rs"]
+mod twine_chain_client;
+use twine_chain_client as twine_chain_instruction;
 use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
@@ -11,10 +14,8 @@ use helpers::twine_chain_helper::{
     fund_account_for_rent_exemption, program_test, TwineChainAccounts,
 };
 use twine_chain::{
-    core::{
-        instruction::{self},
+    core::
         state::{BatchPdaAccount, MessagesBuffer, TwineChainRoleManager, TwineChainStorage},
-    },
     id,
     utils::{
         address_derivation::{
@@ -40,7 +41,7 @@ async fn twine_chain_rolemanager_init() {
     .await;
 
     let instructions =
-        instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey());
+        twine_chain_instruction::initialize_twine_chain_role_manager(&accounts.chain_admin.pubkey());
     let transaction = Transaction::new_signed_with_payer(
         &instructions,
         Some(&context.payer.pubkey()),
@@ -91,10 +92,10 @@ async fn twine_chain_storage_init() {
     .await;
 
     let mut instructions = vec![];
-    instructions.extend(instruction::initialize_twine_chain_role_manager(
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
-    instructions.extend(instruction::initialize_twine_chain_storage(
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &accounts.chain_admin.pubkey(),
     ));
 
@@ -143,10 +144,10 @@ async fn message_buffers_init() {
     .await;
 
     let mut instructions = vec![];
-    instructions.extend(instruction::initialize_twine_chain_role_manager(
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
-    instructions.extend(instruction::initialize_message_buffer(
+    instructions.extend(twine_chain_instruction::initialize_message_buffer(
         &accounts.chain_admin.pubkey(),
     ));
 
@@ -192,13 +193,13 @@ async fn genesis_batch_init() {
     .await;
 
     let mut instructions = vec![];
-    instructions.extend(instruction::initialize_twine_chain_role_manager(
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
-    instructions.extend(instruction::initialize_twine_chain_storage(
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &accounts.chain_admin.pubkey(),
     ));
-    instructions.extend(instruction::initialize_genesis_batch(
+    instructions.extend(twine_chain_instruction::initialize_genesis_batch(
         &accounts.chain_admin.pubkey(),
         [1u8; 32],
     ));

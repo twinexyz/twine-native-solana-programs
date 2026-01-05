@@ -12,8 +12,6 @@ use crate::{
     spl::{spl_deposit, spl_forced_withdrawal},
 };
 
-use super::instruction::process_native_refund;
-
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],

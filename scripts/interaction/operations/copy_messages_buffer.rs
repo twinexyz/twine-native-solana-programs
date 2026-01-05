@@ -1,10 +1,7 @@
 use crate::utils::{get_default_keypair, get_rpc_client};
+use crate::twine_chain_client as twine_chain_instruction;
 use anyhow::{Context, Result};
 use solana_sdk::{signature::Signer, transaction::Transaction};
-use twine_chain::{
-    core::{instruction as twine_chain_instruction},
-
-};
 
 pub fn copy_messages_buffer(start_nonce: u64, end_nonce: u64) -> Result<()> {
     let account = get_default_keypair();

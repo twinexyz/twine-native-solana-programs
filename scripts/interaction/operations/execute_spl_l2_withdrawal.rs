@@ -1,20 +1,16 @@
+use crate::tokens_gateway_client as tokens_gateway_instruction;
 use anyhow::{Context, Result};
-
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     pubkey::Pubkey, signature::Signer, signer::keypair::Keypair, transaction::Transaction,
 };
-
 use spl_associated_token_account::{
     get_associated_token_address, instruction::create_associated_token_account,
 };
 use spl_token::id as spl_token_program_id;
-
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction, id as tokens_gateway_id,
-    utils::address_derivation::derive_spl_vault_authority,
+    id as tokens_gateway_id, utils::address_derivation::derive_spl_vault_authority,
 };
-
 use crate::utils::{get_default_keypair, get_rpc_client};
 
 pub fn execute_spl_l2_withdrawal(
@@ -36,7 +32,7 @@ pub fn execute_spl_l2_withdrawal(
         &spl_token_pubkey,
     )?;
 
-     let message_nonce =  u64::from_be_bytes(public_values[8..16].try_into().unwrap());
+    let message_nonce = u64::from_be_bytes(public_values[8..16].try_into().unwrap());
 
     let instructions = tokens_gateway_instruction::execute_l2_spl_withdrawal(
         &account.pubkey(),

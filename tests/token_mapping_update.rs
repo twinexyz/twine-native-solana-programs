@@ -1,5 +1,7 @@
 mod helpers;
-
+#[path = "../scripts/interaction/tokens_gateway_client.rs"]
+mod tokens_gateway_client;
+use tokens_gateway_client as tokens_gateway_instruction;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -9,9 +11,7 @@ use solana_sdk::{
 use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
-use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction, utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
-};
+use tokens_gateway::utils::constants::ROLE_MANAGER_ACCOUNT_SIZE;
 
 #[tokio::test]
 async fn update_token_mapping_succeeds() {

@@ -1,5 +1,10 @@
 #[cfg(test)]
 mod helpers;
+#[path = "../scripts/interaction/twine_chain_client.rs"]
+mod twine_chain_client;
+use twine_chain_client as twine_chain_instruction;
+#[path = "../scripts/interaction/tokens_gateway_client.rs"]
+mod tokens_gateway_client;
 use borsh::BorshDeserialize;
 use sha3::{Digest, Keccak256};
 use solana_program_test::*;
@@ -7,13 +12,13 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use tokens_gateway_client as tokens_gateway_instruction;
 
 use helpers::tokens_gateway_helper::{
     create_spl_and_mint, fund_account_for_rent_exemption, get_or_create_ata, program_test,
     TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction,
     id as tokens_gateway_id,
     utils::{
         address_derivation::{derive_spl_tokens_vault_data, derive_spl_vault_authority},
@@ -21,10 +26,7 @@ use tokens_gateway::{
     },
 };
 use twine_chain::{
-    core::{
-        instruction as twine_chain_instruction,
-        state::{RoleType, TransactionType, TwineChainStorage},
-    },
+    core::state::{RoleType, TransactionType, TwineChainStorage},
     id as twine_chain_id,
     utils::{address_derivation::derive_twine_chain_storage, constants::MESSAGE_NONCE_GAP},
 };

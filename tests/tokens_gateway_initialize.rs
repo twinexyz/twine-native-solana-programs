@@ -1,17 +1,19 @@
 mod helpers;
+#[path = "../scripts/interaction/tokens_gateway_client.rs"]
+mod tokens_gateway_client;
 use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use tokens_gateway_client as tokens_gateway_instruction;
 
 use helpers::tokens_gateway_helper::{
     fund_account_for_rent_exemption, program_test, TokensGatewayAccounts,
 };
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction,
-    core::state::{TokensGatewayRoleManager,NativeTokenVaultData},
+    core::state::{NativeTokenVaultData, TokensGatewayRoleManager},
     id as tokens_gateway_id,
     utils::address_derivation::{derive_gateway_role_manager, derive_native_token_vault_data},
     utils::constants::ROLE_MANAGER_ACCOUNT_SIZE,
@@ -73,8 +75,9 @@ async fn tokens_gateway_init() {
         844073716442015,
     )
     .await;
-    let instructions =
-        tokens_gateway_instruction::initialize_tokens_gateway(&accounts.chain_admin.pubkey());
+ let mut instructions = tokens_gateway_instruction::initialize_tokens_gateway_role_manager(&accounts.chain_admin.pubkey());
+    instructions.extend(
+        tokens_gateway_instruction::initialize_tokens_gateway(&accounts.chain_admin.pubkey()));
 
     let transaction = Transaction::new_signed_with_payer(
         &instructions,

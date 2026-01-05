@@ -1,8 +1,8 @@
 use crate::utils::{get_default_keypair, get_or_create_ata, get_rpc_client};
+use crate::tokens_gateway_client as tokens_gateway_instruction;
 use anyhow::{Context, Result};
 use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 use tokens_gateway::{
-    core::instruction as tokens_gateway_instruction,
     utils::address_derivation::derive_spl_vault_authority, ID as tokens_gateway_ID,
 };
 

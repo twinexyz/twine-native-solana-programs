@@ -1,3 +1,6 @@
+#[path = "../scripts/interaction/twine_chain_client.rs"]
+mod twine_chain_client;
+use twine_chain_client as twine_chain_instruction;
 use borsh::BorshDeserialize;
 use solana_program_test::*;
 use solana_sdk::{
@@ -7,7 +10,6 @@ use solana_sdk::{
 mod helpers;
 use twine_chain::{
     core::{
-        instruction::{self},
         state::{BatchPdaAccount, TwineChainStorage},
     },
     id,
@@ -36,18 +38,18 @@ async fn commit_finalize_batch_test() {
     let mut instructions = vec![];
 
     // 1. Initialize role manager
-    instructions.extend(instruction::initialize_twine_chain_role_manager(
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_role_manager(
         &accounts.chain_admin.pubkey(),
     ));
 
     // 2. Initialize twine chain storage
-    instructions.extend(instruction::initialize_twine_chain_storage(
+    instructions.extend(twine_chain_instruction::initialize_twine_chain_storage(
         &accounts.chain_admin.pubkey(),
     ));
 
     // 3. Initialize Genesis Batch
     let genesis_block_hash = [0u8; 32];
-    instructions.extend(instruction::initialize_genesis_batch(
+    instructions.extend(twine_chain_instruction::initialize_genesis_batch(
         &accounts.chain_admin.pubkey(),
         genesis_block_hash,
     ));
@@ -63,7 +65,7 @@ async fn commit_finalize_batch_test() {
     public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
     public_values.extend_from_slice(&total_msg_handled_on_twine.to_be_bytes());
 
-    instructions.extend(instruction::commit_and_finalize_batch(
+    instructions.extend(twine_chain_instruction::commit_and_finalize_batch(
         &accounts.chain_admin.pubkey(),
         batch_number,
         public_values.clone(),

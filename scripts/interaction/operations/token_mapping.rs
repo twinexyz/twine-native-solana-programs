@@ -1,7 +1,7 @@
 use crate::utils::{get_default_keypair, get_rpc_client};
+use crate::tokens_gateway_client as tokens_gateway_instruction;
 use anyhow::{Context, Result};
 use solana_sdk::{signature::Signer, transaction::Transaction};
-use tokens_gateway::core::instruction as tokens_gateway_instruction;
 
 pub fn update_token_mapping(
     l1_token: String,
