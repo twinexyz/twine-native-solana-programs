@@ -87,6 +87,8 @@ pub enum ProgramCustomError {
     GreaterCount,
     #[error("Failed to serialize event.")]
     FailedToSerializeEvent,
+    #[error("Invalid nonce sent")]
+    InvalidNonce,
 }
 
 

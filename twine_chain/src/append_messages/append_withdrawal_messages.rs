@@ -52,6 +52,10 @@ pub fn append_forced_withdrawal_message(
         MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
+    if withdraw_info.nonce != withdrawals.message_nonce + 1 {
+        return Err(ProgramCustomError::InvalidNonce.into());
+    }
+
     // Check if withdraw message buffer is initialized
     if !withdrawals.is_initialized() {
         return Err(ProgramCustomError::UninitializedAccount.into());

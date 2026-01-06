@@ -18,7 +18,9 @@ use crate::{
         },
     },
     utils::{
-        address_derivation::{derive_messages_buffer, derive_twine_chain_role_manager, verify_derived_address},
+        address_derivation::{
+            derive_messages_buffer, derive_twine_chain_role_manager, verify_derived_address,
+        },
         constants::DEPOSIT_MESSAGE_TYPE,
     },
 };
@@ -49,6 +51,11 @@ pub fn append_deposit_message(
     let mut messages_buffer =
         MessagesBuffer::deserialize(&mut &messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
+   
+    if deposit_info.nonce != deposits.message_nonce + 1 {
+        return Err(ProgramCustomError::InvalidNonce.into());
+    }
 
     // Check if deposit message buffer is initialized
     if !deposits.is_initialized() {
