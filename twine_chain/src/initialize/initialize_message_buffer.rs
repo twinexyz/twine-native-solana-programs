@@ -9,6 +9,7 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
+    sysvar::Sysvar,
 };
 
 use crate::{
@@ -22,7 +23,10 @@ use crate::{
             derive_twine_chain_role_manager, verify_derived_address, verify_owner,
             verify_system_program,
         },
-        constants::{CHAIN_ID, DETAILED_MESSAGES_BUFFER_PREFIX,MESSAGE_NONCE_GAP_SIZE, MESSAGES_BUFFER_PREFIX},
+        constants::{
+            CHAIN_ID, DETAILED_MESSAGES_BUFFER_PREFIX, MESSAGES_BUFFER_PREFIX,
+            MESSAGE_NONCE_GAP_SIZE,
+        },
     },
 };
 
@@ -43,7 +47,8 @@ pub fn initialize_message_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) 
         chain_admin_acc,
         system_program,
     )?;
-    let rent = Rent::default();
+    
+    let rent = Rent::get()?;
 
     /**************************
      *  Message Buffer *

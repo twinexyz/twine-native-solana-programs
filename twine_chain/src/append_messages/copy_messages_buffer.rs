@@ -75,7 +75,7 @@ pub fn copy_messages_buffer(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     )?;
 
     if messages_replicator_acc.data_is_empty() {
-        let rent = Rent::default();
+        let rent = Rent::get()?;
 
         let (_, deposit_messages_replicator_bump) =
             derive_messages_replicator(program_id, start_nonce, end_nonce);

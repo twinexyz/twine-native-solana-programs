@@ -11,6 +11,7 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
     system_instruction,
+    sysvar::Sysvar,
 };
 
 use crate::{
@@ -49,7 +50,7 @@ pub fn initialize_chain_storage(program_id: &Pubkey, accounts: &[AccountInfo]) -
         system_program,
     )?;
 
-    let rent = Rent::default();
+    let rent = Rent::get()?;
 
     // Create account
     if twine_chain_storage_acc.data_is_empty() {
