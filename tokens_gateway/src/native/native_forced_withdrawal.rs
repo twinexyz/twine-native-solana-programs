@@ -129,13 +129,13 @@ pub fn forced_native_token_withdrawal(
         DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let u64_nonce = forced_withdrawal_messages_buffer.message_nonce + 1;
+    let withdrawal_message_nonce = forced_withdrawal_messages_buffer.message_nonce + 1;
 
     let clock = Clock::get()?;
 
     let withdraw_info = MessageInfo {
         txn_type: TransactionType::Withdraw,
-        nonce: u64_nonce,
+        nonce: withdrawal_message_nonce,
         chain_id: CHAIN_ID,
         slot_number: clock.slot,
         l1_pubkey: to_l1_pubkey,
@@ -147,7 +147,7 @@ pub fn forced_native_token_withdrawal(
     };
 
     let sign_info = SignMessageInfo {
-        nonce: u64_nonce,
+        nonce: withdrawal_message_nonce,
         chain_id: CHAIN_ID,
         amount: amount,
         l1_pubkey: withdraw_info.l1_pubkey.clone(),

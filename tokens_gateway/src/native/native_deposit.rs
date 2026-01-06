@@ -146,12 +146,12 @@ pub fn native_token_deposit(
         DetailedMessagesBuffer::deserialize(&mut &detailed_messages_buffer_acc.data.borrow()[..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    let u64_nonce = deposit_message_buffer.message_nonce + 1;
+    let deposit_message_nonce = deposit_message_buffer.message_nonce + 1;
     let clock = Clock::get()?;
 
     let deposit_info = MessageInfo {
         txn_type: TransactionType::Deposit,
-        nonce: u64_nonce,
+        nonce: deposit_message_nonce,
         chain_id: CHAIN_ID,
         slot_number: clock.slot,
         l1_pubkey: user_account.key.to_string(),
