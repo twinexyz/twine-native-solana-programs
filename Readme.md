@@ -3,10 +3,16 @@
 # Overview
 Twine Chain is a multi-chain settlement network designed to aggregate chains and provide seamless cross-chain liquidity access. This repository contains the bridge and rollup programs for Twine on the Solana blockchain.
 
-# Programs
- - tokens_gateway: bridge program
+## Programs
+- **tokens_gateway**: Bridge program handling asset transfers.
+- **twine_chain**: Rollup program managing state and settlement.
 
- - twine_chain: rollup program
+## Make Commands
+We automate development tasks using a **Makefile**. Most targets are simply shortcuts for standard cargo commands. Run the command below or check the [Makefile](Makefile) to view all options:
+
+```shell
+make
+```
 
 ### 1. Build and Test
 
