@@ -7,6 +7,8 @@ pub enum ProgramCustomError {
     InvalidIndex,
     #[error("Nonce not found")]
     NonceNotFound,
+    #[error("Invalid nonce sent")]
+    InvalidNonce,
     #[error("State root mismatch")]
     InvalidStateRootSequence,
     #[error("Invalid Instruction")]
@@ -17,18 +19,20 @@ pub enum ProgramCustomError {
     InvalidReceiptRoot,
     #[error("Invalid Transaction Type")]
     InvalidTransactionType,
+    #[error("Failed to serialize event.")]
+    FailedToSerializeEvent,
     #[error("Account not initialized yet")]
     UninitializedAccount,
     #[error("Previous Batch Data is empty")]
     EmptyPreviousBatch,
     #[error("Failed to serialize the state")]
     SerializeFailed,
+     #[error("Invalid Token Address Format")]
+    InvalidTokenAddressFormat,
     #[error("Failed to decode public value")]
     PublicValueDecodeFailed,
     #[error("Input data exceeds max length")]
     InvalidDataLength,
-    #[error("Invalid Token Address Format")]
-    InvalidTokenAddressFormat,
     #[error("Finalize in Serial batch order")]
     InvalidBatchSequence,
     #[error("Insufficient Funds for Transfer")]
@@ -85,12 +89,7 @@ pub enum ProgramCustomError {
     WithdrawalAlreadyExecuted,
     #[error("The transaction count is greater than transactions present in the queue")]
     GreaterCount,
-    #[error("Failed to serialize event.")]
-    FailedToSerializeEvent,
-    #[error("Invalid nonce sent")]
-    InvalidNonce,
 }
-
 
 impl From<ProgramCustomError> for ProgramError {
     fn from(e: ProgramCustomError) -> Self {

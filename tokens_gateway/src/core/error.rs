@@ -27,6 +27,8 @@ pub enum ProgramCustomError {
     InvalidTokenAccount,
     #[error("Invalid address provided")]
     InvalidAddress,
+    #[error("Failed to serialize event.")]
+    FailedToSerializeEvent,
     #[error("Receiver account not found")]
     ReceiverAccountNotFound,
     #[error("Withdraw is already executed")]
@@ -67,10 +69,7 @@ pub enum ProgramCustomError {
     InsufficientFunds,
     #[error("The provided public key does not match the expected public key.")]
     PublicKeyMismatch,
-    #[error("Failed to serialize event.")]
-    FailedToSerializeEvent,
 }
-
 
 impl From<ProgramCustomError> for ProgramError {
     fn from(e: ProgramCustomError) -> Self {
