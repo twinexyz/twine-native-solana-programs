@@ -279,7 +279,7 @@ fn validate_accounts(
         detailed_messages_buffer_acc,
     )?;
 
-    verify_system_program(system_program);
+    verify_system_program(system_program)?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);

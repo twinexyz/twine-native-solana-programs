@@ -271,7 +271,7 @@ fn validate_accounts(
     let (expected_token_decimal_mappings, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expected_token_decimal_mappings, token_decimal_mappings_acc)?;
 
-    verify_system_program(system_program);
+    verify_system_program(system_program)?;
 
     let (expected_detailed_message_buffer, _) =
         derive_detailed_messages_buffer(&twine_chain_program_id);
