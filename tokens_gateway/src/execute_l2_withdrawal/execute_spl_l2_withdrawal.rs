@@ -248,7 +248,7 @@ fn validate_accounts(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    verify_system_program(system_program);
+    verify_system_program(system_program)?;
 
     let role_manager_data =
         TwineChainRoleManager::deserialize(&mut &role_manager_acc.data.borrow()[..])

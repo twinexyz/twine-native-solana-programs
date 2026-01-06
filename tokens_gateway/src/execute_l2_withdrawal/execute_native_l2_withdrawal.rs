@@ -238,7 +238,7 @@ fn validate_accounts(
     let (expected_token_decimal_mapping, _) = derive_token_decimal_mappings(program_id);
     verify_derived_address(expected_token_decimal_mapping, token_decimal_mappings_acc)?;
 
-    verify_system_program(system_program);
+    verify_system_program(system_program)?;
 
     if twine_chain_program.key != &twine_chain_program_id {
         return Err(ProgramError::IncorrectProgramId);
