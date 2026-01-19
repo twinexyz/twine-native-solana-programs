@@ -468,15 +468,15 @@ pub fn lz_native_token_deposit(
         // defaultSendConfig
         AccountMeta::new(derive_default_send_config(&params.dst_eid).0, false),
         // payer
-        AccountMeta::new(*user, true),
+        // AccountMeta::new(*user, true),
         // treasury (Optional)
-        AccountMeta::new(*user, false),
+        // AccountMeta::new(*user, false),
         // systemProgram
-        AccountMeta::new_readonly(system_program::ID, false),
+        // AccountMeta::new_readonly(system_program::ID, false),
         // eventAuthority
         AccountMeta::new(derive_library_event_authority().0, false),
         // program
-        AccountMeta::new_readonly(get_send_library_program(), false),
+        // AccountMeta::new_readonly(get_send_library_program(), false),
         // <------------------ Remaining Accounts ------------------------->
         // Executor Program
         AccountMeta::new_readonly(*executor_program, false),
@@ -488,7 +488,7 @@ pub fn lz_native_token_deposit(
         // Price feed Program
         AccountMeta::new_readonly(native_loader_program_id, false),
         // Price feed config
-        AccountMeta::new_readonly(system_program::ID, false),
+        // AccountMeta::new_readonly(system_program::ID, false),
         // DVN program
         AccountMeta::new_readonly(*dvn_program, false),
         // dvn config
@@ -497,9 +497,9 @@ pub fn lz_native_token_deposit(
             false,
         ),
         // Price feed Program
-        AccountMeta::new_readonly(native_loader_program_id, false),
+        // AccountMeta::new_readonly(native_loader_program_id, false),
         // Price feed config
-        AccountMeta::new_readonly(system_program::ID, false),
+        // AccountMeta::new_readonly(system_program::ID, false),
     ];
 
     vec![Instruction {

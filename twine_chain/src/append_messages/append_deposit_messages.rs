@@ -91,6 +91,7 @@ pub fn append_deposit_message(
     Ok(())
 }
 
+
 fn validate_accounts(
     program_id: &Pubkey,
     messages_buffer_acc: &AccountInfo,

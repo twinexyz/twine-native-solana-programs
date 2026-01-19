@@ -113,22 +113,22 @@ pub fn lz_native_token_deposit(
     let uln_acc = next_account_info(account_info_iter)?;
     let send_config_acc = next_account_info(account_info_iter)?;
     let default_send_config_acc = next_account_info(account_info_iter)?;
-    let payer_acc = next_account_info(account_info_iter)?;
-    let treasury_acc = next_account_info(account_info_iter)?;
-    let system_program_acc = next_account_info(account_info_iter)?;
+    // let payer_acc = next_account_info(account_info_iter)?;
+    // let treasury_acc = next_account_info(account_info_iter)?;
+    // let system_program_acc = next_account_info(account_info_iter)?;
     let library_event_authority_acc = next_account_info(account_info_iter)?;
-    let library_program = next_account_info(account_info_iter)?;
+    // let library_program = next_account_info(account_info_iter)?;
 
     // Remaining accounts for dvn and executor
     let executor_program_acc = next_account_info(account_info_iter)?;
     let executor_config_acc = next_account_info(account_info_iter)?;
     let price_feed_executor_acc = next_account_info(account_info_iter)?;
-    let price_feed_config_executor_acc = next_account_info(account_info_iter)?;
+    // let price_feed_config_executor_acc = next_account_info(account_info_iter)?;
 
     let dvn_program_acc = next_account_info(account_info_iter)?;
     let dvn_config_acc = next_account_info(account_info_iter)?;
-    let price_feed_dvn_acc = next_account_info(account_info_iter)?;
-    let price_feed_config_dvn_acc = next_account_info(account_info_iter)?;
+    // let price_feed_dvn_acc = next_account_info(account_info_iter)?;
+    // let price_feed_config_dvn_acc = next_account_info(account_info_iter)?;
 
     // Transfer SOL from user to vault
     let transfer_ix =
@@ -276,11 +276,11 @@ pub fn lz_native_token_deposit(
     append_instruction_accounts.push(AccountMeta::new(*uln_acc.key, false));
     append_instruction_accounts.push(AccountMeta::new(*send_config_acc.key, false));
     append_instruction_accounts.push(AccountMeta::new(*default_send_config_acc.key, false));
-    append_instruction_accounts.push(AccountMeta::new(*payer_acc.key, true));
-    append_instruction_accounts.push(AccountMeta::new(*treasury_acc.key, false));
-    append_instruction_accounts.push(AccountMeta::new_readonly(*system_program_acc.key, false));
+    // append_instruction_accounts.push(AccountMeta::new(*payer_acc.key, true));
+    // append_instruction_accounts.push(AccountMeta::new(*treasury_acc.key, false));
+    append_instruction_accounts.push(AccountMeta::new_readonly(*system_program.key, false));
     append_instruction_accounts.push(AccountMeta::new(*library_event_authority_acc.key, false));
-    append_instruction_accounts.push(AccountMeta::new_readonly(*library_program.key, false));
+    // append_instruction_accounts.push(AccountMeta::new_readonly(*library_program.key, false));
 
     append_instruction_accounts.push(AccountMeta::new_readonly(*executor_program_acc.key, false));
     append_instruction_accounts.push(AccountMeta::new(*executor_config_acc.key, false));
@@ -288,18 +288,18 @@ pub fn lz_native_token_deposit(
         *price_feed_executor_acc.key,
         false,
     ));
-    append_instruction_accounts.push(AccountMeta::new_readonly(
-        *price_feed_config_executor_acc.key,
-        false,
-    ));
+    // append_instruction_accounts.push(AccountMeta::new_readonly(
+    //     *price_feed_config_executor_acc.key,
+    //     false,
+    // ));
 
     append_instruction_accounts.push(AccountMeta::new_readonly(*dvn_program_acc.key, false));
     append_instruction_accounts.push(AccountMeta::new(*dvn_config_acc.key, false));
-    append_instruction_accounts.push(AccountMeta::new_readonly(*price_feed_dvn_acc.key, false));
-    append_instruction_accounts.push(AccountMeta::new_readonly(
-        *price_feed_config_dvn_acc.key,
-        false,
-    ));
+    // append_instruction_accounts.push(AccountMeta::new_readonly(*price_feed_dvn_acc.key, false));
+    // append_instruction_accounts.push(AccountMeta::new_readonly(
+    //     *price_feed_config_dvn_acc.key,
+    //     false,
+    // ));
 
     let append_instruction = Instruction {
         program_id: *twine_chain_program.key,
@@ -328,19 +328,19 @@ pub fn lz_native_token_deposit(
             uln_acc.clone(),
             send_config_acc.clone(),
             default_send_config_acc.clone(),
-            payer_acc.clone(),
-            treasury_acc.clone(),
-            system_program_acc.clone(),
+            // payer_acc.clone(),
+            // treasury_acc.clone(),
+            system_program.clone(),
             library_event_authority_acc.clone(),
-            library_program.clone(),
+            // library_program.clone(),
             executor_program_acc.clone(),
             executor_config_acc.clone(),
             price_feed_executor_acc.clone(),
-            price_feed_config_executor_acc.clone(),
+            // price_feed_config_executor_acc.clone(),
             dvn_program_acc.clone(),
             dvn_config_acc.clone(),
-            price_feed_dvn_acc.clone(),
-            price_feed_config_dvn_acc.clone(),
+            // price_feed_dvn_acc.clone(),
+            // price_feed_config_dvn_acc.clone(),
         ],
         signer_seeds,
     )?;
@@ -397,7 +397,7 @@ fn validate_accounts(
 
     verify_system_program(system_program)?;
 
-    let (expected_layer_zero_pda, _) = derive_layer_zero_info(program_id);
+    let (expected_layer_zero_pda, _) = derive_layer_zero_info(&twine_chain_program_id);
     verify_derived_address(expected_layer_zero_pda, layer_zero_info_acc)?;
 
     if twine_chain_program.key != &twine_chain_program_id {

@@ -230,11 +230,6 @@ deposit-spl-token:
 	@echo "Depositing SPL tokens..."
 	$(CARGO) run --bin interaction -- deposit-spl-token "$(l1_token)" "$(l2_token)" "$(receiver_twine_address)" "$(user_token_account)" "$(amount)" "$(data)"
 
-# Usage: make lz-deposit-native-token l2_token=l2_token_here receiver_address=receiver_address_here amount=amount_here data=data_here
-lz-deposit-native-token:
-	@echo "Depositing native tokens with LayerZero..."
-	$(CARGO) run --bin interaction -- lz-deposit-native-token "$(SOL_PUBKEY)" "$(l2_token)" "$(receiver_address)" "$(amount)" "$(data)"
-
 # Usage: make lz-deposit-spl-token l1_token=l1_token_here l2_token=l2_token_here receiver_twine_address=receiver_address_here user_token_account=user_token_account_here amount=amount_here data=data_here
 lz-deposit-spl-token:
 	@echo "Depositing SPL tokens with LayerZero..."
@@ -413,3 +408,15 @@ set-config:
 send-message:
 	@echo "Setting Config..."
 	$(CARGO) run --bin interaction -- send-message
+
+# ==============================
+#    	 Lz Operations
+# ==============================
+create-alt:
+	@echo "Creating ALT"
+	$(CARGO) run --bin interaction -- create-and-extend-alt
+
+# Usage: make lz-deposit-native-token l2_token=l2_token_here receiver_address=receiver_address_here amount=amount_here data=data_here
+lz-deposit-native-token:
+	@echo "Depositing native tokens with LayerZero..."
+	$(CARGO) run --bin interaction -- native-token-deposit-using-lz-alt "$(SOL_PUBKEY)" "$(l2_token)" "$(receiver_address)" "$(amount)" "$(data)"

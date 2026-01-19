@@ -32,3 +32,5 @@ pub mod lz_forced_native_withdrawal;
 pub mod lz_forced_spl_withdrawal;
 
 pub mod set_layer_zero_info;
+pub mod alt_setup;
+pub mod alt_deposit;

@@ -4,4 +4,4 @@ pub mod setters;
 pub mod initialize;
 pub mod message_handlers;
 
-solana_program::declare_id!("4cFH5WzdNasusB8VuKoqDJZPzHFoi8eb8wZUSKw6dp8x");
+solana_program::declare_id!("FZcXk3y5xWMTEQX13iMq9M3YkuveVNKpb7XyhufEfvy3");

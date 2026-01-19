@@ -128,7 +128,8 @@ pub enum Commands {
     },
 
     // Layer Zero Methods:
-    LzDepositNativeToken {
+    CreateAndExtendAlt{},
+    NativeTokenDepositUsingLzAlt {
         l1_token: String,
         l2_token: String,
         receiver_twine_address: String,

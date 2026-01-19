@@ -65,22 +65,22 @@ pub fn append_lz_deposit_message(
     let uln_acc = next_account_info(account_info_iter)?;
     let send_config_acc = next_account_info(account_info_iter)?;
     let default_send_config_acc = next_account_info(account_info_iter)?;
-    let payer_acc = next_account_info(account_info_iter)?;
-    let treasury_acc = next_account_info(account_info_iter)?;
+    // let payer_acc = next_account_info(account_info_iter)?;
+    // let treasury_acc = next_account_info(account_info_iter)?;
     let system_program_acc = next_account_info(account_info_iter)?;
     let library_event_authority_acc = next_account_info(account_info_iter)?;
-    let library_program = next_account_info(account_info_iter)?;
+    // let library_program = next_account_info(account_info_iter)?;
 
     // Remaining accounts for dvn and executor
     let executor_program_acc = next_account_info(account_info_iter)?;
     let executor_config_acc = next_account_info(account_info_iter)?;
     let price_feed_executor_acc = next_account_info(account_info_iter)?;
-    let price_feed_config_executor_acc = next_account_info(account_info_iter)?;
+    // let price_feed_config_executor_acc = next_account_info(account_info_iter)?;
 
     let dvn_program_acc = next_account_info(account_info_iter)?;
     let dvn_config_acc = next_account_info(account_info_iter)?;
-    let price_feed_dvn_acc = next_account_info(account_info_iter)?;
-    let price_feed_config_dvn_acc = next_account_info(account_info_iter)?;
+    // let price_feed_dvn_acc = next_account_info(account_info_iter)?;
+    // let price_feed_config_dvn_acc = next_account_info(account_info_iter)?;
 
     // Deserialize account data
     let mut deposits =
@@ -164,11 +164,11 @@ pub fn append_lz_deposit_message(
     cpi_accounts.push(AccountMeta::new(*uln_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*send_config_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*default_send_config_acc.key, false));
-    cpi_accounts.push(AccountMeta::new(*payer_acc.key, true));
-    cpi_accounts.push(AccountMeta::new(*treasury_acc.key, false));
+    cpi_accounts.push(AccountMeta::new(*initializer_acc.key, true));
+    cpi_accounts.push(AccountMeta::new(*initializer_acc.key, false));
     cpi_accounts.push(AccountMeta::new_readonly(*system_program_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*library_event_authority_acc.key, false));
-    cpi_accounts.push(AccountMeta::new_readonly(*library_program.key, false));
+    cpi_accounts.push(AccountMeta::new_readonly(*send_library_program_acc.key, false));
 
     cpi_accounts.push(AccountMeta::new_readonly(*executor_program_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*executor_config_acc.key, false));
@@ -177,15 +177,15 @@ pub fn append_lz_deposit_message(
         false,
     ));
     cpi_accounts.push(AccountMeta::new_readonly(
-        *price_feed_config_executor_acc.key,
+        *system_program_acc.key,
         false,
     ));
 
     cpi_accounts.push(AccountMeta::new_readonly(*dvn_program_acc.key, false));
     cpi_accounts.push(AccountMeta::new(*dvn_config_acc.key, false));
-    cpi_accounts.push(AccountMeta::new_readonly(*price_feed_dvn_acc.key, false));
+    cpi_accounts.push(AccountMeta::new_readonly(*price_feed_executor_acc.key, false));
     cpi_accounts.push(AccountMeta::new_readonly(
-        *price_feed_config_dvn_acc.key,
+        *system_program_acc.key,
         false,
     ));
 
@@ -211,19 +211,19 @@ pub fn append_lz_deposit_message(
             uln_acc.clone(),
             send_config_acc.clone(),
             default_send_config_acc.clone(),
-            payer_acc.clone(),
-            treasury_acc.clone(),
+            initializer_acc.clone(),
+            initializer_acc.clone(),
             system_program_acc.clone(),
             library_event_authority_acc.clone(),
-            library_program.clone(),
+            send_library_program_acc.clone(),
             executor_program_acc.clone(),
             executor_config_acc.clone(),
             price_feed_executor_acc.clone(),
-            price_feed_config_executor_acc.clone(),
+            system_program_acc.clone(),
             dvn_program_acc.clone(),
             dvn_config_acc.clone(),
-            price_feed_dvn_acc.clone(),
-            price_feed_config_dvn_acc.clone(),
+            price_feed_executor_acc.clone(),
+            system_program_acc.clone(),
         ],
     )?;
 

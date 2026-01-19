@@ -76,7 +76,9 @@ hex                          = { workspace = true }
 dirs                         = "5"
 sha3                         = { workspace = true }
 borsh                        = { workspace = true }
-
+solana-address-lookup-table-program = "2.2.1"
+solana-message = "2.2.1"
+solana-transaction-status = "2.2.1"
 
 [dev-dependencies]
 borsh                        = { workspace = true }

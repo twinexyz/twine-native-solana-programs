@@ -1,6 +1,8 @@
 use crate::action_commands::Commands;
+use crate::operations::alt_setup::create_and_extend_alt;
 use crate::operations::set_layer_zero_info::set_layer_zero_info;
 use crate::operations::{
+    alt_deposit::native_token_deposit_using_lz_alt,
     copy_messages_buffer::copy_messages_buffer,
     create_spl_token::create_spl_token,
     deposit_native_token::native_token_deposit,
@@ -17,7 +19,6 @@ use crate::operations::{
         get_twine_chain_role_manager_data, get_twine_chain_storage_data,
     },
     initialize_programs::initialize_twine_solana_programs,
-    lz_deposit_native_token::lz_native_token_deposit,
     lz_deposit_spl_token::lz_spl_token_deposit,
     lz_forced_native_withdrawal::lz_forced_native_withdrawal,
     lz_forced_spl_withdrawal::lz_forced_spl_withdrawal,
@@ -325,15 +326,20 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             let result = send_message();
             println!("Result: {:?}", result);
         }
-        Commands::LzDepositNativeToken {
+        Commands::NativeTokenDepositUsingLzAlt {
             l1_token,
             l2_token,
             receiver_twine_address,
             amount,
             data,
         } => {
-            let result =
-                lz_native_token_deposit(l1_token, l2_token, receiver_twine_address, amount, data);
+            let result = native_token_deposit_using_lz_alt(
+                l1_token,
+                l2_token,
+                receiver_twine_address,
+                amount,
+                data,
+            );
             println!("Result: {:?}", result);
         }
         Commands::LzDepositSplToken {
@@ -395,6 +401,10 @@ pub fn handle_command(command: Commands) -> anyhow::Result<()> {
             dst_oapp_address,
         } => {
             let result = set_layer_zero_info(dst_eid, dst_oapp_address);
+            println!("Result: {:?}", result);
+        }
+        Commands::CreateAndExtendAlt {} => {
+            let result = create_and_extend_alt();
             println!("Result: {:?}", result);
         }
     }
